@@ -1,0 +1,65 @@
+# 해당 파이프라인은 GitLab CI Template 프로젝트에서 가져와서 설정하기 때문에 프로젝트 접근 권한이 있어야합니다.
+# 만약 접근 권한이 없을 경우, 해당 CI 파일을 직접 가져와서 로컬에서 사용해도 됩니다.
+# 또한 GitLab CI 파이프라인은 overriding이 가능하기때문에 템플릿을 가져와서 커스텀을 할 수도 있습니다.
+# 참고: https://docs.gitlab.com/ee/ci/variables/#cicd-variable-precedence
+
+stages:
+  - secret_detection
+  - lint
+  - test
+  - build-and-push-app
+  - container_test
+  - triage-dry-run
+  - generate-openapi-docs-html
+  - build-and-push-mkdocs
+  - triage-run
+
+
+include:
+  - project: wisenut-research/starter/templates/gitlab-ci-template
+    ref: main
+    file:
+      - templates/Security/Secret-Detection.gitlab-ci.yml
+      - templates/Python/Dependency-Management.gitlab-ci.yml
+      - templates/Python/Lint/Uv-Lint.gitlab-ci.yml
+      - templates/Python/Test/Uv-Test.gitlab-ci.yml
+      - templates/Python/Openapi/Uv-Openapi.gitlab-ci.yml
+      - templates/Security/Container-Scanning.gitlab-ci.yml
+      - templates/Mkdocs/api/Openapi-Docs.gitlab-ci.yml
+      - templates/Mkdocs/common/Mkdocs.gitlab-ci.yml
+      - templates/Python/Build-and-Push-App.gitlab-ci.yml
+  - component: gitlab.com/components/gitlab-triage/gitlab-triage@main
+    inputs:
+      stage: triage-dry-run
+      api_token: $ROOT_BOT_TOKEN   # $ROOT_ROOT_BOT_TOKEN: bot 실행을 위한 Access Token 이름
+      debug: true
+      dry_run: true
+      helpers_file: ./.gitlab/helpers.rb
+      job_suffix: ':dry-run'
+    rules:
+      - if: $CI_PIPELINE_SOURCE != "schedule"
+  - component: gitlab.com/components/gitlab-triage/gitlab-triage@main
+    inputs:
+      stage: triage-run
+      api_token: $ROOT_BOT_TOKEN
+      debug: true
+      helpers_file: ./.gitlab/helpers.rb
+      job_suffix: ':schedule'
+    rules:
+      - if: $CI_PIPELINE_SOURCE == "schedule"
+
+# Python FastAPI Template은 기본적으로 여러 Python 버전 호환성을 체크합니다.
+# 특정 버전만 테스트하려면 아래 설정의 주석을 제거하고 원하는 버전을 지정하세요.
+# 자세한 내용은 mkdocs의 test 페이지를 참고하세요.
+#ruff-lint:
+#  parallel:
+#    matrix:
+#      - PYTHON_VERSION: [ "py312" ]  # 기본값: ["py39", "py310", "py311", "py312"]
+#pyright-lint:
+#  parallel:
+#    matrix:
+#      - PYTHON_VERSION: [ "3.12" ]  # 기본값: ["3.9", "3.10", "3.11", "3.12"]
+#pytest:
+#  parallel:
+#    matrix:
+#      - PYTHON_VERSION: [ "3.12" ]  # 기본값: ["3.9", "3.10", "3.11", "3.12"]

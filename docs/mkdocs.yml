@@ -1,0 +1,97 @@
+site_name: Python FastAPI Template
+site_dir: public
+theme:
+  name: material
+  custom_dir: overrides
+  features:
+    - content.code.copy
+  favicon: ./images/wisenut_icon.ico
+  logo: ./images/wisenut_logo.png
+markdown_extensions:
+  # code block
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  # emoji
+  - attr_list
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.superfences:
+      custom_fences:
+        - name: mermaid
+          class: mermaid
+          format: !!python/name:pymdownx.superfences.fence_code_format
+          # admonition
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+# 'mike' for versioning
+extra:
+  version:
+    provider: mike
+nav:
+  - HOME: './index.md'
+  - Quick Start: './start/quick-start.md'
+  - Getting Started: './start/getting-started.md'
+  - Guide:
+      - Project Structure: './guide/project-structure.md'
+      - GitLab CI/CD pipeline: './guide/ci-cd.md'
+      - Docker: './guide/docker.md'
+      - Gunicorn: './guide/gunicorn.md'
+      - Pre-commit: './guide/pre-commit.md'
+      - Automation Bot: './guide/automation-bot.md'
+      - Mkdocs: './guide/mkdocs.md'
+      - Secret Detection: './guide/secret-detection.md'
+      - Test: './guide/test.md'
+  - Docstrings: './docstring.md'
+  - API Docs: './api/docs.html'
+
+plugins:
+  - mike:
+      # These fields are all optional; the defaults are as below...
+      alias_type: symlink
+      redirect_template: null
+      deploy_prefix: 'public'
+      canonical_version: null
+      version_selector: true
+      css_dir: css
+      javascript_dir: js
+  - search:
+      lang: [ 'en', 'ko' ]  # 다국어 지원 (한국어 검색 가능하게 설정)
+      separator: '[\s\-]+'
+  - mkdocstrings:
+      default_handler: python
+      handlers:
+        python:
+          paths: [ .. ]
+          options:
+            docstring_style: google  # docstring 스타일을 Google 스타일로 설정
+            docstring_options:
+              ignore_init_summary: false  # 클래스의 __init__ docstring도 포함
+            show_root_heading: true  # 최상위 헤딩 표시 여부
+            show_source: true # 소스 코드 표시 여부
+            docstring_section_style: table  # docstring 섹션 스타일을 테이블 설정 여부
+            merge_init_into_class: false  # 클래스의 __init__ docstring을 클래스 docstring을 병합 여부
+            show_if_no_docstring: false  # docstring이 없는 경우 표시 여부
+            parameter_headings: false # 파라미터 헤딩 표시 여부
+            show_root_toc_entry: true # 최상위 목차 항목 표시 여부
+            show_root_members_full_path: false  # 최상위 멤버의 전체 경로 표시 여부
+            show_object_full_path: false  # 객체의 전체 경로 표시 여부
+            group_by_category: true # 카테고리별 그룹화 여부
+            show_category_heading: true # 카테고리 헤딩 표시 여부
+            show_symbol_type_heading: true  # 심볼 타입 헤딩 표시 여부
+            show_symbol_type_toc: true  # 심볼 타입 목차 표시 여부
+            show_inheritance_diagram: true  # 상속 다이어그램 표시 여부
+            backlinks: tree # 백링크 설정
+            modernize_annotations: true # 현대화된 주석 설정
+            show_signature: true  # 서명 표시 여부
+            separate_signature: true  # 서명 분리 여부
+            show_signature_annotations: true  # 서명 주석 표시 여부
+
+watch:
+  - ../app
