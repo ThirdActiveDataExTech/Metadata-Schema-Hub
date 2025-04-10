@@ -1,4 +1,4 @@
-# Python FastAPI Template
+# Metadata Schema Hub
 
 [![Python Version](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org/downloads/)
 
