@@ -21,7 +21,7 @@ services:
       TZ: Asia/Seoul
       LANG: en_US.utf8
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - pgdata-postgres17:/var/lib/postgresql/data
       # - ./initdb:/docker-entrypoint-initdb.d # todo create table 필요할 경우

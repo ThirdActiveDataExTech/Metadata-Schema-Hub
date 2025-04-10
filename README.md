@@ -19,6 +19,25 @@
 
 ### 1. Install Requirements
 
+### docker compose 및 psql 구성
+
+- Docker 및 Docker Compose v2가 설치되어 있어야 함
+
+```shell
+$ docker compose up -d
+```
+
+- psql 삭제 방법
+```shell
+$ docker compose down
+```
+
+#### 접근 방법 
+
+- `postgresql://admin:admin@localhost:15432/datagokr` 에 DB 접근 도구로 접근
+
+### UV
+
 #### macOS and Linux
 
 ```bash
