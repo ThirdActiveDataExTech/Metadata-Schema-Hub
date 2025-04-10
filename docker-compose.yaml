@@ -24,7 +24,7 @@ services:
       - "15432:5432"
     volumes:
       - pgdata-postgres17:/var/lib/postgresql/data
-      # - ./initdb:/docker-entrypoint-initdb.d # todo create table 필요할 경우
+      - ./initdb:/docker-entrypoint-initdb.d # todo create table 필요할 경우
 
   adminer:
     image: adminer
