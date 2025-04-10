@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:dct="http://purl.org/dc/terms/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dcat="http://www.w3.org/ns/dcat#" xmlns:vcard="http://www.w3.org/2006/vcard/ns#">
+    <dcat:Catalog>
+        <dcat:dataset>
+            <dcat:Dataset>
+                <dct:description xml:lang="kr">신에너지 및 재생에너지 개발ㆍ이용ㆍ보급 촉진법 및 지방자치단체 조례 등에 따라 설치된 태양광 설비 정보</dct:description>
+                <dct:description xml:lang="en">Please refer to the full text of [Public Data Provision Standard] for public data provision standard data attribute information (permissible value, expression format/unit, etc.). (Public Data Portal>Information Sharing>Data Center)</dct:description>
+                <dct:title xml:lang="kr">전국태양광발전소전기사업허가정보표준데이터</dct:title>
+                <dct:title xml:lang="en">National solar power plant electricity business license information standard data</dct:title>
+                
+                <dct:modified rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2025-03-28</dct:modified>
+                <dct:publisher>
+                    <foaf:Organization>
+                        
+                        <foaf:name>지방자치단체</foaf:name>
+                    </foaf:Organization>
+                </dct:publisher>
+                
+                <dct:conformsTo >신에너지 및 재생에너지 개발ㆍ이용ㆍ보급 촉진법, 태양광 설비의 설치 및 관리 등에 관한 조례</dct:conformsTo>
+                <dcat:theme>산업·통상·중소기업 - 에너지및자원개발</dcat:theme>
+                <dcat:keyword xml:lang="kr">에너지,태양광,전기사업</dcat:keyword>
+                <dcat:keyword xml:lang="en">energy,sunlight,electricity business</dcat:keyword>
+                
+                
+                <dct:accrualPeriodicity>연간</dct:accrualPeriodicity>
+                <dcat:landingPage rdf:resource="https://www.data.go.kr/data/15107742/standard.do"/>
+                
+                
+                
+            </dcat:Dataset>
+        </dcat:dataset>
+
+        
+    </dcat:Catalog>
+</rdf:RDF>

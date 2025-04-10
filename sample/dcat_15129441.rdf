@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:dct="http://purl.org/dc/terms/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dcat="http://www.w3.org/ns/dcat#" xmlns:vcard="http://www.w3.org/2006/vcard/ns#">
+    <dcat:Catalog>
+        <dcat:dataset>
+            <dcat:Dataset>
+                <dct:description xml:lang="kr">지방자치단체에서 관리하는 주유소 정보</dct:description>
+                <dct:description xml:lang="en">For public data provision standard data attribute information (allowable values, expression format/unit, etc.), please refer to the full text of [Public Data Provision Standards]. [New] This dataset is a newly established dataset in accordance with the 18th Public Data Provision Standard (24.6), and the data is scheduled to be opened by the provider in the future.</dct:description>
+                <dct:title xml:lang="kr">전국주유소표준데이터</dct:title>
+                <dct:title xml:lang="en">National gas station standard data</dct:title>
+                
+                <dct:modified rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2025-02-11</dct:modified>
+                <dct:publisher>
+                    <foaf:Organization>
+                        
+                        <foaf:name>지방자치단체</foaf:name>
+                    </foaf:Organization>
+                </dct:publisher>
+                
+                <dct:conformsTo >석유 및 석유대체연료 사업법 시행령</dct:conformsTo>
+                <dcat:theme>산업·통상·중소기업 - 에너지및자원개발</dcat:theme>
+                <dcat:keyword xml:lang="kr">주유소,유류,주유</dcat:keyword>
+                <dcat:keyword xml:lang="en">gas station,oil,oiling</dcat:keyword>
+                
+                
+                <dct:accrualPeriodicity>연간</dct:accrualPeriodicity>
+                <dcat:landingPage rdf:resource="https://www.data.go.kr/data/15129441/standard.do"/>
+                
+                
+                
+            </dcat:Dataset>
+        </dcat:dataset>
+
+        
+    </dcat:Catalog>
+</rdf:RDF>

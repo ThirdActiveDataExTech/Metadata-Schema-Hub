@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:dct="http://purl.org/dc/terms/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dcat="http://www.w3.org/ns/dcat#" xmlns:vcard="http://www.w3.org/2006/vcard/ns#">
+    <dcat:Catalog>
+        <dcat:dataset>
+            <dcat:Dataset>
+                <dct:description xml:lang="kr">지방자치단체에서 관리하는 재난 예보 및 경보 시설 정보</dct:description>
+                <dct:description xml:lang="en">For information on standard data attribute information (allowable values, expression format/unit, etc.) for providing public data, please refer to the [Public Data Provision Standard] document.</dct:description>
+                <dct:title xml:lang="kr">전국재난예경보시설표준데이터</dct:title>
+                <dct:title xml:lang="en">National Disaster Forecasting and Warning Facility Standard Data</dct:title>
+                
+                <dct:modified rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2025-02-26</dct:modified>
+                <dct:publisher>
+                    <foaf:Organization>
+                        
+                        <foaf:name>지방자치단체</foaf:name>
+                    </foaf:Organization>
+                </dct:publisher>
+                
+                <dct:conformsTo >재난 및 안전관리 기본법, 지방자치단체 재난 예보·경보시설 설치 및 운영에 관한 조례</dct:conformsTo>
+                <dcat:theme>공공질서및안전 - 안전관리</dcat:theme>
+                <dcat:keyword xml:lang="kr">재난,재난예경보시설,재난경보</dcat:keyword>
+                <dcat:keyword xml:lang="en">calamity,Disaster warning facility,Disaster warning</dcat:keyword>
+                
+                
+                <dct:accrualPeriodicity>연간</dct:accrualPeriodicity>
+                <dcat:landingPage rdf:resource="https://www.data.go.kr/data/15139215/standard.do"/>
+                
+                
+                
+            </dcat:Dataset>
+        </dcat:dataset>
+
+        
+    </dcat:Catalog>
+</rdf:RDF>

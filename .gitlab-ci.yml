@@ -51,15 +51,15 @@ include:
 # Python FastAPI Template은 기본적으로 여러 Python 버전 호환성을 체크합니다.
 # 특정 버전만 테스트하려면 아래 설정의 주석을 제거하고 원하는 버전을 지정하세요.
 # 자세한 내용은 mkdocs의 test 페이지를 참고하세요.
-#ruff-lint:
-#  parallel:
-#    matrix:
-#      - PYTHON_VERSION: [ "py312" ]  # 기본값: ["py39", "py310", "py311", "py312"]
-#pyright-lint:
-#  parallel:
-#    matrix:
-#      - PYTHON_VERSION: [ "3.12" ]  # 기본값: ["3.9", "3.10", "3.11", "3.12"]
-#pytest:
-#  parallel:
-#    matrix:
-#      - PYTHON_VERSION: [ "3.12" ]  # 기본값: ["3.9", "3.10", "3.11", "3.12"]
+ruff-lint:
+  parallel:
+    matrix:
+      - PYTHON_VERSION: [ "py311" ]  # 기본값: ["py39", "py310", "py311", "py312"]
+pyright-lint:
+  parallel:
+    matrix:
+      - PYTHON_VERSION: [ "3.11" ]  # 기본값: ["3.9", "3.10", "3.11", "3.12"]
+pytest:
+  parallel:
+    matrix:
+      - PYTHON_VERSION: [ "3.11" ]  # 기본값: ["3.9", "3.10", "3.11", "3.12"]

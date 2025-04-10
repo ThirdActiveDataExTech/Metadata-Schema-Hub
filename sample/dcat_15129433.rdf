@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rdf:RDF xmlns:foaf="http://xmlns.com/foaf/0.1/" xmlns:dct="http://purl.org/dc/terms/" xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dcat="http://www.w3.org/ns/dcat#" xmlns:vcard="http://www.w3.org/2006/vcard/ns#">
+    <dcat:Catalog>
+        <dcat:dataset>
+            <dcat:Dataset>
+                <dct:description xml:lang="kr">지방자치단체에서 관리하는 일반화물 운송사업자 현황 정보</dct:description>
+                <dct:description xml:lang="en">For public data provision standard data attribute information (allowable values, expression format/unit, etc.), please refer to the full text of [Public Data Provision Standards]. [New] This dataset is a newly established dataset in accordance with the 18th Public Data Provision Standard (24.6), and the data is scheduled to be opened by the provider in the future.</dct:description>
+                <dct:title xml:lang="kr">전국화물자동차운송사업자표준데이터</dct:title>
+                <dct:title xml:lang="en">National truck transport business standard data</dct:title>
+                
+                <dct:modified rdf:datatype="http://www.w3.org/2001/XMLSchema#date">2025-01-23</dct:modified>
+                <dct:publisher>
+                    <foaf:Organization>
+                        
+                        <foaf:name>지방자치단체</foaf:name>
+                    </foaf:Organization>
+                </dct:publisher>
+                
+                <dct:conformsTo >화물자동차운수사업법</dct:conformsTo>
+                <dcat:theme>교통및물류 - 물류등기타</dcat:theme>
+                <dcat:keyword xml:lang="kr">화물,화물자동차,화물운송</dcat:keyword>
+                <dcat:keyword xml:lang="en">freight,freight car,cargo transportation</dcat:keyword>
+                
+                
+                <dct:accrualPeriodicity>연간</dct:accrualPeriodicity>
+                <dcat:landingPage rdf:resource="https://www.data.go.kr/data/15129433/standard.do"/>
+                
+                
+                
+            </dcat:Dataset>
+        </dcat:dataset>
+
+        
+    </dcat:Catalog>
+</rdf:RDF>
