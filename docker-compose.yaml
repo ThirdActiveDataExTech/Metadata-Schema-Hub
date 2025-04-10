@@ -1,0 +1,40 @@
+# Use postgres/example user/password credentials
+version: '3.9'
+
+services:
+
+  postgres-174:
+    image: postgres:17.4
+    restart: unless-stopped
+    # set shared memory limit when using docker-compose
+    shm_size: 128mb
+    # or set shared memory limit when deploy via swarm stack
+    #volumes:
+    #  - type: tmpfs
+    #    target: /dev/shm
+    #    tmpfs:
+    #      size: 134217728 # 128*2^20 bytes = 128Mb
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: datagokr
+      TZ: Asia/Seoul
+      LANG: en_US.utf8
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata-postgres17:/var/lib/postgresql/data
+      # - ./initdb:/docker-entrypoint-initdb.d # todo create table 필요할 경우
+
+  adminer:
+    image: adminer
+    environment:
+      TZ: Asia/Seoul
+      LANG: en_US.utf8
+    restart: always
+    ports:
+      - 8888:8080
+
+
+volumes:
+  pgdata-postgres17:
