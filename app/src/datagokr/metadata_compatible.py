@@ -136,7 +136,7 @@ def process_metadata(list_id, list_type='standard', db_url=None, result_path: st
 # 실행 예제
 if __name__ == "__main__":
     # 설정
-    DB_URL = "postgresql://admin:admin@211.39.140.175:15432/postgres"
+    db_url = config.DB_URL
 
     # 경로 설정
     current_path = pathlib.Path(__file__)
@@ -160,18 +160,18 @@ if __name__ == "__main__":
 
         # 예제 2: 단일 ID 처리
         # 모든 형식 처리
-        results = process_metadata(list_id=list_id_1, list_type="standard", db_url=DB_URL)
+        results = process_metadata(list_id=list_id_1, list_type="standard", db_url=db_url)
         print(f"처리 결과: {results}")
 
         # 특정 형식만 처리
-        openschema_result = process_metadata(list_id=list_id_2, list_type="standard", db_url=DB_URL,
+        openschema_result = process_metadata(list_id=list_id_2, list_type="standard", db_url=db_url,
                                              result_path=sample_path, process_type='openschema')
         print(f"OpenSchema 처리 결과: {openschema_result}")
 
-        dcat_result = process_metadata(list_id=list_id_3, list_type="standard", db_url=DB_URL,
+        dcat_result = process_metadata(list_id=list_id_3, list_type="standard", db_url=db_url,
                                        result_path=sample_path, process_type='dcat')
         print(f"DCAT 처리 결과: {dcat_result}")
 
     # 예제 3: 메타데이터 CSV 내보내기
-    csv_path = export_to_csv(os.path.join(sample_path, "all_catalog_entries.csv"), DB_URL)
+    csv_path = export_to_csv(os.path.join(sample_path, "all_catalog_entries.csv"), db_url)
     print(f"내보낸 CSV 파일 경로: {csv_path}")

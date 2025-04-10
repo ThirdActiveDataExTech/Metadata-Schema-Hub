@@ -235,7 +235,7 @@ if __name__ == "__main__":
 
     raw_list_path = os.path.join(sample_path, 'standard_list.parquet')
 
-    psql_host = 'postgresql://admin:admin@211.39.140.175:15432/postgres'
+    psql_host = config.DB_URL
 
     # 임시 디렉토리 생성하여 작업
     with tempfile.TemporaryDirectory() as temp_dir:
