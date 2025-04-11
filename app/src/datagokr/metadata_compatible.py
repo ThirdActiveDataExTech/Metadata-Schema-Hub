@@ -12,9 +12,9 @@ from sqlmodel import Session
 from app.schemas.catalog_entry import CatalogEntry
 from app.src.datagokr.config import config
 from app.src.datagokr.dcat_processor import parse_dcat_xml
-from app.src.datagokr.extractor import export_to_csv, get_openschema_org, get_dcat
+from app.src.datagokr.extractor import export_to_csv, get_openschema_org, get_dcat, download_metadata
 from app.src.datagokr.openschema_processor import parse_openschema_json
-from app.src.datagokr.tranform import sample_data
+from app.src.datagokr.util import sample_data
 
 
 def import_to_database(data, engine):
@@ -157,6 +157,11 @@ if __name__ == "__main__":
         list_id_1 = list_df["list_id"].iloc[0]
         list_id_2 = list_df["list_id"].iloc[1]
         list_id_3 = list_df["list_id"].iloc[2]
+
+        # 4. 메타데이터 저장
+        list_id_1_openschema, list_id_1_dcat = download_metadata(list_id_1, "standard", sample_path)
+        list_id_2_openschema, list_id_2_dcat = download_metadata(list_id_2, "standard", sample_path)
+        list_id_3_openschema, list_id_3_dcat = download_metadata(list_id_3, "standard", sample_path)
 
         # 예제 2: 단일 ID 처리
         # 모든 형식 처리

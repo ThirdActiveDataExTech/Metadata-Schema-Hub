@@ -4,47 +4,14 @@ import pathlib
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Callable
+from typing import Dict, Callable, List, Any
 
 import pandas as pd
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine, text, event
 
 from app.src.datagokr.config import config
-from extractor import get_openschema_org, get_dcat
-
-
-def sample_data(df_path: str, output_dir: str | Path, sample_size: int = 5) -> str:
-    """데이터프레임에서 샘플링을 수행하고 파일로 저장합니다.
-
-    입력 파일의 이름에 '_sample' 접미사를 추가하여 샘플 파일을 저장합니다.
-
-    Args:
-        df_path (str): 원본 데이터 파일 경로
-        output_dir (str | Path): 샘플 데이터를 저장할 디렉토리
-        sample_size (int, optional): 샘플링할 데이터 크기. 기본값은 5.
-
-    Returns:
-        str: 저장된 샘플 파일의 경로
-    """
-    # Parquet 파일 읽기
-    df = pd.read_parquet(df_path)
-
-    # 샘플링 수행
-    df_sample = df.head(sample_size)
-
-    # 저장 경로 확인 및 생성
-    output_dir = Path(output_dir)
-    output_dir.mkdir(parents=True, exist_ok=True)
-
-    # 원본 파일 이름 가져오기
-    original_filename = Path(df_path).stem
-
-    # 샘플 데이터 저장 - 원본 파일명_sample.parquet 형식으로 저장
-    df_sample_path = output_dir / f"{original_filename}_sample.parquet"
-
-    df_sample.to_parquet(df_sample_path)
-
-    return str(df_sample_path)
+from app.src.datagokr.extractor import log_queries
+from app.src.datagokr.util import sample_data
 
 
 def data_reader(data_path: str | Path) -> pd.DataFrame:
@@ -85,7 +52,7 @@ def transform_data(list_path: str | Path, save_dir: str | Path):
         save_dir (str | Path): 저장 디렉토리
 
     Returns:
-        list: 변환된 데이터 목록
+        list: DCAT 형식으로 변환된 카탈로그 항목 목록
     """
     # 파일 읽기
     list_df = data_reader(list_path)
@@ -93,106 +60,116 @@ def transform_data(list_path: str | Path, save_dir: str | Path):
     # 저장 경로 확인 및 생성
     Path(save_dir).mkdir(parents=True, exist_ok=True)
 
-    merged_data = []
+    catalog_entries = []
 
-    for _, list_row in list_df.iterrows():
-        # OpenSchema 및 DCAT 메타데이터 다운로드
-        list_id = str(list_row['list_id'])
-        if len(list_id) <= 0:
-            raise Exception(f"{list_id=} is na.")
+    for _, row in list_df.iterrows():
+        # 필수 ID 확인
+        list_id = str(row['list_id'])
+        if not list_id:
+            raise ValueError(f"유효하지 않은 list_id: {list_id}")
 
-        list_type = str(list_row['list_type'])
-        if len(list_type) <= 0:
-            list_type = config.LANDING_URL_SUFFIX.get("standard")
+        list_type = get_dataset_type(row)
 
-        openschema_path = get_openschema_org(list_id, list_type, save_dir)
-        print(f"{openschema_path=} downloaded")
+        # Landing page URL 생성
+        landing_page = f"{config.LANDING_URL_PREFIX}{list_id}/{list_type}.do"
 
-        dcat_path = get_dcat(list_id, save_dir)
-        print(f"{dcat_path=} downloaded")
+        # DCAT 항목 생성
+        entry = create_catalog_entry(row, landing_page)
+        catalog_entries.append(entry)
 
-        landing_page: str = f"{config.LANDING_URL_PREFIX}{list_id}/{list_type}.do"
-
-        # DCAT 구조에 맞게 데이터 변환
-        # TODO: Mapping table, 가독성, 변경용이성 필요
-        entry = {
-            # DCAT 필수 필드
-            'title': list_row['title'],
-            'description': list_row['desc'],
-            'issued': parse_date(list_row['created_at']),
-            'modified': parse_date(list_row['updated_dt']),
-
-            # dataset 필드
-            'identifier': list_row['id'],
-            'publisher': json.dumps({
-                'name': list_row['org_nm'],
-                'code': list_row['org_cd']
-            }),
-            'keyword': parse_keywords(list_row['keywords']),
-            'landing_page': landing_page,
-            'theme': [list_row['category_nm']],
-            # 'version': None,  # 버전 정보가 없음
-
-            # distribution 필드
-            'access_url': landing_page,
-            # 'byte_size': None,  # 크기 정보가 없음
-            # 'download_url': None,  # 다운로드 URL 정보가 없음
-            # 'media_type': None,  # MIME 타입 정보가 없음
-            # 'package_format': None,
-            # 'format': None,
-
-            # 원본 메타데이터 저장
-            'raw_metadata': json.dumps({k: str(v) if pd.notna(v) else None for k, v in list_row.items()})
-        }
-
-        merged_data.append(entry)
-
-    return merged_data
+    return catalog_entries
 
 
-def insert_data(merged_data, host: str):
+def get_dataset_type(dataset_row: pd.Series) -> str:
+    """데이터셋의 유형을 결정합니다.
+
+    Args:
+        dataset_row: 데이터셋 정보가 담긴 Pandas Series
+
+    Returns:
+        str: 데이터셋 유형 문자열
+    """
+    list_type = str(dataset_row['list_type'])
+    if not list_type:
+        list_type = config.LANDING_URL_SUFFIX["standard"]
+    return list_type
+
+
+def create_catalog_entry(dataset_row: pd.Series, landing_page: str) -> Dict[str, Any]:
+    """데이터셋 정보로부터 DCAT 형식의 카탈로그 항목을 생성합니다.
+
+    Args:
+        dataset_row: 데이터셋 정보가 담긴 Pandas Series
+        landing_page: 데이터셋 랜딩 페이지 URL
+
+    Returns:
+        Dict[str, Any]: DCAT 스키마에 맞는 카탈로그 항목
+    """
+    return {
+        # DCAT 필수 필드
+        'title': dataset_row['title'],
+        'description': dataset_row['desc'],
+        'issued': parse_date(dataset_row['created_at']),
+        'modified': parse_date(dataset_row['updated_dt']),
+
+        # dataset 필드
+        'identifier': dataset_row['id'],
+        'publisher': json.dumps({
+            'name': dataset_row['org_nm'],
+            'code': dataset_row['org_cd']
+        }),
+        'keyword': parse_keywords(dataset_row['keywords']),
+        'landing_page': landing_page,
+        'theme': [dataset_row['category_nm']],
+
+        # distribution 필드
+        'access_url': landing_page,
+
+        # 원본 메타데이터 저장
+        'raw_metadata': json.dumps({k: str(v) if pd.notna(v) else None for k, v in dataset_row.items()})
+    }
+
+
+def insert_data(data: List[Any], host: str):
     """변환된 데이터를 데이터베이스에 삽입합니다.
 
     Args:
-        merged_data (list): 변환된 데이터 목록
+        data (list): 변환된 데이터 목록
         host (str): 데이터베이스 연결 문자열
     """
     # PostgreSQL에 연결
     engine = create_engine(host)
 
-    # 데이터 삽입
-    queries = []
+    # 엔진에 이벤트 리스너 등록 (한 번만)
+    event.listen(engine, 'before_cursor_execute', log_queries)
 
-    with engine.connect() as conn:
-        for entry in merged_data:
-            # SQL 구문 작성
-            insert_stmt = text("""
-                INSERT INTO catalog_entry (
-                    title, description, issued, modified, identifier, publisher, 
-                    keyword, landing_page, theme, access_url, raw_metadata
-                ) VALUES (
-                    :title, :description, :issued, :modified, :identifier, :publisher,
-                    :keyword, :landing_page, :theme, :access_url, :raw_metadata
-                )
-            """)
+    # SQL 구문 정의
+    insert_stmt = text("""
+        INSERT INTO catalog_entry (
+            title, description, issued, modified, identifier, publisher, 
+            keyword, landing_page, theme, access_url, raw_metadata
+        ) VALUES (
+            :title, :description, :issued, :modified, :identifier, :publisher,
+            :keyword, :landing_page, :theme, :access_url, :raw_metadata
+        )
+    """)
 
-            queries.append(insert_stmt)
+    # 데이터 전처리
+    processed_data = []
+    for entry in data:
+        entry_copy = entry.copy()
+        # 배열 타입 필터링 (None 값 제거)
+        if entry_copy['keyword'] is not None:
+            entry_copy['keyword'] = list(filter(None, entry_copy['keyword']))
+        if entry_copy['theme'] is not None:
+            entry_copy['theme'] = list(filter(None, entry_copy['theme']))
+        processed_data.append(entry_copy)
 
-            # 배열 타입 처리
-            entry_copy = entry.copy()
-            if entry_copy['keyword'] is not None:
-                entry_copy['keyword'] = list(filter(None, entry_copy['keyword']))
-            if entry_copy['theme'] is not None:
-                entry_copy['theme'] = list(filter(None, entry_copy['theme']))
+    # 배치 실행
+    with engine.begin() as conn:  # begin()은 자동으로 트랜잭션 관리
+        conn.execute(insert_stmt, processed_data)
 
-            # 삽입 실행
-            conn.execute(insert_stmt, entry_copy)
-
-        conn.commit()
-
-    print(queries)
-
-    print(f"총 {len(merged_data)}개의 데이터가 catalog_entry 테이블에 삽입되었습니다.")
+    print(f"총 {len(data)}개의 데이터가 catalog_entry 테이블에 삽입되었습니다.")
 
 
 def parse_date(date_str):
@@ -243,7 +220,7 @@ if __name__ == "__main__":
         list_sample_path = sample_data(raw_list_path, temp_dir)
 
         # 2. 데이터 변환
-        merged_data = transform_data(list_sample_path, sample_path)
+        processed_data = transform_data(list_sample_path, sample_path)
 
         # 3. 데이터 삽입
-        insert_data(merged_data, psql_host)
+        insert_data(processed_data, psql_host)
