@@ -16,9 +16,9 @@ services:
       POSTGRES_PASSWORD: admin
       POSTGRES_DB: datagokr # datagokr 메타데이터로 테스트 진행
       TZ: Asia/Seoul
-      LANG: ko_KR.UTF-8
+      LANG: en_US.UTF-8
     ports:
-      - "5432:5432"
+      - 5432:5432
     volumes:
       - pgdata-postgres17:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d # todo create table 필요할 경우
@@ -28,7 +28,7 @@ services:
     image: adminer
     environment:
       TZ: Asia/Seoul
-      LANG: ko_KR.UTF-8
+      LANG: en_US.UTF-8
     restart: always
     ports:
       - 8888:8080
