@@ -1,4 +1,4 @@
-# 액티브 메타데이터 관리 시스템
+# 액티브 메타데이터 스키마
 
 [![Python Version](https://img.shields.io/badge/python-3.11-blue)](https://www.python.org/downloads/)
 
@@ -21,95 +21,28 @@
 - 메타데이터 기반 데이터 검색성 및 활용성 향상
 - 데이터 카탈로그 구축을 통한 조직 전체 데이터 자산 가시성 확보
 
-## 시작하기
+---
 
-### 요구사항
+# 스키마 정의
 
-- [Python](https://www.python.org/) `>=3.11`
-- [uv](https://docs.astral.sh/uv/) `>= 0.5.11`
-- Docker
-- Docker Compose v2
+| 열             | 형                                               | 주석                                                    |
+|---------------|-------------------------------------------------|-------------------------------------------------------|
+| id            | integer 자동 증가 [nextval('catalog_entry_id_seq')] |                                                       |
+| identifier    | text                                            | DCAT 기준 고유 식별자. 데이터셋 ID 역할.                           |
+| title         | text NULL                                       | 데이터셋 제목. dct:title.                                   |
+| description   | text NULL                                       | 데이터셋 설명. dct:description.                             |
+| issued        | date NULL                                       | 최초 발행일. dct:issued.                                   |
+| modified      | date NULL                                       | 최종 수정일. dct:modified.                                 |
+| publisher     | jsonb NULL                                      | 발행처 정보 (JSON 구조). dct:publisher.                      |
+| keyword       | text[] NULL                                     | 주제 키워드. dcat:keyword.                                 |
+| theme         | text[] NULL                                     | 주제 분류 URI/코드. dcat:theme.                             |
+| raw_metadata  | jsonb                                           | 입력된 원본 메타데이터 전체 (JSON-LD, schema.org, openapi 등).     |
+| source_format | text NULL                                       | 입력 메타데이터의 포맷 (ex. dcat_rdf, jsonld, schema, openapi). |
+| ingested_at   | timestamptz NULL [now()]                        | 데이터가 수집되어 저장된 시간.                                     |
+| updated_at    | timestamptz NULL [now()]                        | 후처리, 재매핑 등으로 갱신된 시각.                                  |
 
-### 환경 설정
+## 설계 근거
 
-#### Docker Compose로 PostgreSQL 구성
-
-```shell
-$ docker compose up -d
-```
-
-#### PostgreSQL 삭제 방법
-
-```shell
-$ docker compose down
-```
-
-#### PostgreSQL 접근 정보
-
-- 연결 문자열: `postgresql://admin:admin@localhost:15432/datagokr`
-
-### UV 설치 (의존성 관리 도구)
-
-#### macOS and Linux
-
-```bash
-$ curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-#### Windows
-
-```powershell
-$ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
-```
-
-### 의존성 설치
-
-```bash
-$ uv sync
-```
-
-## 시나리오 목록
-
-### Raw 데이터 기반 스키마 변환 시나리오
-
-- 원시 데이터를 통합 스키마로 변환
-- `app/src/datagokr/transform.py` 의 `main` 함수 참조
-
-### 메타데이터 기반 스키마 변환 시나리오
-
-- 다양한 메타데이터 형식을 통합 스키마로 변환
-- `app/src/datagokr/metadata_compatible.py` 의 `main` 함수 참조
-
-### 실행 예제
-
-```shell
-# 공공데이터포털 메타데이터 처리
-$ python -m app.src.datagokr.transform
-
-# 다양한 메타데이터 소스 통합 처리
-$ python -m app.src.datagokr.metadata_compatible
-```
-
-## Sample Metadata
-
-- `sample/` 디렉토리에 sample 데이터 제공
-- 공공데이터포털 메타데이터 형식:
-    - DCAT (RDF 형식)
-    - OpenSchema.org (JSON 형식)
-- 샘플 데이터셋 목록:
-    - https://www.data.go.kr/data/15139215/standard.do
-        - dcat_15139215.rdf
-        - openschema_15139215.json
-    - https://www.data.go.kr/data/15107742/standard.do
-        - dcat_15107742.rdf
-        - openschema_15107742.json
-    - https://www.data.go.kr/data/15129433/standard.do
-        - dcat_15129433.rdf
-        - openschema_15129433.json
-    - https://www.data.go.kr/data/15139223/standard.do
-        - dcat_15139223.rdf
-        - openschema_15139223.json
-    - https://www.data.go.kr/data/15129441/standard.do
-        - dcat_15129441.rdf
-        - openschema_15129441.json
-- 메타데이터 추가 수집이 필요할 경우 `app/src/datagokr/extractor.py` 의 main 함수 참조
+- DCAT 3.0 표준의 Dataset과 Distribution 클래스에서 권장되는 핵심 속성들을 스키마로 선정
+- 다양한 데이터 소스와 포맷에서 호환성이 높고 결측치가 적은 컬럼을 우선 포함
+- raw_metadata 필드를 통해 원본 메타데이터를 보존하여 확장성 확보
