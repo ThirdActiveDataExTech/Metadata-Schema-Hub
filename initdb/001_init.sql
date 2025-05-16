@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS users
 );
 
 -- 샘플 : 데이터 카탈로그
-CREATE TABLE catalog_entry
+CREATE TABLE IF NOT EXISTS catalog_entry
 (
     id             SERIAL PRIMARY KEY,
 
