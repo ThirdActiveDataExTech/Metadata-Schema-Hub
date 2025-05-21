@@ -6,8 +6,8 @@ from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, ARRAY
 from sqlmodel import SQLModel, Field, Column
 
 
-class CatalogEntry(SQLModel, table=True):
-    __tablename__: str = "catalog_entry"
+class CatalogEntry(SQLModel, table=True):  # pyright: ignore
+    __tablename__: str = "catalog_entry"  # pyright: ignore
 
     id: Optional[int] = Field(
         default=None, primary_key=True

@@ -3,7 +3,7 @@ from typing import Dict, Any
 
 import xmltodict
 
-from app.src.datagokr.util import parse_date
+from app.src.util.util import parse_date
 
 
 def parse_dcat_xml(file_path) -> Dict[str, Any]:

@@ -2,7 +2,7 @@ import json
 import os
 from typing import Dict, Any, List
 
-from app.src.datagokr.util import parse_date, extract_keywords
+from app.src.util.util import parse_date, to_str_list
 
 
 def parse_schema_org_json(file_path) -> Dict[str, Any]:
@@ -22,7 +22,7 @@ def parse_schema_org_json(file_path) -> Dict[str, Any]:
             "modified": parse_date(data.get("dateModified", "")),
             "identifier": data.get("identifier", ""),
             "publisher": extract_publisher(data.get("creator", "")),
-            "keyword": extract_keywords(data.get("keywords", "")),
+            "keyword": to_str_list(data.get("keywords", "")),
             "landing_page": data.get("url", ""),
             "theme": extract_theme(data.get("additionalType", "")),
             "access_url": data.get("url", ""),  # TODO: access_url schema.org에 없음
