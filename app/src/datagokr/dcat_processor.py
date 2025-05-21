@@ -1,11 +1,12 @@
 import os
+from typing import Dict, Any
 
 import xmltodict
 
 from app.src.datagokr.util import parse_date
 
 
-def parse_dcat_xml(file_path):
+def parse_dcat_xml(file_path) -> Dict[str, Any]:
     """DCAT XML 파일 파싱, 다중 언어 지원"""
     if not file_path or not os.path.exists(file_path):
         raise FileNotFoundError(f"{file_path=} not found.")
@@ -25,7 +26,7 @@ def parse_dcat_xml(file_path):
         # catalog_entry 테이블에 맞게 매핑
         distribution = find_distribution(dataset)
 
-        result = {
+        result: Dict[str, Any] = {
             'title': extract_xml_value(dataset, 'dct:title', "kr"),
             'description': extract_xml_value(dataset, 'dct:description', "kr"),
             'issued': parse_date(extract_xml_value(dataset, 'dct:issued')),
