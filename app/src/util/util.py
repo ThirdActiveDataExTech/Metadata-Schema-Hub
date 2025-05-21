@@ -1,6 +1,8 @@
 import json
+import logging
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any, List
 
 import pandas as pd
 
@@ -48,21 +50,56 @@ def parse_date(date_str) -> date | None:
     return None
 
 
-def extract_keywords(keyword_str):
-    """키워드 문자열을 리스트로 변환"""
-    if not keyword_str:
+def to_str_list(data: Any) -> List[str]:
+    """다양한 타입의 데이터를 문자열 리스트로 변환
+
+    Args:
+        data: 변환할 데이터 (문자열, 리스트, pd.Series 등)
+
+    Returns:
+        List[str]: 변환된 문자열 리스트
+    """
+    # 빈 값 처리
+    if not data:
         return []
 
-    if isinstance(keyword_str, list):
-        return keyword_str
+    # Series 처리 (순환 참조 없이 직접 처리)
+    if isinstance(data, pd.Series):
+        # 단일 값 또는 여러 값 처리
+        if len(data) == 1:
+            return to_str_list(data.iloc[0])
 
-    # 다양한 구분자 처리
-    for sep in [',', ';', '/', '|']:
-        if sep in keyword_str:
-            return [k.strip() for k in keyword_str.split(sep) if k.strip()]
+        # Series 값을 리스트로 변환하여 처리
+        data = [v for v in data.values if not pd.isna(v)]
+        # 빈 리스트인 경우 조기 반환
+        if not data:
+            return []
 
-    # 구분자가 없으면 단일 키워드로 처리
-    return [keyword_str.strip()]
+    # 리스트 처리
+    if isinstance(data, list):
+        return [str(item).strip() for item in data if str(item).strip()]
+
+    # 문자열 처리
+    if isinstance(data, str):
+        data = data.strip()
+        if not data:
+            return []
+
+        # 구분자 처리
+        separators = [",", ";", "/", "|"]
+        for sep in separators:
+            if sep in data:
+                return [item.strip() for item in data.split(sep) if item.strip()]
+
+        return [data]
+
+    # 기타 타입 처리
+    try:
+        str_value = str(data).strip()
+        return [str_value] if str_value else []
+    except Exception as e:
+        logging.error(f"문자열 리스트 변환 오류: {e}")
+        return []
 
 
 def sample_data(df_path: str, output_dir: str | Path, sample_size: int = 5) -> str:

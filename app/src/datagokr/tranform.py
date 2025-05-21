@@ -4,14 +4,13 @@ import pathlib
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Callable, List, Any
+from typing import Dict, Callable, Any
 
 import pandas as pd
-from sqlalchemy import create_engine, text, event
 
+from app.src.catalog_entry.service import CatalogEntryService
 from app.src.datagokr.config import config
-from app.src.datagokr.extractor import log_queries
-from app.src.datagokr.util import sample_data
+from app.src.util.util import sample_data, to_str_list
 
 
 def data_reader(data_path: str | Path) -> pd.DataFrame:
@@ -118,7 +117,7 @@ def create_catalog_entry(dataset_row: pd.Series, landing_page: str) -> Dict[str,
             'name': dataset_row['org_nm'],
             'code': dataset_row['org_cd']
         }),
-        'keyword': parse_keywords(dataset_row['keywords']),
+        'keyword': to_str_list(dataset_row['keywords']),
         'landing_page': landing_page,
         'theme': [dataset_row['category_nm']],
 
@@ -128,48 +127,6 @@ def create_catalog_entry(dataset_row: pd.Series, landing_page: str) -> Dict[str,
         # 원본 메타데이터 저장
         'raw_metadata': json.dumps({k: str(v) if pd.notna(v) else None for k, v in dataset_row.items()})
     }
-
-
-def insert_data(data: List[Any], host: str):
-    """변환된 데이터를 데이터베이스에 삽입합니다.
-
-    Args:
-        data (list): 변환된 데이터 목록
-        host (str): 데이터베이스 연결 문자열
-    """
-    # PostgreSQL에 연결
-    engine = create_engine(host)
-
-    # 엔진에 이벤트 리스너 등록 (한 번만)
-    event.listen(engine, 'before_cursor_execute', log_queries)
-
-    # SQL 구문 정의
-    insert_stmt = text("""
-        INSERT INTO catalog_entry (
-            title, description, issued, modified, identifier, publisher, 
-            keyword, landing_page, theme, access_url, raw_metadata
-        ) VALUES (
-            :title, :description, :issued, :modified, :identifier, :publisher,
-            :keyword, :landing_page, :theme, :access_url, :raw_metadata
-        )
-    """)
-
-    # 데이터 전처리
-    processed_data = []
-    for entry in data:
-        entry_copy = entry.copy()
-        # 배열 타입 필터링 (None 값 제거)
-        if entry_copy['keyword'] is not None:
-            entry_copy['keyword'] = list(filter(None, entry_copy['keyword']))
-        if entry_copy['theme'] is not None:
-            entry_copy['theme'] = list(filter(None, entry_copy['theme']))
-        processed_data.append(entry_copy)
-
-    # 배치 실행
-    with engine.begin() as conn:  # begin()은 자동으로 트랜잭션 관리
-        conn.execute(insert_stmt, processed_data)
-
-    print(f"총 {len(data)}개의 데이터가 catalog_entry 테이블에 삽입되었습니다.")
 
 
 def parse_date(date_str):
@@ -191,28 +148,12 @@ def parse_date(date_str):
     return None
 
 
-def parse_keywords(keyword_str):
-    """키워드 문자열을 리스트로 변환"""
-    if pd.isna(keyword_str) or not keyword_str:
-        return []
-
-    # 다양한 구분자 처리
-    for sep in [',', ';', '/', '|']:
-        if sep in keyword_str:
-            return [k.strip() for k in keyword_str.split(sep)]
-
-    # 구분자가 없으면 단일 키워드로 처리
-    return [keyword_str.strip()]
-
-
 if __name__ == "__main__":
     current_path = pathlib.Path(__file__)
     project_root = current_path.parent.parent.parent.parent  # 4단계 상위로 이동
     sample_path = project_root / 'sample'
 
     raw_list_path = os.path.join(sample_path, 'standard_list.parquet')
-
-    psql_host = config.DB_URL
 
     # 임시 디렉토리 생성하여 작업
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -223,4 +164,5 @@ if __name__ == "__main__":
         processed_data = transform_data(list_sample_path, sample_path)
 
         # 3. 데이터 삽입
-        insert_data(processed_data, psql_host)
+        service = CatalogEntryService()
+        service.insert_data(processed_data)

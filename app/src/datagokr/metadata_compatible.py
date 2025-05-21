@@ -1,55 +1,24 @@
 import os
 import pathlib
 import tempfile
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
 
 import pandas as pd
-from sqlalchemy import create_engine
-from sqlmodel import Session
 
-from app.schemas.catalog_entry import CatalogEntry
+from app.src.catalog_entry.service import CatalogEntryService
 from app.src.datagokr.config import config
-from app.src.datagokr.dcat_processor import parse_dcat_xml
-from app.src.datagokr.extractor import export_to_csv, get_openschema_org, get_dcat, download_metadata
-from app.src.datagokr.schema_org_processor import parse_schema_org_json
-from app.src.datagokr.util import sample_data
+from app.src.datagokr.extractor import get_openschema_org, get_dcat, download_metadata
+from app.src.dcat.dcat_processor import parse_dcat_xml
+from app.src.schema_org.schema_org_processor import parse_schema_org_json
+from app.src.util.util import sample_data, ensure_directory
+
+service = CatalogEntryService()
 
 
-def import_to_database(data: Dict[str, Any], engine: Any):
-    """데이터 전처리하고 Repository 통해 DB 저장"""
-    if not data or not isinstance(data, dict):
-        return None
-
-    try:
-        # 빈 identifier인 경우 현재 시간 기반 고유 식별자 생성
-        if not data.get("identifier"):
-            data["identifier"] = f"generated_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
-
-        # SQLModel 인스턴스 생성
-        catalog_entry = CatalogEntry(**data)
-
-        # 데이터베이스에 저장
-        with Session(engine) as session:
-            session.add(catalog_entry)
-            session.commit()
-            session.refresh(catalog_entry)
-
-            return catalog_entry.id
-
-    except Exception as e:
-        print(f"데이터베이스 삽입 오류: {e}")
-        return None
-
-
-def process_openschema(list_id, list_type="standard", db_url=None, result_path: str | Path = config.SAMPLE_DIR):
+def process_openschema(list_id, list_type="standard", result_path: str | Path = config.SAMPLE_DIR):
     """OpenSchema.org 메타데이터 처리 및 데이터베이스 저장 함수"""
     if not list_id:
         raise Exception(f"처리할 {list_id}가 필요합니다.")
-
-    # 데이터베이스 연결
-    engine = create_engine(db_url)
 
     # OpenSchema.org 메타데이터 다운로드 및 처리
     openschema_path = get_openschema_org(list_id, list_type, result_path)
@@ -60,7 +29,7 @@ def process_openschema(list_id, list_type="standard", db_url=None, result_path: 
     if not openschema_data:
         raise Exception(f"OpenSchema 메타데이터 파싱 실패: {list_id}")
 
-    openschema_id = import_to_database(openschema_data, engine)
+    openschema_id = service.import_to_database(openschema_data)
     if openschema_id:
         print(f"OpenSchema 메타데이터 저장 완료 (ID: {openschema_id})")
         return openschema_id
@@ -68,13 +37,10 @@ def process_openschema(list_id, list_type="standard", db_url=None, result_path: 
         raise Exception(f"OpenSchema 메타데이터 저장 실패: {list_id}")
 
 
-def process_dcat(list_id, db_url, result_path: str | Path):
+def process_dcat(list_id, result_path: str | Path):
     """DCAT 메타데이터 처리 및 데이터베이스 저장 함수"""
     if not list_id:
         raise Exception(f"처리할 {list_id=}가 필요합니다.")
-
-    # 데이터베이스 연결
-    engine = create_engine(db_url)
 
     # DCAT 메타데이터 다운로드 및 처리
     dcat_path = get_dcat(list_id, result_path)
@@ -85,7 +51,7 @@ def process_dcat(list_id, db_url, result_path: str | Path):
     if not dcat_data:
         raise Exception(f"DCAT 메타데이터 파싱 실패: {list_id}")
 
-    dcat_id = import_to_database(dcat_data, engine)
+    dcat_id = service.import_to_database(dcat_data)
     if dcat_id:
         print(f"DCAT 메타데이터 저장 완료 (ID: {dcat_id})")
         return dcat_id
@@ -94,7 +60,7 @@ def process_dcat(list_id, db_url, result_path: str | Path):
 
 
 def process_metadata(
-        list_id, list_type="standard", db_url=None, result_path: str | Path = config.SAMPLE_DIR, process_type="all"
+        list_id, list_type="standard", result_path: str | Path = config.SAMPLE_DIR, process_type="all"
 ):
     """메타데이터 처리 및 데이터베이스 저장 통합 함수"""
     if not list_id:
@@ -104,11 +70,11 @@ def process_metadata(
 
     # 처리 유형에 따라 필요한 메타데이터만 처리
     if process_type.lower() == "all" or process_type.lower() == "openschema":
-        openschema_id = process_openschema(list_id, list_type, db_url, result_path)
+        openschema_id = process_openschema(list_id, list_type, result_path)
         results["openschema_id"] = openschema_id
 
     if process_type.lower() == "all" or process_type.lower() == "dcat":
-        dcat_id = process_dcat(list_id, db_url, result_path)
+        dcat_id = process_dcat(list_id, result_path)
         results["dcat_id"] = dcat_id
 
     return results
@@ -116,13 +82,12 @@ def process_metadata(
 
 # 실행 예제
 if __name__ == "__main__":
-    # 설정
-    db_url = config.DB_URL
-
     # 경로 설정
     current_path = pathlib.Path(__file__)
     project_root = current_path.parent.parent.parent.parent  # 4단계 상위로 이동
     sample_path = project_root / "sample"
+
+    ensure_directory(sample_path)
 
     list_path = os.path.join(sample_path, "standard_list.parquet")
 
@@ -146,20 +111,22 @@ if __name__ == "__main__":
 
         # 예제 2: 단일 ID 처리
         # 모든 형식 처리
-        results = process_metadata(list_id=list_id_1, list_type="standard", db_url=db_url)
+        results = process_metadata(list_id=list_id_1, list_type="standard")
         print(f"처리 결과: {results}")
 
         # 특정 형식만 처리
         openschema_result = process_metadata(
-            list_id=list_id_2, list_type="standard", db_url=db_url, result_path=sample_path, process_type="openschema"
+            list_id=list_id_2, list_type="standard", result_path=sample_path, process_type="openschema"
         )
         print(f"OpenSchema 처리 결과: {openschema_result}")
 
         dcat_result = process_metadata(
-            list_id=list_id_3, list_type="standard", db_url=db_url, result_path=sample_path, process_type="dcat"
+            list_id=list_id_3, list_type="standard", result_path=sample_path, process_type="dcat"
         )
         print(f"DCAT 처리 결과: {dcat_result}")
 
     # 예제 3: 메타데이터 CSV 내보내기
-    csv_path = export_to_csv(os.path.join(sample_path, "all_catalog_entries.csv"), db_url)
+    metadata_csv_path = os.path.join(sample_path, "all_catalog_entries.csv")
+
+    csv_path = service.export_to_csv(metadata_csv_path)
     print(f"내보낸 CSV 파일 경로: {csv_path}")
