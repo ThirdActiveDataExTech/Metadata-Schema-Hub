@@ -5,14 +5,16 @@ from pathlib import Path
 
 import pandas as pd
 
+from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.catalog_entry.service import CatalogEntryService
 from app.src.datagokr.config import config
-from app.src.datagokr.extractor import get_openschema_org, get_dcat, download_metadata
+from app.src.datagokr.extractor import download_metadata, get_dcat, get_openschema_org
 from app.src.dcat.dcat_processor import parse_dcat_xml
 from app.src.schema_org.schema_org_processor import parse_schema_org_json
-from app.src.util.util import sample_data, ensure_directory
+from app.src.util.util import ensure_directory, sample_data
 
-service = CatalogEntryService()
+repository = CatalogEntryRepository()
+service = CatalogEntryService(repository)
 
 
 def process_openschema(list_id, list_type="standard", result_path: str | Path = config.SAMPLE_DIR):

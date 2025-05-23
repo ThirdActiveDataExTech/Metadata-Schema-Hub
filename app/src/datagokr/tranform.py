@@ -4,12 +4,14 @@ import pathlib
 import tempfile
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Callable, Any
+from typing import Any, Callable, Dict
 
 import pandas as pd
 
+from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.catalog_entry.service import CatalogEntryService
 from app.src.datagokr.config import config
+from app.src.datagokr.metadata_compatible import repository
 from app.src.util.util import sample_data, to_str_list
 
 
@@ -164,5 +166,6 @@ if __name__ == "__main__":
         processed_data = transform_data(list_sample_path, sample_path)
 
         # 3. 데이터 삽입
-        service = CatalogEntryService()
+        repository = CatalogEntryRepository()
+        service = CatalogEntryService(repository)
         service.insert_data(processed_data)
