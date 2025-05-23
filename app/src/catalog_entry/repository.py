@@ -1,7 +1,6 @@
-import datetime
 import json
 import re
-from datetime import datetime
+from datetime import date, datetime
 from typing import List
 
 from sqlalchemy import create_engine, event, select
@@ -14,12 +13,13 @@ from app.src.catalog_entry.config import config
 class CatalogEntryRepository:
     """CatalogEntryService."""
 
-    def __init__(self, db_url: str = config.DB_URL):
+    def __init__(self, db_url: str = config.DB_URL, verbose: bool = True):
         """Connect PostgreSQL."""
         self.engine = create_engine(db_url)
 
         # 엔진에 이벤트 리스너 등록 (한 번만)
-        event.listen(self.engine, "before_cursor_execute", self.log_queries)
+        if verbose:
+            event.listen(self.engine, "after_cursor_execute", self.log_queries)
 
 
     def save(self, catalog_entry: CatalogEntry) -> CatalogEntry:
@@ -143,7 +143,7 @@ class CatalogEntryRepository:
                                     replacement = f"'{json.dumps(value, ensure_ascii=False)}'"
                                 elif isinstance(value, (int, float)):
                                     replacement = str(value)
-                                elif isinstance(value, datetime.date):
+                                elif isinstance(value, date):
                                     replacement = f"'{value}'"
                                 else:
                                     replacement = f"'{value}'"
@@ -178,7 +178,7 @@ class CatalogEntryRepository:
                                 replacement = f"'{json.dumps(value, ensure_ascii=False)}'"
                             elif isinstance(value, (int, float)):
                                 replacement = str(value)
-                            elif isinstance(value, datetime.date):
+                            elif isinstance(value, date):
                                 replacement = f"'{value}'"
                             else:
                                 replacement = f"'{value}'"
