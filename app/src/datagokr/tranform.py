@@ -11,7 +11,6 @@ import pandas as pd
 from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.catalog_entry.service import CatalogEntryService
 from app.src.datagokr.config import config
-from app.src.datagokr.metadata_compatible import repository
 from app.src.util.util import sample_data, to_str_list
 
 
