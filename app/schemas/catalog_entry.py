@@ -1,10 +1,11 @@
-from datetime import date, datetime
-from typing import List, Optional
+from datetime import date, datetime, timedelta, timezone
+from typing import Any, Dict, List, Optional
 
 from sqlalchemy import String
-from sqlalchemy.dialects.postgresql import JSONB, TIMESTAMP, ARRAY
-from sqlmodel import SQLModel, Field, Column
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TIMESTAMP
+from sqlmodel import Column, Field, SQLModel
 
+KST = timezone(timedelta(hours=9))
 
 class CatalogEntry(SQLModel, table=True):  # pyright: ignore
     __tablename__: str = "catalog_entry"  # pyright: ignore
@@ -19,7 +20,7 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
     identifier: str = Field(
         nullable=False
     )
-    publisher: Optional[dict] = Field(
+    publisher: Optional[Dict[str, Any]] = Field(
         default=None,
         sa_column=Column(JSONB)
     )
@@ -33,14 +34,14 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
         sa_column=Column(ARRAY(String))
     )
     access_url: Optional[str] = None
-    raw_metadata: dict = Field(
+    raw_metadata: Dict[str, Any] = Field(
         sa_column=Column(JSONB, nullable=False)
     )
     ingested_at: datetime = Field(
-        default_factory=datetime.now,
+        default_factory=lambda: datetime.now(KST),
         sa_column=Column(TIMESTAMP(timezone=True))
     )
     updated_at: datetime = Field(
-        default_factory=datetime.now,
-        sa_column=Column(TIMESTAMP(timezone=True), onupdate=datetime.now)
+        default_factory=lambda: datetime.now(KST),
+        sa_column=Column(TIMESTAMP(timezone=True), onupdate=lambda: datetime.now(KST))
     )
