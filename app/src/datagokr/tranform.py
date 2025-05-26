@@ -27,10 +27,7 @@ def data_reader(data_path: str | Path) -> pd.DataFrame:
         ValueError: 지원되지 않는 파일 형식일 경우
     """
     # 확장자별 리더 함수 매핑
-    readers: Dict[str, Callable] = {
-        '.parquet': pd.read_parquet,
-        '.csv': pd.read_csv
-    }
+    readers: Dict[str, Callable] = {".parquet": pd.read_parquet, ".csv": pd.read_csv}
 
     # 파일 경로에서 확장자 추출
     ext = Path(data_path).suffix.lower()
@@ -40,7 +37,7 @@ def data_reader(data_path: str | Path) -> pd.DataFrame:
         return readers[ext](data_path)
 
     # 지원되지 않는 확장자일 경우 오류 발생
-    supported_extensions = ', '.join(readers.keys())
+    supported_extensions = ", ".join(readers.keys())
     raise ValueError(f"지원되지 않는 파일 형식: {data_path}, 지원 확장자: {supported_extensions}")
 
 
@@ -64,7 +61,7 @@ def transform_data(list_path: str | Path, save_dir: str | Path):
 
     for _, row in list_df.iterrows():
         # 필수 ID 확인
-        list_id = str(row['list_id'])
+        list_id = str(row["list_id"])
         if not list_id:
             raise ValueError(f"유효하지 않은 list_id: {list_id}")
 
@@ -89,7 +86,7 @@ def get_dataset_type(dataset_row: pd.Series) -> str:
     Returns:
         str: 데이터셋 유형 문자열
     """
-    list_type = str(dataset_row['list_type'])
+    list_type = str(dataset_row["list_type"])
     if not list_type:
         list_type = config.LANDING_URL_SUFFIX["standard"]
     return list_type
@@ -107,26 +104,20 @@ def create_catalog_entry(dataset_row: pd.Series, landing_page: str) -> Dict[str,
     """
     return {
         # DCAT 필수 필드
-        'title': dataset_row['title'],
-        'description': dataset_row['desc'],
-        'issued': parse_date(dataset_row['created_at']),
-        'modified': parse_date(dataset_row['updated_dt']),
-
+        "title": dataset_row["title"],
+        "description": dataset_row["desc"],
+        "issued": parse_date(dataset_row["created_at"]),
+        "modified": parse_date(dataset_row["updated_dt"]),
         # dataset 필드
-        'identifier': dataset_row['id'],
-        'publisher': json.dumps({
-            'name': dataset_row['org_nm'],
-            'code': dataset_row['org_cd']
-        }),
-        'keyword': to_str_list(dataset_row['keywords']),
-        'landing_page': landing_page,
-        'theme': [dataset_row['category_nm']],
-
+        "identifier": dataset_row["id"],
+        "publisher": json.dumps({"name": dataset_row["org_nm"], "code": dataset_row["org_cd"]}),
+        "keyword": to_str_list(dataset_row["keywords"]),
+        "landing_page": landing_page,
+        "theme": [dataset_row["category_nm"]],
         # distribution 필드
-        'access_url': landing_page,
-
+        "access_url": landing_page,
         # 원본 메타데이터 저장
-        'raw_metadata': json.dumps({k: str(v) if pd.notna(v) else None for k, v in dataset_row.items()})
+        "raw_metadata": json.dumps({k: str(v) if pd.notna(v) else None for k, v in dataset_row.items()}),
     }
 
 
@@ -137,10 +128,10 @@ def parse_date(date_str):
 
     try:
         # 여러 형식의 날짜 처리
-        for fmt in ['%Y-%m-%d', '%Y%m%d']:
+        for fmt in ["%Y-%m-%d", "%Y%m%d"]:
             try:
                 date_obj = datetime.strptime(str(date_str)[:10], fmt)
-                return date_obj.strftime('%Y-%m-%d')
+                return date_obj.strftime("%Y-%m-%d")
             except ValueError:
                 continue
     except Exception as e:
@@ -152,9 +143,9 @@ def parse_date(date_str):
 if __name__ == "__main__":
     current_path = pathlib.Path(__file__)
     project_root = current_path.parent.parent.parent.parent  # 4단계 상위로 이동
-    sample_path = project_root / 'sample'
+    sample_path = project_root / "sample"
 
-    raw_list_path = os.path.join(sample_path, 'standard_list.parquet')
+    raw_list_path = os.path.join(sample_path, "standard_list.parquet")
 
     # 임시 디렉토리 생성하여 작업
     with tempfile.TemporaryDirectory() as temp_dir:
@@ -167,4 +158,4 @@ if __name__ == "__main__":
         # 3. 데이터 삽입
         repository = CatalogEntryRepository()
         service = CatalogEntryService(repository)
-        service.insert_data(processed_data)
+        # service.insert_data(processed_data)
