@@ -31,12 +31,12 @@ def process_openschema(list_id, list_type="standard", result_path: str | Path = 
     if not openschema_data:
         raise Exception(f"OpenSchema 메타데이터 파싱 실패: {list_id}")
 
-    openschema_id = service.import_to_database(openschema_data)
-    if openschema_id:
-        print(f"OpenSchema 메타데이터 저장 완료 (ID: {openschema_id})")
-        return openschema_id
-    else:
-        raise Exception(f"OpenSchema 메타데이터 저장 실패: {list_id}")
+    # openschema_id = service.import_to_database(openschema_data).id
+    # if openschema_id:
+    #     print(f"OpenSchema 메타데이터 저장 완료 (ID: {openschema_id})")
+    #     return openschema_id
+    # else:
+    #     raise Exception(f"OpenSchema 메타데이터 저장 실패: {list_id}")
 
 
 def process_dcat(list_id, result_path: str | Path):
@@ -53,17 +53,15 @@ def process_dcat(list_id, result_path: str | Path):
     if not dcat_data:
         raise Exception(f"DCAT 메타데이터 파싱 실패: {list_id}")
 
-    dcat_id = service.import_to_database(dcat_data)
-    if dcat_id:
-        print(f"DCAT 메타데이터 저장 완료 (ID: {dcat_id})")
-        return dcat_id
-    else:
-        raise Exception(f"DCAT 메타데이터 저장 실패: {list_id}")
+    # dcat_id = service.import_to_database(dcat_data).id
+    # if dcat_id:
+    #     print(f"DCAT 메타데이터 저장 완료 (ID: {dcat_id})")
+    #     return dcat_id
+    # else:
+    #     raise Exception(f"DCAT 메타데이터 저장 실패: {list_id}")
 
 
-def process_metadata(
-        list_id, list_type="standard", result_path: str | Path = config.SAMPLE_DIR, process_type="all"
-):
+def process_metadata(list_id, list_type="standard", result_path: str | Path = config.SAMPLE_DIR, process_type="all"):
     """메타데이터 처리 및 데이터베이스 저장 통합 함수"""
     if not list_id:
         raise Exception(f"처리할 {list_id=}가 필요합니다.")
@@ -122,13 +120,11 @@ if __name__ == "__main__":
         )
         print(f"OpenSchema 처리 결과: {openschema_result}")
 
-        dcat_result = process_metadata(
-            list_id=list_id_3, list_type="standard", result_path=sample_path, process_type="dcat"
-        )
+        dcat_result = process_metadata(list_id=list_id_3, list_type="standard", result_path=sample_path, process_type="dcat")
         print(f"DCAT 처리 결과: {dcat_result}")
 
     # 예제 3: 메타데이터 CSV 내보내기
     metadata_csv_path = os.path.join(sample_path, "all_catalog_entries.csv")
 
-    csv_path = service.export_to_csv(metadata_csv_path)
-    print(f"내보낸 CSV 파일 경로: {csv_path}")
+    # csv_path = service.export_to_csv(metadata_csv_path)
+    # print(f"내보낸 CSV 파일 경로: {csv_path}")
