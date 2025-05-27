@@ -27,8 +27,8 @@ def parse_dcat_xml(file_path) -> Dict[str, Any]:
         distribution = find_distribution(dataset)
 
         result: Dict[str, Any] = {
-            'title': extract_multilang_field(dataset.get("dct:title","")),
-            'description': extract_multilang_field(dataset.get("dct:description","")),
+            'title': extract_multilang_field(dataset.get("dct:title", "")),
+            'description': extract_multilang_field(dataset.get("dct:description", "")),
             'issued': parse_date(dataset.get("dct:issued", "")),
             'modified': parse_date(find_modified(dataset)),
             'identifier': dataset.get("dct:identifier", ""),
@@ -58,6 +58,7 @@ def find_distribution(dataset):
     distribution = dataset.get('dcat:distribution', {}).get('dcat:Distribution', {})
     return distribution
 
+
 def extract_multilang_field(values: List[Dict[str, Any]], lang_preference: str = "kr") -> str:
     """다국어 필드에서 우선순위 언어값 추출."""
     lang_formats = ["kr", "en"]
@@ -76,7 +77,7 @@ def extract_multilang_field(values: List[Dict[str, Any]], lang_preference: str =
             if lang == lang_format:
                 return text
 
-    return values[0]["#text"] # 선호 언어 없을 경우 첫번쨰로 등장하는 언어 값 리턴
+    return values[0]["#text"]  # 선호 언어 없을 경우 첫번쨰로 등장하는 언어 값 리턴
 
 
 def find_modified(dataset: Dict[str, Any]) -> str:
@@ -89,26 +90,18 @@ def find_modified(dataset: Dict[str, Any]) -> str:
     return str(modified)
 
 
-def find_publisher(dataset: Dict[str, Any]) -> Dict[str, str]:
+def find_publisher(dataset: Dict[str, Any]) -> str:
     """XML에서 publisher 정보 추출"""
     publisher = dataset.get("dct:publisher", {})
-    if isinstance(publisher, dict):
-        org = publisher.get("foaf:Organization", {})
+    org = publisher.get("foaf:Organization", {})
+    name = org.get("foaf:name", "")
 
-        # 문자열 값 추출
-        name = org.get ("foaf:name","")
+    return name
 
-        # 직접 딕셔너리 생성하여 JSON 문자열화 단계 건너뛰기
-        return {
-            'name': name,
-        }
-
-    # 단순 문자열인 경우
-    return {'name': str(publisher) if publisher else ''}
 
 def find_landing_page(dataset: Dict[str, Any]) -> str:
     """Find landing_page."""
-    landing_page = dataset.get("dcat:landingPage","")
+    landing_page = dataset.get("dcat:landingPage", "")
     if isinstance(landing_page, dict):
         return landing_page.get("@rdf:resource", "")
 

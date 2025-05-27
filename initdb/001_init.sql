@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS catalog_entry
 
     -- dataset 필드
     identifier     TEXT  NOT NULL UNIQUE,     -- 고유 식별자 (dct:identifier), (dcat:Resource 속성)
-    publisher      JSONB,                     -- 발행 기관 정보 (dct:publisher), 구조 유동성 고려 (dcat:Resource 속성)
+    publisher      TEXT,                     -- 발행 기관 정보 (dct:publisher) 의 name 속성
     keyword        TEXT[],                    -- 키워드 리스트 (dcat:keyword), (dcat:Resource 속성)
     landing_page   TEXT,                      -- 웹 페이지 URL (dcat:landingPage), (dcat:Resource 속성)
     theme          TEXT[],                    -- 주제 분류 URI 또는 코드 (dcat:theme), (dcat:Resource 속성)
@@ -53,7 +53,7 @@ ON COLUMN catalog_entry.modified IS '최종 수정일. dct:modified.';
 COMMENT
 ON COLUMN catalog_entry.identifier IS 'DCAT 기준 고유 식별자. 데이터셋 ID 역할. dct:identifier.';
 COMMENT
-ON COLUMN catalog_entry.publisher IS '발행처 정보 (JSON 구조). dct:publisher.';
+ON COLUMN catalog_entry.publisher IS '발행처 이름 정보. dct:publisher.';
 COMMENT
 ON COLUMN catalog_entry.keyword IS '주제 키워드 배열. dcat:keyword.';
 COMMENT

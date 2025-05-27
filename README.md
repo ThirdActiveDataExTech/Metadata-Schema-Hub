@@ -27,21 +27,25 @@
 
 # 스키마 정의
 
-| 열             | 형                                               | 주석                                                    |
-|---------------|-------------------------------------------------|-------------------------------------------------------|
-| id            | integer 자동 증가 [nextval('catalog_entry_id_seq')] |                                                       |
-| identifier    | text                                            | DCAT 기준 고유 식별자. 데이터셋 ID 역할.                           |
-| title         | text NULL                                       | 데이터셋 제목. dct:title.                                   |
-| description   | text NULL                                       | 데이터셋 설명. dct:description.                             |
-| issued        | date NULL                                       | 최초 발행일. dct:issued.                                   |
-| modified      | date NULL                                       | 최종 수정일. dct:modified.                                 |
-| publisher     | jsonb NULL                                      | 발행처 정보 (JSON 구조). dct:publisher.                      |
-| keyword       | text[] NULL                                     | 주제 키워드. dcat:keyword.                                 |
-| theme         | text[] NULL                                     | 주제 분류 URI/코드. dcat:theme.                             |
-| raw_metadata  | jsonb                                           | 입력된 원본 메타데이터 전체 (JSON-LD, schema.org, openapi 등).     |
-| source_format | text NULL                                       | 입력 메타데이터의 포맷 (ex. dcat_rdf, jsonld, schema, openapi). |
-| ingested_at   | timestamptz NULL [now()]                        | 데이터가 수집되어 저장된 시간.                                     |
-| updated_at    | timestamptz NULL [now()]                        | 후처리, 재매핑 등으로 갱신된 시각.                                  |
+| 컬럼명 | 데이터타입 | 제약조건 | 설명 |
+|--------|------------|----------|------|
+| id | SERIAL | PRIMARY KEY | 고유 식별키 |
+| title | TEXT | | 데이터셋/배포판 제목 (dct:title) |
+| description | TEXT | | 데이터셋/배포판 설명 (dct:description) |
+| issued | DATE | | 최초 발행일 (dct:issued) |
+| modified | DATE | | 최종 수정일 (dct:modified) |
+| identifier | TEXT | NOT NULL UNIQUE | DCAT 기준 고유 식별자 (dct:identifier) |
+| publisher | TEXT | | 발행처 이름 정보 (dct:publisher) |
+| keyword | TEXT[] | | 주제 키워드 배열 (dcat:keyword) |
+| landing_page | TEXT | | 데이터셋 웹 페이지 URL (dcat:landingPage) |
+| theme | TEXT[] | | 주제 분류 URI/코드 배열 (dcat:theme) |
+| access_url | TEXT | | 배포판 접근 URL (dcat:accessURL) |
+| raw_metadata | JSONB | NOT NULL | 원본 메타데이터 전체 (JSON-LD, schema.org, openapi) |
+| ingested_at | TIMESTAMPTZ | DEFAULT now() | 데이터 수집 저장 시간 |
+| updated_at | TIMESTAMPTZ | DEFAULT now() | 후처리/재매핑 갱신 시각 |
+
+* `/initdb/001_init.sql` DDL 기반으로 스키마가 정의됨
+* 해당 테이블이 없을 경우, 로직이 실패할 수 있음
 
 ## 설계 근거
 

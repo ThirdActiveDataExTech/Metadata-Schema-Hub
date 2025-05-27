@@ -1,4 +1,5 @@
 import datetime
+import io
 import logging
 import os.path
 from datetime import datetime
@@ -57,6 +58,18 @@ class CatalogEntryService:
 
         logging.info(f"CSV 내보내기 완료: {output_path} (총 {len(data_list)}개 레코드)")
         return output_path
+
+    def export_to_csv_stream(self, db: SessionDep, limit: int = 100) -> io.StringIO:
+        """메모리에서 CSV 스트림 생성"""
+        data_list = self.repository.export_data_list(db, limit=limit)
+        df = pd.DataFrame(data_list)
+
+        # StringIO로 메모리에서 CSV 생성
+        csv_buffer = io.StringIO()
+        df.to_csv(csv_buffer, index=False, encoding="utf-8")
+        csv_buffer.seek(0)
+
+        return csv_buffer
 
     def insert_data(self, db: SessionDep, data: List[Dict[str, Any]]):
         """변환된 데이터를 데이터베이스에 삽입합니다."""

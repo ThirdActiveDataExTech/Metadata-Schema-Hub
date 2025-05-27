@@ -99,7 +99,7 @@ class Settings(BaseSettings):
     POSTGRES_PASSWORD: str = "admin"
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
-    POSTGRES_DB: str = "postgres"
+    POSTGRES_DB: str = "datagokr"
 
     POSTGRES_URL: str = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
