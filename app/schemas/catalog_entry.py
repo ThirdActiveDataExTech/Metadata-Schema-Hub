@@ -20,10 +20,7 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
     identifier: str = Field(
         nullable=False
     )
-    publisher: Optional[Dict[str, Any]] = Field(
-        default=None,
-        sa_column=Column(JSONB)
-    )
+    publisher: Optional[str] = None
     keyword: Optional[List[str]] = Field(
         default=None,
         sa_column=Column(ARRAY(String))

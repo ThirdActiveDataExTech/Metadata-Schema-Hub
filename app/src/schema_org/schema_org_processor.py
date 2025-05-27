@@ -21,7 +21,7 @@ def parse_schema_org_json(file_path) -> Dict[str, Any]:
             "issued": parse_date(data.get("datePublished", "")),
             "modified": parse_date(data.get("dateModified", "")),
             "identifier": data.get("identifier", ""),
-            "publisher": extract_publisher(data.get("creator", "")),
+            "publisher": extract_publisher(data),
             "keyword": to_str_list(data.get("keywords", "")),
             "landing_page": data.get("url", ""),
             "theme": extract_theme(data.get("additionalType", "")),
@@ -80,11 +80,13 @@ def extract_multilang_field(field: Any, lang_preference: str = "kr") -> str:
         return ""
 
 
-def extract_publisher(publisher: Any) -> Dict[str, Any]:
+def extract_publisher(dataset: Dict[str, Any]) -> str:
     """Schema.org JSON에서 publisher 정보 추출"""
-    if not isinstance(publisher, dict):
-        publisher = {"name": str(publisher) if publisher else ""}
-    return publisher
+    creator = dataset.get("creator", {})
+    name = creator.get("name", "")
+
+    return name
+
 
 def extract_theme(field: Any) -> List[Any]:
     """Schema.org JSON에서 theme 정보 추출"""

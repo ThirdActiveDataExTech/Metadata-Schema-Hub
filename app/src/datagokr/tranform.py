@@ -110,7 +110,7 @@ def create_catalog_entry(dataset_row: pd.Series, landing_page: str) -> Dict[str,
         "modified": parse_date(dataset_row["updated_dt"]),
         # dataset 필드
         "identifier": dataset_row["id"],
-        "publisher": json.dumps({"name": dataset_row["org_nm"], "code": dataset_row["org_cd"]}),
+        "publisher": dataset_row["org_nm"],
         "keyword": to_str_list(dataset_row["keywords"]),
         "landing_page": landing_page,
         "theme": [dataset_row["category_nm"]],
