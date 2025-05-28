@@ -1,3 +1,4 @@
+import logging
 import os
 from typing import Any, Dict, List
 
@@ -47,10 +48,20 @@ def parse_dcat_xml(file_path) -> Dict[str, Any]:
 
 def find_dataset(data_dict):
     """XML 딕셔너리에서 데이터셋 요소 찾기"""
-    # 일반적인 구조 예상 (실제 XML 구조에 맞게 조정 필요)
     catalog = data_dict.get('rdf:RDF', {}).get('dcat:Catalog', {})
+
+    # dcat:Dataset 의 경우
     dataset = catalog.get('dcat:dataset', {}).get('dcat:Dataset', {})
-    return dataset
+    if dataset:
+        return dataset
+
+    # dcat:DataService 의 경우
+    data_service = catalog.get("dcat:service", {}).get("dcat:DataService", {})
+    if data_service:
+        return data_service
+
+    logging.error("dataset 을 찾을 수 없음.")
+    return None
 
 
 def find_distribution(dataset):
@@ -59,8 +70,14 @@ def find_distribution(dataset):
     return distribution
 
 
-def extract_multilang_field(values: List[Dict[str, Any]], lang_preference: str = "kr") -> str:
+def extract_multilang_field(values: str | List[str] | List[Dict[str, Any]], lang_preference: str = "kr") -> str:
     """다국어 필드에서 우선순위 언어값 추출."""
+    if isinstance(values, str):
+        return values
+
+    if isinstance(values, list) and values[0] and isinstance(values[0], str):
+        return values[0]
+
     lang_formats = ["kr", "en"]
     for item in values:
         if not isinstance(item, dict):
@@ -94,8 +111,7 @@ def find_publisher(dataset: Dict[str, Any]) -> str:
     """XML에서 publisher 정보 추출"""
     publisher = dataset.get("dct:publisher", {})
     org = publisher.get("foaf:Organization", {})
-    name = org.get("foaf:name", "")
-
+    name = org.get("foaf:name", "")  # TODO: dcat:contactPoint 하위에 추가 정보 있는 경우 존재
     return name
 
 
