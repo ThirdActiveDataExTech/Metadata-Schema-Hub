@@ -1,11 +1,13 @@
 from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
+from pydantic import BaseModel
 from sqlalchemy import String
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TIMESTAMP
 from sqlmodel import Column, Field, SQLModel
 
 KST = timezone(timedelta(hours=9))
+
 
 class CatalogEntry(SQLModel, table=True):  # pyright: ignore
     __tablename__: str = "catalog_entry"  # pyright: ignore
@@ -42,3 +44,20 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
         default_factory=lambda: datetime.now(KST),
         sa_column=Column(TIMESTAMP(timezone=True), onupdate=lambda: datetime.now(KST))
     )
+
+
+class CatalogEntrySummary(BaseModel):
+    """카탈로그 목록 응답 DTO"""
+
+    id: int
+    title: Optional[str] = None
+    issued: Optional[str] = None
+    modified: Optional[str] = None
+    identifier: str
+    publisher: Optional[str] = None
+    keyword: Optional[List[str]] = None
+    landing_page: Optional[str] = None
+    theme: Optional[List[str]] = None
+    access_url: Optional[str] = None
+    ingested_at: Optional[str] = None
+    updated_at: Optional[str] = None

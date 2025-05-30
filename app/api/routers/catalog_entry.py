@@ -5,9 +5,9 @@ PUT, POST, GET 에 대한 다양한 API 예시를 작성해놨으니 참고해�
 import io
 import os
 import tempfile
-from typing import List
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile, Query
 from starlette.responses import StreamingResponse
 
 from app.dependencies import SessionDep
@@ -25,7 +25,7 @@ def get_catalog_entry_service(repository=Depends(CatalogEntryRepository)):
     return CatalogEntryService(repository)
 
 
-@router.get("/{catalog_entry_id}")
+@router.get("/entry/{catalog_entry_id}")
 async def read_catalog(
     session: SessionDep,
     service: CatalogEntryService = Depends(get_catalog_entry_service),
@@ -35,7 +35,42 @@ async def read_catalog(
     return APIResponseModel(result=catalog_entry, description="Entry Found.")
 
 
-@router.post("/schema-org")
+@router.get("/")
+async def search_catalog(
+    session: SessionDep,
+    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    query: Optional[str] = Query(None, description="제목, 설명에서 검색할 텍스트, LIKE"),
+    keyword: Optional[str] = Query(None, description="키워드 필터, EXACT"),
+    limit: int = Query(10, description="조회 제한 개수", ge=1, le=1000)
+):
+    """메타데이터 카탈로그 검색 (query, keyword만 지원)"""
+
+    # 검색 조건 존재 여부 확인
+    has_search_params = bool(query or keyword)
+
+    if has_search_params:
+        # 검색 수행
+        result = service.search_catalog(
+            db=session,
+            query=query,
+            keyword=keyword
+        )
+        description = f"검색 완료. 총 {len(result)}건 조회"
+    else:
+        # 전체 목록 조회
+        result = service.list_catalog(db=session, limit=limit)
+        # limit 적용 (서비스에서 지원하지 않는 경우 슬라이싱)
+        if len(result) > limit:
+            result = result[:limit]
+        description = f"목록 조회 완료. 총 {len(result)}건 조회"
+
+    return APIResponseModel(
+        result=result,
+        description=description
+    )
+
+
+@router.post("/import/schema-org")
 async def import_schema_org(
     session: SessionDep,
     service: CatalogEntryService = Depends(get_catalog_entry_service),
@@ -67,7 +102,7 @@ async def import_schema_org(
             os.unlink(temp_file_path)
 
 
-@router.post("/dcat")
+@router.post("/import/dcat")
 async def import_dcat(
     session: SessionDep,
     service: CatalogEntryService = Depends(get_catalog_entry_service),
@@ -189,7 +224,7 @@ async def _bulk_import_files(
     return result
 
 
-@router.post("/schema-org/bulk")
+@router.post("/import/schema-org/bulk")
 async def import_schema_org_bulk(
     session: SessionDep,
     service: CatalogEntryService = Depends(get_catalog_entry_service),
@@ -202,7 +237,7 @@ async def import_schema_org_bulk(
     )
 
 
-@router.post("/dcat/bulk")
+@router.post("/import/dcat/bulk")
 async def import_dcat_bulk(
     session: SessionDep,
     service: CatalogEntryService = Depends(get_catalog_entry_service),
