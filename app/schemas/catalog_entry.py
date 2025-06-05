@@ -2,7 +2,7 @@ from datetime import date, datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel
-from sqlalchemy import String
+from sqlalchemy import String, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TIMESTAMP
 from sqlmodel import Column, Field, SQLModel
 
@@ -34,15 +34,23 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
     )
     access_url: Optional[str] = None
     raw_metadata: Dict[str, Any] = Field(
+        default_factory=dict,
         sa_column=Column(JSONB, nullable=False)
     )
     ingested_at: datetime = Field(
-        default_factory=lambda: datetime.now(KST),
-        sa_column=Column(TIMESTAMP(timezone=True))
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+        )
     )
     updated_at: datetime = Field(
-        default_factory=lambda: datetime.now(KST),
-        sa_column=Column(TIMESTAMP(timezone=True), onupdate=lambda: datetime.now(KST))
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            server_default=func.now(),
+            onupdate=lambda: func.now(),
+            nullable=False
+        )
     )
 
 

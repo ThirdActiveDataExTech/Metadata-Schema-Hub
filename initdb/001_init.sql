@@ -10,9 +10,10 @@ CREATE TABLE IF NOT EXISTS users
 CREATE TABLE IF NOT EXISTS metadata_entry
 (
     id              SERIAL PRIMARY KEY,
-    metadata_id     VARCHAR(255) NOT NULL,    -- 메타데이터 id
-    metadata_schema TEXT NOT NULL,            -- 원본 메타데이터 스키마 명
-    value           TEXT                      -- 원본 메타데이터 값
+    metadata_id     TEXT NOT NULL,              -- 메타데이터 id
+    ingested_at     TIMESTAMPTZ DEFAULT now(),  -- 시스템 수집 일시
+    metadata_schema TEXT NOT NULL,              -- 원본 메타데이터 스키마 명
+    value           TEXT                        -- 원본 메타데이터 값
 );
 
 --- 필드별 COMMENT
@@ -44,7 +45,7 @@ CREATE TABLE IF NOT EXISTS catalog_entry
 
     -- dataset 필드
     identifier     TEXT  NOT NULL UNIQUE,     -- 고유 식별자 (dct:identifier), (dcat:Resource 속성)
-    publisher      TEXT,                     -- 발행 기관 정보 (dct:publisher) 의 name 속성
+    publisher      TEXT,                      -- 발행 기관 정보 (dct:publisher) 의 name 속성
     keyword        TEXT[],                    -- 키워드 리스트 (dcat:keyword), (dcat:Resource 속성)
     landing_page   TEXT,                      -- 웹 페이지 URL (dcat:landingPage), (dcat:Resource 속성)
     theme          TEXT[],                    -- 주제 분류 URI 또는 코드 (dcat:theme), (dcat:Resource 속성)

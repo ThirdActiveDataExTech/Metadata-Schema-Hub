@@ -1,7 +1,7 @@
 import json
 from typing import List, Dict, Any
 
-from app.src.metadata_entry.metadata_entry import MetadataEntry
+from app.schemas.metadata_entry import MetadataBase
 
 
 class JsonConverter:
@@ -27,7 +27,7 @@ class JsonConverter:
 
         return dict(items)
 
-    def convert_to_table(self, json_content: str | bytes, metadata_id: str | None = None) -> List[MetadataEntry]:
+    def convert_to_table(self, json_content: str | bytes) -> List[MetadataBase]:
         """JSON을 테이블로 변환"""
         try:
             data = json.loads(json_content)
@@ -43,11 +43,6 @@ class JsonConverter:
             if not value or value.strip() == "":
                 continue  # 빈 값 제외
 
-            result.append(MetadataEntry(
-                id=None,
-                metadata_id=metadata_id,
-                metadata_schema=schema,
-                value=value.strip()
-            ))
+            result.append(MetadataBase(metadata_schema=schema, value=value.strip()))
 
         return result

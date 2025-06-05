@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from lxml import etree
 
-from app.src.metadata_entry.metadata_entry import MetadataEntry
+from app.schemas.metadata_entry import MetadataBase
 from app.src.metadata_entry.namespace_handler import NamespaceHandler
 
 
@@ -62,7 +62,7 @@ class LxmlConverter:
 
         return results
 
-    def convert_to_table(self, xml_content: str | bytes, metadata_id: str | None = None) -> List[MetadataEntry]:
+    def convert_to_table(self, xml_content: str | bytes) -> List[MetadataBase]:
         """XML을 테이블로 변환"""
         try:
             if isinstance(xml_content, bytes):
@@ -87,11 +87,6 @@ class LxmlConverter:
             if not data["value"]:
                 continue  # 빈 값 제외
 
-            result.append(MetadataEntry(
-                id=None,
-                metadata_id=metadata_id,
-                metadata_schema=data["metadata_schema"],
-                value=data["value"]
-            ))
+            result.append(MetadataBase(metadata_schema=data["metadata_schema"], value=data["value"]))
 
         return result
