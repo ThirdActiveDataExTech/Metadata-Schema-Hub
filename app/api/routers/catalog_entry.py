@@ -1,7 +1,3 @@
-"""
-PUT, POST, GET 에 대한 다양한 API 예시를 작성해놨으니 참고해서 개발을 진행한다.
-되도록이면 Swagger에서 API를 쉽게 파악하기 위해 API 및 Body, Path, Query에 대한 설명을 작성한다.
-"""
 import io
 import os
 import tempfile
@@ -29,7 +25,7 @@ def get_catalog_entry_service(repository=Depends(CatalogEntryRepository)):
 async def read_catalog(
     session: SessionDep,
     service: CatalogEntryService = Depends(get_catalog_entry_service),
-    catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리의 ID", title="Catalog Entry ID", examples=[31]),
+    catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리의 ID", title="Catalog Entry ID", example=31),
 ):
     catalog_entry = service.get_raw_metadata(db=session, catalog_entry_id=catalog_entry_id)
     return APIResponseModel(result=catalog_entry, description="Entry Found.")

@@ -23,7 +23,7 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
 
     PORT: int = 8000
-    SERVICE_NAME: str = "Python FastAPI Template"
+    SERVICE_NAME: str = "Active Metadata Management"
     SERVICE_CODE: int = 100
     MAJOR_VERSION: str = "v1"
     STATUS: str = "dev"
