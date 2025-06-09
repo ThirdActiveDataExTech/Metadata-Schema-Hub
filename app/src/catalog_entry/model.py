@@ -10,6 +10,7 @@ KST = timezone(timedelta(hours=9))
 
 
 class CatalogEntry(SQLModel, table=True):  # pyright: ignore
+    """CatalogEntry 모델."""
     __tablename__: str = "catalog_entry"  # pyright: ignore
 
     id: Optional[int] = Field(

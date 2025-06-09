@@ -10,9 +10,9 @@ import pandas as pd
 import xmltodict
 
 from app.dependencies import SessionDep
-from app.exceptions.service import CatalogEntryNotFoundError
-from app.schemas.catalog_entry import CatalogEntry, CatalogEntrySummary, CatalogEntryCreate
-from app.schemas.metadata_entry import MetadataBase
+from app.src.catalog_entry.exceptions import CatalogEntryNotFoundError
+from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary, CatalogEntryCreate
+from app.src.metadata_entry.model import MetadataBase
 from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.column_relation.repository import ColumnRelationRepository
 

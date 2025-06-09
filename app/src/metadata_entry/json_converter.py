@@ -1,7 +1,7 @@
 import json
 from typing import List, Dict, Any
 
-from app.schemas.metadata_entry import MetadataBase
+from app.src.metadata_entry.model import MetadataBase
 
 
 class JsonConverter:

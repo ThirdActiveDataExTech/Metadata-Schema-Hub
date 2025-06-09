@@ -5,7 +5,7 @@ from sqlalchemy import and_, or_
 from sqlmodel import select
 
 from app.dependencies import SessionDep
-from app.schemas.catalog_entry import CatalogEntry, CatalogEntrySummary
+from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary
 
 
 class CatalogEntryRepository:

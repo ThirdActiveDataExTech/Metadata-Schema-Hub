@@ -10,6 +10,7 @@ class ColumnRelationBase(SQLModel):
     metadata_column: str = Field(nullable=False)
 
     def to_table_model(self) -> "ColumnRelation":
+        """ColumnRelationBase 모델로 변환."""
         return ColumnRelation(**self.model_dump())
 
 

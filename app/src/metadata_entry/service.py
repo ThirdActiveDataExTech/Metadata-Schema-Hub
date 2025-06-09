@@ -2,7 +2,7 @@ import uuid
 from typing import List
 
 from app.dependencies import SessionDep
-from app.schemas.metadata_entry import MetadataEntry
+from app.src.metadata_entry.model import MetadataEntry
 from app.src.metadata_entry.json_converter import JsonConverter
 from app.src.metadata_entry.repository import MetadataEntryRepository
 from app.src.metadata_entry.xml_converter import LxmlConverter
