@@ -4,7 +4,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 
 from app.dependencies import SessionDep
-from app.schemas.column_relation import ColumnRelation
+from app.src.column_relation.model import ColumnRelation
 
 
 class ColumnRelationRepository:

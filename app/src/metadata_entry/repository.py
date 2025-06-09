@@ -4,7 +4,7 @@ from sqlalchemy import insert
 from sqlmodel import select
 
 from app.dependencies import SessionDep
-from app.schemas.metadata_entry import MetadataEntry
+from app.src.metadata_entry.model import MetadataEntry
 
 
 class MetadataEntryRepository:

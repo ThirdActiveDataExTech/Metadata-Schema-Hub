@@ -1,7 +1,7 @@
 from typing import List, Tuple
 
 from app.dependencies import SessionDep
-from app.schemas.column_relation import ColumnRelation, ColumnRelationBase
+from app.src.column_relation.model import ColumnRelation, ColumnRelationBase
 from app.src.column_relation.repository import ColumnRelationRepository
 
 

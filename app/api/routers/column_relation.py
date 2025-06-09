@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends
 
 from app.dependencies import SessionDep
-from app.schemas.column_relation import ColumnRelationBase
+from app.src.column_relation.model import ColumnRelationBase
 from app.schemas.response import APIResponseModel
 from app.src.column_relation.repository import ColumnRelationRepository
 from app.src.column_relation.service import ColumnRelationService

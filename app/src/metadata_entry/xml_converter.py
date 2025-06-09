@@ -2,7 +2,7 @@ from typing import List, Dict
 
 from lxml import etree
 
-from app.schemas.metadata_entry import MetadataBase
+from app.src.metadata_entry.model import MetadataBase
 from app.src.metadata_entry.namespace_handler import NamespaceHandler
 
 
