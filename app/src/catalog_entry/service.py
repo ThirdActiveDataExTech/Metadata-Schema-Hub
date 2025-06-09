@@ -10,8 +10,11 @@ import pandas as pd
 import xmltodict
 
 from app.dependencies import SessionDep
-from app.schemas.catalog_entry import CatalogEntry, CatalogEntrySummary
+from app.exceptions.service import CatalogEntryNotFoundError
+from app.schemas.catalog_entry import CatalogEntry, CatalogEntrySummary, CatalogEntryCreate
+from app.schemas.metadata_entry import MetadataBase
 from app.src.catalog_entry.repository import CatalogEntryRepository
+from app.src.column_relation.repository import ColumnRelationRepository
 
 
 class CatalogEntryService:
@@ -28,6 +31,18 @@ class CatalogEntryService:
             data["identifier"] = f"generated_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
         catalog_entry = CatalogEntry(**data)
+        catalog_entry = self.repository.save(db, catalog_entry)
+        return catalog_entry
+
+    def create_catalog_entry(self, db: SessionDep, catalog_entry_create: CatalogEntryCreate) -> CatalogEntry:
+        """CatalogEntry 생성."""
+        if not catalog_entry_create.identifier:
+            catalog_entry_create.identifier = f"generated_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
+        catalog_entry = CatalogEntry(
+            identifier=catalog_entry_create.identifier,
+            raw_metadata=catalog_entry_create.raw_metadata,
+            ingested_at=catalog_entry_create.ingested_at,
+        )
         catalog_entry = self.repository.save(db, catalog_entry)
         return catalog_entry
 
@@ -121,3 +136,52 @@ class CatalogEntryService:
             result_items.append(item_dict)
 
         return result_items
+
+
+class CatalogEntryTransformService:
+    """CatalogEntry 변환 service."""
+
+    def __init__(
+            self,
+            catalog_entry_repository: CatalogEntryRepository,
+            column_relation_repository: ColumnRelationRepository,
+    ):
+        """Connect Repository."""
+        self.catalog_entry_repository = catalog_entry_repository
+        self.column_relation_repository = column_relation_repository
+
+    def update_catalog_entry_from_metadata_and_relation(
+            self,
+            db: SessionDep,
+            catalog_entry_id: int,
+            metadata_entries: List[MetadataBase],
+    ) -> CatalogEntry:
+        """CatalogEntry 를 메타데이터와 컬럼 관계 기반으로 매핑함."""
+        catalog = self.catalog_entry_repository.select(db, catalog_entry_id)
+        if not catalog:
+            raise CatalogEntryNotFoundError(catalog_entry_id)
+
+        metadata_dict = {item.metadata_schema: item.value for item in metadata_entries}
+        metadata_columns = list(metadata_dict.keys())
+
+        all_relations = self.column_relation_repository.select_relations_by_metadata_columns(db, metadata_columns)
+
+        relations_by_catalog_column = {}
+        for relation in all_relations:
+            if relation.catalog_column not in relations_by_catalog_column:
+                relations_by_catalog_column[relation.catalog_column] = []
+            relations_by_catalog_column[relation.catalog_column].append(relation)
+
+        for catalog_column in catalog.model_fields.keys():
+            if getattr(catalog, catalog_column, None) is not None:  # 이미 catalog_entry 값이 있다면 건너뜀
+                continue
+
+            related_columns = relations_by_catalog_column.get(catalog_column, [])
+
+            for related_column in related_columns:
+                metadata_value = metadata_dict.get(related_column.metadata_column)
+                if metadata_value:
+                    setattr(catalog, catalog_column, metadata_value)
+                    break
+
+        return self.catalog_entry_repository.save(db, catalog)

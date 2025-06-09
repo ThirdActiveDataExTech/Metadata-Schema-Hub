@@ -1,16 +1,23 @@
 import io
+import json
 import os
 import tempfile
 from typing import List, Optional
 
+import xmltodict
 from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile, Query
 from starlette.responses import StreamingResponse
 
 from app.dependencies import SessionDep
+from app.schemas.catalog_entry import CatalogEntryCreate
+from app.schemas.metadata_entry import MetadataBase
 from app.schemas.response import APIResponseModel
 from app.src.catalog_entry.repository import CatalogEntryRepository
-from app.src.catalog_entry.service import CatalogEntryService
+from app.src.catalog_entry.service import CatalogEntryService, CatalogEntryTransformService
+from app.src.column_relation.repository import ColumnRelationRepository
 from app.src.dcat.dcat_processor import parse_dcat_xml
+from app.src.metadata_entry.repository import MetadataEntryRepository
+from app.src.metadata_entry.service import MetadataEntryService
 from app.src.schema_org.schema_org_processor import parse_schema_org_json
 
 router = APIRouter(prefix="/catalog", tags=["catalog"])
@@ -19,6 +26,19 @@ router = APIRouter(prefix="/catalog", tags=["catalog"])
 def get_catalog_entry_service(repository=Depends(CatalogEntryRepository)):
     """Repository dependency injection."""
     return CatalogEntryService(repository)
+
+
+def get_metadata_entry_service(repository=Depends(MetadataEntryRepository)):
+    """Repository dependency injection."""
+    return MetadataEntryService(repository)
+
+
+def get_catalog_entry_transform_service(
+        catalog_entry_repository=Depends(CatalogEntryRepository),
+        column_relation_repository=Depends(ColumnRelationRepository)
+):
+    """Repository dependency injection."""
+    return CatalogEntryTransformService(catalog_entry_repository, column_relation_repository)
 
 
 @router.get("/entry/{catalog_entry_id}")
@@ -64,6 +84,48 @@ async def search_catalog(
         result=result,
         description=description
     )
+
+
+@router.post("/import/metadata")
+async def import_metadata(
+    session: SessionDep,
+    metadata_entry_service: MetadataEntryService = Depends(get_metadata_entry_service),
+    catalog_entry_service: CatalogEntryService = Depends(get_catalog_entry_service),
+    catalog_entry_transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
+    file: UploadFile = File(description="Json 직렬화 가능한 메타데이터 파일"),
+):
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="파일 업로드 필요")
+
+    content = await file.read()
+
+    parsed_data = None
+    serialized_content = None
+
+    if file.filename.endswith((".json", ".jsonld")):
+        parsed_data = metadata_entry_service.create_from_json(session, content)
+        serialized_content = json.loads(content)
+
+    if file.filename.endswith((".xml", ".rdf")):
+        parsed_data = metadata_entry_service.create_from_xml(session, content)
+        serialized_content = xmltodict.parse(content)
+
+    if not parsed_data or not serialized_content:
+        raise HTTPException(status_code=400, detail="지원하지 않는 형식입니다.")
+
+    # 같은 metadata 에서 생성된 parsed_data 들의 메타 컬럼(metadata_id ...) 모두 같은 값을 가짐
+    catalog_entry_create = CatalogEntryCreate(identifier=parsed_data[0].metadata_id, raw_metadata=serialized_content)
+    catalog_entry = catalog_entry_service.create_catalog_entry(db=session, catalog_entry_create=catalog_entry_create)
+
+    metadata_entries = [MetadataBase(metadata_schema=data.metadata_schema, value=data.value) for data in parsed_data]
+
+    result = catalog_entry_transform_service.update_catalog_entry_from_metadata_and_relation(
+        session,
+        catalog_entry.id,
+        metadata_entries
+    )
+
+    return APIResponseModel(result=result, description="Metadata import 및 변환 완료")
 
 
 @router.post("/import/schema-org")

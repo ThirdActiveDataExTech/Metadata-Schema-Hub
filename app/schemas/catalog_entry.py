@@ -44,11 +44,12 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
             nullable=False,
         )
     )
-    updated_at: datetime = Field(
+    updated_at: datetime | None = Field(
+        default=None,
         sa_column=Column(
             TIMESTAMP(timezone=True),
             server_default=func.now(),
-            onupdate=lambda: func.now(),
+            onupdate=func.now(),
             nullable=False
         )
     )
@@ -56,7 +57,6 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
 
 class CatalogEntrySummary(BaseModel):
     """카탈로그 목록 응답 DTO"""
-
     id: int
     title: Optional[str] = None
     issued: Optional[str] = None
@@ -69,3 +69,10 @@ class CatalogEntrySummary(BaseModel):
     access_url: Optional[str] = None
     ingested_at: Optional[str] = None
     updated_at: Optional[str] = None
+
+
+class CatalogEntryCreate(BaseModel):
+    """카탈로그 생성 DTO"""
+    identifier: str | None = None
+    raw_metadata: Dict[str, Any]
+    ingested_at: datetime = datetime.now()
