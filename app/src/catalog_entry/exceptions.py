@@ -13,6 +13,14 @@ class CatalogEntryError(ApplicationError):
         self.message = "CatalogEntryError"
 
 
+class CatalogEntryServiceError(CatalogEntryError):
+    """CatalogEntryService 예외"""
+    def __init__(self, message: str):
+        """Initialize Exceptions."""
+        self.code = int(f"{settings.SERVICE_CODE}{status.HTTP_400_BAD_REQUEST}")
+        self.message = message
+
+
 class CatalogEntryNotFoundError(CatalogEntryError):
     """Catalog Entry Not Found"""
 

@@ -1,13 +1,15 @@
 import io
 import json
+import pathlib
 from typing import Optional
 
 import xmltodict
-from fastapi import APIRouter, Depends, File, HTTPException, Path, UploadFile, Query
+from fastapi import APIRouter, Depends, File, Path, UploadFile, Query
 from starlette.responses import StreamingResponse
 
 from app.dependencies import SessionDep
 from app.schemas.response import APIResponseModel
+from app.src.catalog_entry.exceptions import CatalogEntryServiceError
 from app.src.catalog_entry.model import CatalogEntryCreate
 from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.catalog_entry.service import CatalogEntryService, CatalogEntryTransformService
@@ -90,30 +92,49 @@ async def import_metadata(
     catalog_entry_transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
     file: UploadFile = File(description="Json 직렬화 가능한 메타데이터 파일"),
 ):
+    # TODO: 3 개의 TX 가 수행됨, create_catalog_entry TX 가 성공되면 이후는 retry 가능하나, retry 로직 없음.
+    extension_to_type = {
+        ".json": "json",
+        ".jsonl": "json",
+        ".jsonld": "json",
+        ".xml": "xml",
+        ".rdf": "xml",
+    }
+
+    type_functions = {
+        "json": {
+            "serializer": json.loads,
+            "parser": metadata_entry_service.create_from_json,
+        },
+        "xml": {
+            "serializer": xmltodict.parse,
+            "parser": metadata_entry_service.create_from_xml,
+        }
+    }
+
     if not file.filename:
-        raise HTTPException(status_code=400, detail="파일 업로드 필요")
+        raise CatalogEntryServiceError(message="파일 업로드가 필요합니다.")
 
     content = await file.read()
+    extension = pathlib.Path(file.filename).suffix.lower()
+    file_type = extension_to_type.get(extension, None)
+    if not file_type:
+        raise CatalogEntryServiceError(message=f"확장자 `{extension}` 는 지원하지 않는 형식입니다.")
 
-    parsed_data = None
-    serialized_content = None
+    serialized_content = type_functions[file_type]["serializer"](content)
 
-    if file.filename.endswith((".json", ".jsonld")):
-        parsed_data = metadata_entry_service.create_from_json(session, content)
-        serialized_content = json.loads(content)
-
-    if file.filename.endswith((".xml", ".rdf")):
-        parsed_data = metadata_entry_service.create_from_xml(session, content)
-        serialized_content = xmltodict.parse(content)
-
-    if not parsed_data or not serialized_content:
-        raise HTTPException(status_code=400, detail="지원하지 않는 형식입니다.")
-
-    # 같은 metadata 에서 생성된 parsed_data 들의 메타 컬럼(metadata_id ...) 모두 같은 값을 가짐
-    catalog_entry_create = CatalogEntryCreate(identifier=parsed_data[0].metadata_id, raw_metadata=serialized_content)
+    catalog_entry_create = CatalogEntryCreate(raw_metadata=serialized_content)
     catalog_entry = catalog_entry_service.create_catalog_entry(db=session, catalog_entry_create=catalog_entry_create)
 
+    del serialized_content
+
+    parsed_data = type_functions[file_type]["parser"](db=session, metadata_id=catalog_entry.identifier, data=content)
+
+    del content
+
     metadata_entries = [MetadataBase(metadata_schema=data.metadata_schema, value=data.value) for data in parsed_data]
+
+    del parsed_data
 
     result = catalog_entry_transform_service.update_catalog_entry_from_metadata_and_relation(
         session,
