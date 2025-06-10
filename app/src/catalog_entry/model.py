@@ -55,6 +55,18 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
         )
     )
 
+    @classmethod
+    def get_list_fields(cls) -> List[str]:
+        """List[str] 타입인 필드명들을 반환
+
+        Returns:
+            List[str]: List[str] 타입으로 정의된 필드명 목록
+
+        Note:
+            컬럼 변경시 직접 변경 필요
+        """
+        return ["keyword", "theme"]
+
 
 class CatalogEntrySummary(BaseModel):
     """카탈로그 목록 응답 DTO"""

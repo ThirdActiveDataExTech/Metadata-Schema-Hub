@@ -11,6 +11,7 @@ from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary, Catal
 from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.column_relation.repository import ColumnRelationRepository
 from app.src.metadata_entry.model import MetadataBase
+from app.src.util.util import to_str_list
 
 
 class CatalogEntryService:
@@ -126,6 +127,8 @@ class CatalogEntryTransformService:
                 relations_by_catalog_column[relation.catalog_column] = []
             relations_by_catalog_column[relation.catalog_column].append(relation)
 
+        list_fields = CatalogEntry.get_list_fields()
+
         for catalog_column in catalog.model_fields.keys():
             if getattr(catalog, catalog_column, None) is not None:  # 이미 catalog_entry 값이 있다면 건너뜀
                 continue
@@ -135,6 +138,9 @@ class CatalogEntryTransformService:
             for related_column in related_columns:
                 metadata_value = metadata_dict.get(related_column.metadata_column)
                 if metadata_value:
+                    if catalog_column in list_fields:
+                        metadata_value = to_str_list(metadata_value)
+
                     setattr(catalog, catalog_column, metadata_value)
                     break
 
