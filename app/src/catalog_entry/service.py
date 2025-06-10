@@ -1,9 +1,5 @@
-import datetime
 import io
-import logging
-import os.path
-from datetime import datetime
-from pathlib import Path
+import uuid
 from typing import Any, Dict, List, Optional, Sequence
 
 import pandas as pd
@@ -12,9 +8,9 @@ import xmltodict
 from app.dependencies import SessionDep
 from app.src.catalog_entry.exceptions import CatalogEntryNotFoundError
 from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary, CatalogEntryCreate
-from app.src.metadata_entry.model import MetadataBase
 from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.column_relation.repository import ColumnRelationRepository
+from app.src.metadata_entry.model import MetadataBase
 
 
 class CatalogEntryService:
@@ -24,20 +20,10 @@ class CatalogEntryService:
         """Connect Repository."""
         self.repository = repository
 
-    def import_to_database(self, db: SessionDep, data: Dict[str, Any]) -> CatalogEntry:
-        """데이터 전처리하고 Repository 통해 DB 저장"""
-        # 빈 identifier인 경우 현재 시간 기반 고유 식별자 생성
-        if not data.get("identifier"):
-            data["identifier"] = f"generated_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
-
-        catalog_entry = CatalogEntry(**data)
-        catalog_entry = self.repository.save(db, catalog_entry)
-        return catalog_entry
-
     def create_catalog_entry(self, db: SessionDep, catalog_entry_create: CatalogEntryCreate) -> CatalogEntry:
         """CatalogEntry 생성."""
         if not catalog_entry_create.identifier:
-            catalog_entry_create.identifier = f"generated_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
+            catalog_entry_create.identifier = str(uuid.uuid1())
         catalog_entry = CatalogEntry(
             identifier=catalog_entry_create.identifier,
             raw_metadata=catalog_entry_create.raw_metadata,
@@ -56,23 +42,6 @@ class CatalogEntryService:
 
         return raw_metadata
 
-    def export_to_csv(self, db: SessionDep, output_path: str | Path, limit: int = None):
-        """데이터베이스의 catalog_entry 테이블 전체를 CSV로 내보내기"""
-        output_dir = os.path.dirname(output_path)
-        if not os.path.exists(output_dir):
-            raise Exception(f"{output_dir=} not exists.")
-
-        data_list = self.repository.export_data_list(db, limit=limit)
-
-        # pandas DataFrame으로 변환
-        df = pd.DataFrame(data_list)
-
-        # CSV 파일로 저장
-        df.to_csv(output_path, index=False, encoding="utf-8-sig")  # BOM 포함 UTF-8로 저장
-
-        logging.info(f"CSV 내보내기 완료: {output_path} (총 {len(data_list)}개 레코드)")
-        return output_path
-
     def export_to_csv_stream(self, db: SessionDep, limit: int = 100) -> io.StringIO:
         """메모리에서 CSV 스트림 생성"""
         data_list = self.repository.export_data_list(db, limit=limit)
@@ -84,21 +53,6 @@ class CatalogEntryService:
         csv_buffer.seek(0)
 
         return csv_buffer
-
-    def insert_data(self, db: SessionDep, data: List[Dict[str, Any]]):
-        """변환된 데이터를 데이터베이스에 삽입합니다."""
-        processed_data = []
-        for entry in data:
-            entry_copy = entry.copy()
-            if not entry_copy.get("identifier"):
-                entry_copy["identifier"] = f"generated_{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
-            processed_data.append(CatalogEntry(**entry_copy))
-
-        catalog_entries = self.repository.save_bulk(db, processed_data)
-
-        logging.info(f"총 {len(catalog_entries)}개의 데이터가 catalog_entry 테이블에 삽입되었습니다.")
-
-        return catalog_entries
 
     def list_catalog(self, db: SessionDep, limit: Optional[int]) -> List[CatalogEntrySummary]:
         """전체 카탈로그 목록 조회"""

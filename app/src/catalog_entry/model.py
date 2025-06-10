@@ -76,4 +76,4 @@ class CatalogEntryCreate(BaseModel):
     """카탈로그 생성 DTO"""
     identifier: str | None = None
     raw_metadata: Dict[str, Any]
-    ingested_at: datetime = datetime.now()
+    ingested_at: datetime = Field(default_factory=datetime.now)
