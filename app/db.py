@@ -118,4 +118,5 @@ def log_queries(conn, cursor, statement, params, context, executemany):
         f.write("-- " + "-" * 50 + "\n\n")
 
 
-event.listen(engine, "after_cursor_execute", log_queries)
+if settings.POSTGRES_VERBOSE:
+    event.listen(engine, "after_cursor_execute", log_queries)

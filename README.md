@@ -4,17 +4,18 @@
 [![Postgres](https://img.shields.io/badge/Postgres-17.4-%23316192)]([#](https://hub.docker.com/layers/library/postgres/17.4/images/sha256-48f04a5009fe444f00178907dd32f6df809246a959468f72248284752f31dadd))
 [![Postgres](https://img.shields.io/badge/Postgres-%23316192.svg?logo=postgresql&logoColor=white)]([#](https://www.postgresql.org/download/))
 
-다양한 데이터 소스의 메타데이터를 수집, 통합, 변환 및 저장하기 위한 스키마 입니다. 
+다양한 데이터 소스의 메타데이터를 수집, 통합, 변환 및 저장하기 위한 스키마입니다.
 
 이 시스템은 서로 다른 형식의 메타데이터를 표준화된 통합 카탈로그로 변환하여 조직 전체의 데이터 자산을 효율적으로 관리하고 활용할 수 있도록 지원합니다.
 
 ## 주요 기능
 
 - 다양한 데이터 소스(공공데이터포털, 써드파티 데이터 등)로부터 메타데이터 수집
-- 이기종 메타데이터 형식(DCAT/RDF, OpenSchema.org/JSON 등)의 통합 변환
+- 이기종 메타데이터 형식(DCAT/RDF, Schema.org/JSON 등)의 통합 변환
 - 메타데이터 품질 검증 및 보강
 - 확장 가능한 메타데이터 저장소 구축
 - 메타데이터 검색 및 조회 기능
+- [컬럼 간 연관성 분석](https://github.com/ThirdActiveDataExTech/RelationalSchemaMatching) 결과 기반 매핑
 
 ## 기대 효과
 
@@ -25,7 +26,11 @@
 
 ---
 
-# 스키마 정의
+# 스키마 구조
+
+## 1. catalog_entry 테이블
+
+**DCAT 기반 메타데이터 통합 저장 테이블**
 
 | 컬럼명 | 데이터타입 | 제약조건 | 설명 |
 |--------|------------|----------|------|
@@ -44,17 +49,57 @@
 | ingested_at | TIMESTAMPTZ | DEFAULT now() | 데이터 수집 저장 시간 |
 | updated_at | TIMESTAMPTZ | DEFAULT now() | 후처리/재매핑 갱신 시각 |
 
-* `/initdb/001_init.sql` DDL 기반으로 스키마가 정의됨
-* 해당 테이블이 없을 경우, 로직이 실패할 수 있음
+## 2. metadata_entry 테이블
+
+**RDF/JSON 메타데이터의 중첩 구조를 key-value 쌍으로 분해하여 저장하는 테이블**
+
+| 컬럼명 | 데이터타입 | 제약조건 | 설명 |
+|--------|------------|----------|------|
+| id | SERIAL | PRIMARY KEY | 고유 식별키 |
+| metadata_id | TEXT | NOT NULL | 메타데이터 식별키 (동일 값 = 같은 메타데이터에서 추출) |
+| ingested_at | TIMESTAMPTZ | DEFAULT now() | 시스템 수집 일시 |
+| metadata_schema | TEXT | NOT NULL | 원본 메타데이터 스키마명 |
+| value | TEXT | | 원본 메타데이터 값 |
+
+## 3. column_relation 테이블
+
+**카탈로그 컬럼과 메타데이터 컬럼 간의 매핑 관계 및 연관성 점수를 저장하는 테이블**
+
+| 컬럼명 | 데이터타입 | 제약조건 | 설명 |
+|--------|------------|----------|------|
+| id | SERIAL | PRIMARY KEY | 고유 식별키 |
+| catalog_column | TEXT | NOT NULL | 카탈로그 테이블의 컬럼명 |
+| correlation | REAL | NOT NULL | 컬럼 간 연관성 점수 (0.0-1.0 범위) |
+| metadata_column | TEXT | NOT NULL | 메타데이터 테이블의 컬럼명 |
 
 ## 설계 근거
 
+### catalog_entry
 - DCAT 3.0 표준의 Dataset과 Distribution 클래스에서 권장되는 핵심 속성들을 스키마로 선정
 - 다양한 데이터 소스와 포맷에서 호환성이 높고 결측치가 적은 컬럼을 우선 포함
 - raw_metadata 필드를 통해 원본 메타데이터를 보존하여 확장성 확보
 
-## 사용 방법 
+### metadata_entry
+- 복잡한 중첩 구조의 메타데이터를 평면화하여 분석 및 처리 용이성 확보
+- 스키마별 값 분리를 통한 유연한 데이터 변환 및 매핑 지원
+
+### column_relation
+- 컬럼 간 연관성 분석 결과 기반 매핑 자동화를 위한 예측 결과 저장
+- 메타데이터와 카탈로그 간 의미적 연관성 정량화
+
+## 사용 방법
 
 ```bash
 $ docker compose up -d
 ```
+
+### DDL 위치
+- `/initdb/` 디렉터리 하위의 DDL 기반으로 스키마가 정의됨
+- 해당 테이블이 없을 경우, 로직이 실패할 수 있음
+- 동봉된 docker compose 의 PostgreSQL 를 사용할 경우, table 생성 DDL 이 실행됨  
+
+### 데이터 처리 흐름
+1. **메타데이터 수집**: 다양한 소스에서 원본 메타데이터 수집
+2. **변환 처리**: metadata_entry 테이블에 key-value 구조로 분해 저장
+3. **통합 저장**: catalog_entry 테이블에 DCAT 표준 형식으로 통합 저장
+4. **관계 매핑**: column_relation 테이블에 컬럼 간 연관성 정보 저장
