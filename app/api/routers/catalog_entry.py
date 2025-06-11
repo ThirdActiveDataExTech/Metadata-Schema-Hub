@@ -39,25 +39,26 @@ def get_catalog_entry_transform_service(
     return CatalogEntryTransformService(catalog_entry_repository, column_relation_repository)
 
 
-@router.get("/entry/{catalog_entry_id}")
-async def read_catalog(
+@router.get("/entries/{catalog_entry_id}")
+async def get_catalog_entry(
     session: SessionDep,
     service: CatalogEntryService = Depends(get_catalog_entry_service),
-    catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리의 ID", title="Catalog Entry ID", example=31),
+    catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리 ID", example=31),
 ):
+    """특정 카탈로그 엔트리의 원본 메타데이터 조회"""
     catalog_entry = service.get_raw_metadata(db=session, catalog_entry_id=catalog_entry_id)
     return APIResponseModel(result=catalog_entry, description="Entry Found.")
 
 
-@router.get("/")
-async def search_catalog(
+@router.get("/entries")
+async def search_catalog_entries(
     session: SessionDep,
     service: CatalogEntryService = Depends(get_catalog_entry_service),
-    query: Optional[str] = Query(None, description="제목, 설명에서 검색할 텍스트, LIKE"),
-    keyword: Optional[str] = Query(None, description="키워드 필터, EXACT"),
-    limit: int = Query(10, description="조회 제한 개수", ge=1, le=1000)
+    query: Optional[str] = Query(None, description="제목, 설명 텍스트 검색 (LIKE 패턴)"),
+    keyword: Optional[str] = Query(None, description="키워드 정확 일치 필터"),
+    limit: int = Query(10, description="검색 결과 제한 개수", ge=1, le=100)  # TODO: test 되지 않은 limit
 ):
-    """메타데이터 카탈로그 검색 (query, keyword만 지원)"""
+    """카탈로그 엔트리 검색 (쿼리 또는 키워드 기반)"""
 
     # 검색 조건 존재 여부 확인
     has_search_params = bool(query or keyword)
@@ -84,14 +85,15 @@ async def search_catalog(
     )
 
 
-@router.post("/import/metadata")
-async def import_metadata(
+@router.post("/import")
+async def import_metadata_file(
     session: SessionDep,
     metadata_entry_service: MetadataEntryService = Depends(get_metadata_entry_service),
     catalog_entry_service: CatalogEntryService = Depends(get_catalog_entry_service),
     catalog_entry_transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
-    file: UploadFile = File(description="Json 직렬화 가능한 메타데이터 파일"),
+    file: UploadFile = File(description="JSON/XML 형식의 메타데이터 파일 (.json, .jsonl, .xml, .rdf)"),
 ):
+    """메타데이터 파일 업로드 및 카탈로그 엔트리 변환 처리"""
     # TODO: 3 개의 TX 가 수행됨, create_catalog_entry TX 가 성공되면 이후는 retry 가능하나, retry 로직 없음.
     extension_to_type = {
         ".json": "json",
@@ -146,11 +148,12 @@ async def import_metadata(
 
 
 @router.get("/export/csv")
-async def export_database(
+async def export_catalog_entries_csv(
     session: SessionDep,
     service: CatalogEntryService = Depends(get_catalog_entry_service),
-    limit: int = 100
+    limit: int = Query(100, description="내보낼 엔트리 개수 제한")   # TODO: test 되지 않은 limit
 ):
+    """카탈로그 엔트리를 CSV 파일로 내보내기"""
     csv_stream = service.export_to_csv_stream(session, limit)
     return StreamingResponse(
         io.StringIO(csv_stream.getvalue()),

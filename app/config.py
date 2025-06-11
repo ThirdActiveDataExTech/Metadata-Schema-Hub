@@ -103,6 +103,8 @@ class Settings(BaseSettings):
 
     POSTGRES_URL: str = f"postgresql://{POSTGRES_USER}:{POSTGRES_PASSWORD}@{POSTGRES_HOST}:{POSTGRES_PORT}/{POSTGRES_DB}"
 
+    POSTGRES_VERBOSE: bool = False
+
 
 settings = Settings()  # type: ignore
 print(settings.model_dump_json())
