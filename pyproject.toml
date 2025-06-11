@@ -1,16 +1,13 @@
 [project]
 authors = [
-    { name = "Seoyeon Park", email = "sally9476@wisenut.co.kr" },
+    { name = "Youngwoo Choi", email = "uoise@wisenut.co.kr" },
 ]
 maintainers = [
-    { name = "Chanhyeong Lee", email = "wisnt65@wisenut.co.kr" },
-    { name = "Hyeok Jang", email = "wath1457@wisenut.co.kr" },
     { name = "Youngwoo Choi", email = "uoise@wisenut.co.kr" },
 ]
 license = { text = "LICENSE" }
 requires-python = "<3.13,>=3.9"
 dependencies = [
-    "fastapi[standard]<=0.115.0",
     "loguru<1.0.0,>=0.7.2",
     "pyyaml<7.0.0,>=6.0.2",
     "pydantic-settings<3.0.0,>=2.5.2",
@@ -19,10 +16,12 @@ dependencies = [
     "requests>=2.32.3",
     "xmltodict>=0.14.2",
     "psycopg2-binary>=2.9.10",
+    "fastapi[standard]<=0.115.0",
+    "lxml>=5.4.0",
 ]
-name = "python-fastapi-template"
+name = "active-metadata-management"
 version = "v1"
-description = "Python FastAPI Template"
+description = "Active Metadata Management"
 readme = "README.md"
 keywords = [
     "python",
@@ -60,6 +59,7 @@ lint = [
     "ruff>=0.6.4,<1.0.0",
     "pyright>=1.1.397",
     "pre-commit>=4.0.1,<5.0.0",
+    "lxml-stubs>=0.5.1",
 ]
 test = [
     "pytest<9.0.0,>=8.3.3",
