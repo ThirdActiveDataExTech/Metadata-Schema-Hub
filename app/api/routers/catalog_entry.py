@@ -1,7 +1,7 @@
 import io
 import json
 import pathlib
-from typing import Optional
+from typing import Optional, Literal
 
 import xmltodict
 from fastapi import APIRouter, Depends, File, Path, UploadFile, Query
@@ -45,9 +45,24 @@ async def get_catalog_entry(
     service: CatalogEntryService = Depends(get_catalog_entry_service),
     catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리 ID", example=31),
 ):
-    """특정 카탈로그 엔트리의 원본 메타데이터 조회"""
-    catalog_entry = service.get_raw_metadata(db=session, catalog_entry_id=catalog_entry_id)
+    """특정 카탈로그 엔트리 조회"""
+    catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id)
     return APIResponseModel(result=catalog_entry, description="Entry Found.")
+
+@router.get("/entries/raw-metadata/{catalog_entry_id}")
+async def get_raw_metadata(
+    session: SessionDep,
+    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리 ID", example=31),
+    output_format: Literal["json", "xml"] = Query(
+        default="json",
+        description="출력 형식 선택",
+        example="json"
+    ),
+):
+    """특정 카탈로그 엔트리의 원본 메타데이터 조회"""
+    catalog_entry = service.get_raw_metadata(db=session, catalog_entry_id=catalog_entry_id, data_format=output_format)
+    return APIResponseModel(result=catalog_entry, description="Raw Metadata Found.")
 
 
 @router.get("/entries")

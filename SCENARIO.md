@@ -9,13 +9,14 @@
 
 ## 환경 설정
 
-### Docker Compose로 PostgreSQL 구성
+### 카탈로그 실행 방법
 
 ```shell
+$ docker compose build  # 최초 1회만 수행하여 이미지 빌드
 $ docker compose up -d
 ```
 
-### PostgreSQL 삭제 방법
+### 카탈로그 삭제 방법
 
 ```shell
 $ docker compose down
@@ -44,12 +45,6 @@ $ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```bash
 $ uv sync
 $ export PYTHONPATH=$(pwd)
-```
-
-## 실행 방법
-
-```bash
-$ uv run uvicorn app.main:app --host 0.0.0.0 --port {port}
 ```
 
 * 원하는 port 로 변경 가능
@@ -107,6 +102,14 @@ curl "http://localhost:{port}/catalog/entries?limit=10" \
 
 # 특정 카탈로그 엔트리 조회
 curl "http://localhost:{port}/catalog/entries/31" \
+  -H 'x-token: {x-token}'
+
+# 특정 카탈로그 엔트리의 원본 메타데이터 조회 (JSON 형식)
+curl "http://localhost:{port}/catalog/entries/raw-metadata/31?output_format=json" \
+  -H 'x-token: {x-token}'
+
+# 특정 카탈로그 엔트리의 원본 메타데이터 조회 (XML 형식)
+curl "http://localhost:{port}/catalog/entries/raw-metadata/31?output_format=xml" \
   -H 'x-token: {x-token}'
 
 # 텍스트 검색
