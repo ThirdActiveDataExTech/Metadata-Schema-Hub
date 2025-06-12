@@ -63,17 +63,6 @@ def make_version_info():
 
     return SERVICE, FULLVERSION, GIT_REVISION, GIT_SHORT_REVISION, GIT_BRANCH, BUILD_DATE
 
-
-def write_version_py(file_name='version_info.py'):
-    version_info = """\
-service: str = '{service}'
-version: str = '{version}'
-git_branch: str = '{git_branch}'
-git_revision: str = '{git_revision}'
-git_short_revision: str = '{git_short_revision}'
-build_date: str = '{build_date}'
-"""
-
     SERVICE, FULL_VERSION, GIT_REVISION, GIT_SHORT_REVISION, GIT_BRANCH, BUILD_DATE = make_version_info()
     if GIT_BRANCH.lower() == 'unknown' or GIT_REVISION.lower() == 'unknown' or GIT_SHORT_REVISION.lower() == 'unknown':
         logging.warning("Unable to get git version information. Set to 'Unknown'")
@@ -94,27 +83,7 @@ def get_version_info():
     BUILD_DATE = get_current_datetime()
     FULL_VERSION, GIT_REVISION, GIT_SHORT_REVISION, GIT_BRANCH = "Unknown", "Unknown", "Unknown", "Unknown"
 
-    try:
-        import version_info  # type: ignore
-    except ImportError as ie:
-        logging.error(f"Check if 'app.version_info' exists: {ie}")
-        return FULL_VERSION, GIT_REVISION, GIT_SHORT_REVISION, GIT_BRANCH, BUILD_DATE
-
-    if hasattr(version_info, 'version'):
-        FULL_VERSION = version_info.version
-    if hasattr(version_info, 'git_branch'):
-        GIT_BRANCH = version_info.git_branch
-    if hasattr(version_info, 'git_revision'):
-        GIT_REVISION = version_info.git_revision
-    if hasattr(version_info, 'git_short_revision'):
-        GIT_SHORT_REVISION = version_info.git_short_revision
-    if hasattr(version_info, 'build_date'):
-        BUILD_DATE = version_info.build_date
-
     return FULL_VERSION, GIT_REVISION, GIT_SHORT_REVISION, GIT_BRANCH, BUILD_DATE
 
 
 VERSION, GIT_REVISION, GIT_SHORT_REVISION, GIT_BRANCH, BUILD_DATE = get_version_info()
-
-if __name__ == "__main__":
-    write_version_py(file_name='version_info.py')
