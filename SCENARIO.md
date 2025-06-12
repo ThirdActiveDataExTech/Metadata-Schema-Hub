@@ -104,6 +104,14 @@ curl "http://localhost:{port}/catalog/entries?limit=10" \
 curl "http://localhost:{port}/catalog/entries/31" \
   -H 'x-token: {x-token}'
 
+# 특정 카탈로그 엔트리의 원본 메타데이터 조회 (JSON 형식)
+curl "http://localhost:{port}/catalog/entries/raw-metadata/31?output_format=json" \
+  -H 'x-token: {x-token}'
+
+# 특정 카탈로그 엔트리의 원본 메타데이터 조회 (XML 형식)
+curl "http://localhost:{port}/catalog/entries/raw-metadata/31?output_format=xml" \
+  -H 'x-token: {x-token}'
+
 # 텍스트 검색
 curl "http://localhost:{port}/catalog/entries?query=교통&limit=20" \
   -H 'x-token: {x-token}'
