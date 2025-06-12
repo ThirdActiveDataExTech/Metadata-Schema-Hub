@@ -1,4 +1,22 @@
 services:
+  active-metadata-management:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: active-metadata-management:dev  # 빌드된 이미지 태그명
+    restart: unless-stopped
+    environment:
+      X_TOKEN: wisenut
+      TZ: Asia/Seoul
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_HOST: postgres-174
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: datagokr
+    ports:
+      - 8084:8084
+    depends_on:
+      - postgres-174
 
   postgres-174:
     image: postgres:17.4

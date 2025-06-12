@@ -9,13 +9,14 @@
 
 ## 환경 설정
 
-### Docker Compose로 PostgreSQL 구성
+### 카탈로그 실행 방법
 
 ```shell
+$ docker compose build  # 최초 1회만 수행하여 이미지 빌드
 $ docker compose up -d
 ```
 
-### PostgreSQL 삭제 방법
+### 카탈로그 삭제 방법
 
 ```shell
 $ docker compose down
@@ -44,12 +45,6 @@ $ powershell -c "irm https://astral.sh/uv/install.ps1 | iex"
 ```bash
 $ uv sync
 $ export PYTHONPATH=$(pwd)
-```
-
-## 실행 방법
-
-```bash
-$ uv run uvicorn app.main:app --host 0.0.0.0 --port {port}
 ```
 
 * 원하는 port 로 변경 가능
