@@ -1,6 +1,6 @@
 import io
 import uuid
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Literal
 
 import pandas as pd
 import xmltodict
@@ -33,12 +33,16 @@ class CatalogEntryService:
         catalog_entry = self.repository.save(db, catalog_entry)
         return catalog_entry
 
-    def get_raw_metadata(self, db: SessionDep, catalog_entry_id: int, data_format: str = "schema.org") -> Any:
+    def get_catalog_entry(self, db: SessionDep, catalog_entry_id: int) -> CatalogEntry:
+        """Get Catalog Entry."""
+        return self.repository.select(db, catalog_entry_id)
+
+    def get_raw_metadata(self, db: SessionDep, catalog_entry_id: int, data_format: Literal["json", "xml"] = "json") -> Any:
         """Get raw metadata."""
         raw_metadata = self.repository.select(db, catalog_entry_id).raw_metadata
 
-        if data_format == "dcat":
-            xml_string = xmltodict.unparse(raw_metadata, full_document=True, pretty=True)
+        if data_format == "xml":
+            xml_string = xmltodict.unparse(raw_metadata, full_document=True)
             return xml_string
 
         return raw_metadata
