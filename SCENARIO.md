@@ -24,7 +24,7 @@ $ docker compose down
 
 ### PostgreSQL 접근 정보
 
-- Database URL: `postgresql://admin:admin@localhost:15432/datagokr`
+- Database URL: `postgresql://admin:admin@localhost:5432/datagokr`
 
 ## UV 설치 (의존성 관리 도구)
 
