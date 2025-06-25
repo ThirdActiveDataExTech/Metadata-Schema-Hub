@@ -1,5 +1,6 @@
+import uuid
 from datetime import datetime
-from typing import Optional
+from typing import Optional, Literal
 
 from sqlalchemy import TIMESTAMP, func
 from sqlmodel import SQLModel, Field, Column
@@ -26,3 +27,10 @@ class MetadataEntry(MetadataBase, table=True):  # type: ignore
         )
     )
     metadata_schema: str = Field(default=dict, nullable=False)
+
+
+class MetadataCreate(SQLModel):
+    """메타데이터 생성용 모델."""
+    metadata_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    raw_metadata: str | bytes
+    metadata_type: Literal["json", "xml"] = "json"

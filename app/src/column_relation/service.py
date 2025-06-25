@@ -41,6 +41,10 @@ class ColumnRelationService:
         """Get relations by metadata column."""
         return self.repository.select_relations_by_metadata_column(db, metadata_column)
 
+    def get_relations_by_metadata_columns(self, db: SessionDep, metadata_columns: List[str]) -> List[ColumnRelation]:
+        """Get relations by metadata columns."""
+        return self.repository.select_relations_by_metadata_columns(db, metadata_columns)
+
     def get_all_relations(self, db: SessionDep) -> List[ColumnRelation]:
         """Get all column relations."""
         return self.repository.select_all_relations(db)

@@ -1,17 +1,12 @@
 import io
-import uuid
 from typing import Any, Dict, List, Optional, Sequence, Literal
 
 import pandas as pd
 import xmltodict
 
 from app.dependencies import SessionDep
-from app.src.catalog_entry.exceptions import CatalogEntryNotFoundError
-from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary, CatalogEntryCreate
+from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary, CatalogEntryCreate, CatalogEntryUpdate
 from app.src.catalog_entry.repository import CatalogEntryRepository
-from app.src.column_relation.repository import ColumnRelationRepository
-from app.src.metadata_entry.model import MetadataBase
-from app.src.util.util import to_str_list
 
 
 class CatalogEntryService:
@@ -23,8 +18,6 @@ class CatalogEntryService:
 
     def create_catalog_entry(self, db: SessionDep, catalog_entry_create: CatalogEntryCreate) -> CatalogEntry:
         """CatalogEntry 생성."""
-        if not catalog_entry_create.identifier:
-            catalog_entry_create.identifier = str(uuid.uuid1())
         catalog_entry = CatalogEntry(
             identifier=catalog_entry_create.identifier,
             raw_metadata=catalog_entry_create.raw_metadata,
@@ -33,11 +26,46 @@ class CatalogEntryService:
         catalog_entry = self.repository.save(db, catalog_entry)
         return catalog_entry
 
+    def update_catalog_entry(
+            self,
+            db: SessionDep,
+            catalog_entry_id: int,
+            catalog_entry_update: CatalogEntryUpdate
+    ) -> CatalogEntry:
+        """CatalogEntry 업데이트."""
+        if not catalog_entry_update.has_changes():
+            return self.repository.select(db, catalog_entry_id)
+
+        catalog_entry = self.repository.select(db, catalog_entry_id)
+        update_data = catalog_entry_update.model_dump_for_update()
+
+        for field, value in update_data.items():
+            setattr(catalog_entry, field, value)
+
+        return self.repository.save(db, catalog_entry)
+
     def get_catalog_entry(self, db: SessionDep, catalog_entry_id: int) -> CatalogEntry:
         """Get Catalog Entry."""
         return self.repository.select(db, catalog_entry_id)
 
-    def get_raw_metadata(self, db: SessionDep, catalog_entry_id: int, data_format: Literal["json", "xml"] = "json") -> Any:
+    def get_catalog_entries(self, db: SessionDep, catalog_entry_ids: List[int]) -> List[CatalogEntry]:
+        """Get Catalog Entries."""
+        return self.repository.select_by_ids(db, catalog_entry_ids)
+
+    def get_catalog_entries_by_identifier(
+            self,
+            db: SessionDep,
+            catalog_entry_identifiers: List[str]
+    ) -> List[CatalogEntry]:
+        """Get Catalog Entry."""
+        return self.repository.select_by_identifiers(db, catalog_entry_identifiers)
+
+    def get_raw_metadata(
+            self,
+            db: SessionDep,
+            catalog_entry_id: int,
+            data_format: Literal["json", "xml"] = "json"
+    ) -> Any:
         """Get raw metadata."""
         raw_metadata = self.repository.select(db, catalog_entry_id).raw_metadata
 
@@ -46,6 +74,12 @@ class CatalogEntryService:
             return xml_string
 
         return raw_metadata
+
+    def get_raw_metadatas(self, db: SessionDep, catalog_entry_ids: List[int]) -> List[Any]:
+        """Get raw metadatas for multiple catalog entries."""
+        # WHERE IN 절로 단일 쿼리 실행
+        entries = self.repository.select_by_ids(db, catalog_entry_ids)
+        return [entry.raw_metadata for entry in entries]
 
     def export_to_csv_stream(self, db: SessionDep, limit: int = 100) -> io.StringIO:
         """메모리에서 CSV 스트림 생성"""
@@ -96,56 +130,10 @@ class CatalogEntryService:
 
         return result_items
 
+    def create_catalog_entry_bulk(self, db: SessionDep, catalog_entries: List[Dict[str, Any]]) -> None:
+        """CatalogEntry bulk 생성."""
+        self.repository.create_bulk(db, catalog_entries)
 
-class CatalogEntryTransformService:
-    """CatalogEntry 변환 service."""
-
-    def __init__(
-            self,
-            catalog_entry_repository: CatalogEntryRepository,
-            column_relation_repository: ColumnRelationRepository,
-    ):
-        """Connect Repository."""
-        self.catalog_entry_repository = catalog_entry_repository
-        self.column_relation_repository = column_relation_repository
-
-    def update_catalog_entry_from_metadata_and_relation(
-            self,
-            db: SessionDep,
-            catalog_entry_id: int,
-            metadata_entries: List[MetadataBase],
-    ) -> CatalogEntry:
-        """CatalogEntry 를 메타데이터와 컬럼 관계 기반으로 매핑함."""
-        catalog = self.catalog_entry_repository.select(db, catalog_entry_id)
-        if not catalog:
-            raise CatalogEntryNotFoundError(catalog_entry_id)
-
-        metadata_dict = {item.metadata_schema: item.value for item in metadata_entries}
-        metadata_columns = list(metadata_dict.keys())
-
-        all_relations = self.column_relation_repository.select_relations_by_metadata_columns(db, metadata_columns)
-
-        relations_by_catalog_column = {}
-        for relation in all_relations:
-            if relation.catalog_column not in relations_by_catalog_column:
-                relations_by_catalog_column[relation.catalog_column] = []
-            relations_by_catalog_column[relation.catalog_column].append(relation)
-
-        list_fields = CatalogEntry.get_list_fields()
-
-        for catalog_column in catalog.model_fields.keys():
-            if getattr(catalog, catalog_column, None) is not None:  # 이미 catalog_entry 값이 있다면 건너뜀
-                continue
-
-            related_columns = relations_by_catalog_column.get(catalog_column, [])
-
-            for related_column in related_columns:
-                metadata_value = metadata_dict.get(related_column.metadata_column)
-                if metadata_value:
-                    if catalog_column in list_fields:
-                        metadata_value = to_str_list(metadata_value)
-
-                    setattr(catalog, catalog_column, metadata_value)
-                    break
-
-        return self.catalog_entry_repository.save(db, catalog)
+    def update_catalog_entry_bulk(self, db: SessionDep, catalog_entries: List[Dict[str, Any]]) -> None:
+        """CatalogEntry bulk 업데이트."""
+        self.repository.update_bulk(db, catalog_entries)

@@ -1,5 +1,5 @@
 import json
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Dict, Any
 
 from sqlalchemy import and_, or_
 from sqlmodel import select
@@ -18,17 +18,6 @@ class CatalogEntryRepository:
         db.refresh(catalog_entry)
         return catalog_entry
 
-    def save_bulk(self, db: SessionDep, catalog_entries: List[CatalogEntry]) -> List[CatalogEntry]:
-        """Bulk save catalog_entries."""
-        if not catalog_entries:
-            return []
-
-        db.add_all(catalog_entries)
-        db.commit()
-        for entry in catalog_entries:
-            db.refresh(entry)
-        return catalog_entries
-
     def select(self, db: SessionDep, catalog_entry_id: int) -> CatalogEntry:
         """Select catalog_entry."""
         catalog_entry = db.get(CatalogEntry, catalog_entry_id)
@@ -36,6 +25,16 @@ class CatalogEntryRepository:
             raise ValueError(f"{catalog_entry_id=} not found.")
 
         return catalog_entry
+
+    def select_by_ids(self, db: SessionDep, catalog_entry_ids: List[int]) -> List[CatalogEntry]:
+        """Select multiple catalog entries by ids."""
+        stmt = select(CatalogEntry).where(CatalogEntry.id.in_(catalog_entry_ids))  # pyright: ignore
+        return list(db.exec(stmt).all())
+
+    def select_by_identifiers(self, db: SessionDep, catalog_entry_identifiers: List[str]) -> List[CatalogEntry]:
+        """Select catalog entries by identifiers."""
+        stmt = select(CatalogEntry).where(CatalogEntry.identifier.in_(catalog_entry_identifiers))  # pyright: ignore
+        return list(db.exec(stmt).all())
 
     def export_data_list(self, db: SessionDep, limit: int = None):
         """데이터베이스의 catalog_entry 테이블 전체를 list로 내보냄."""
@@ -161,3 +160,19 @@ class CatalogEntryRepository:
         results = db.exec(statement).all()
 
         return results
+
+    def create_bulk(self, db: SessionDep, creates: List[Dict[str, Any]]) -> None:
+        """Bulk create using SQLAlchemy Core for performance"""
+        if not creates:
+            return
+
+        db.bulk_insert_mappings(CatalogEntry, creates)
+        db.commit()
+
+    def update_bulk(self, db: SessionDep, updates: List[Dict[str, Any]]) -> None:
+        """Bulk update using SQLAlchemy Core for performance"""
+        if not updates:
+            return
+
+        db.bulk_update_mappings(CatalogEntry, updates)
+        db.commit()
