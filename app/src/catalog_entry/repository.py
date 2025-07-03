@@ -14,8 +14,6 @@ class CatalogEntryRepository:
     def save(self, db: SessionDep, catalog_entry: CatalogEntry) -> CatalogEntry:
         """Save catalog_entry."""
         db.add(catalog_entry)
-        db.commit()
-        db.refresh(catalog_entry)
         return catalog_entry
 
     def select(self, db: SessionDep, catalog_entry_id: int) -> CatalogEntry:
@@ -24,6 +22,14 @@ class CatalogEntryRepository:
         if not catalog_entry:
             raise ValueError(f"{catalog_entry_id=} not found.")
 
+        return catalog_entry
+
+    def select_by_identifier(self, db: SessionDep, catalog_entry_identifier: str) -> CatalogEntry:
+        """Select catalog_entry by identifier."""
+        stmt = select(CatalogEntry).where(CatalogEntry.identifier == catalog_entry_identifier)
+        catalog_entry = db.exec(stmt).first()
+        if not catalog_entry:
+            raise ValueError(f"Catalog entry with identifier '{catalog_entry_identifier}' not found.")
         return catalog_entry
 
     def select_by_ids(self, db: SessionDep, catalog_entry_ids: List[int]) -> List[CatalogEntry]:
@@ -102,7 +108,7 @@ class CatalogEntryRepository:
             CatalogEntry.theme,
             CatalogEntry.access_url,
             CatalogEntry.ingested_at,
-            CatalogEntry.updated_at
+            CatalogEntry.updated_at,
         )
 
         if limit is not None:
@@ -129,10 +135,7 @@ class CatalogEntryRepository:
         ]
 
     def search_catalog(
-            self,
-            db: SessionDep,
-            query: Optional[str] = None,
-            keyword: Optional[str] = None
+        self, db: SessionDep, query: Optional[str] = None, keyword: Optional[str] = None
     ) -> Sequence[CatalogEntry]:
         """검색 조건에 따른 카탈로그 엔트리 검색"""
         statement = select(CatalogEntry)
@@ -142,7 +145,7 @@ class CatalogEntryRepository:
         if query:
             text_condition = or_(
                 CatalogEntry.title.ilike(f"%{query}%"),  # type: ignore
-                CatalogEntry.description.ilike(f"%{query}%")  # type: ignore
+                CatalogEntry.description.ilike(f"%{query}%"),  # type: ignore
             )
             conditions.append(text_condition)
 
@@ -167,7 +170,6 @@ class CatalogEntryRepository:
             return
 
         db.bulk_insert_mappings(CatalogEntry, creates)
-        db.commit()
 
     def update_bulk(self, db: SessionDep, updates: List[Dict[str, Any]]) -> None:
         """Bulk update using SQLAlchemy Core for performance"""
@@ -175,4 +177,3 @@ class CatalogEntryRepository:
             return
 
         db.bulk_update_mappings(CatalogEntry, updates)
-        db.commit()

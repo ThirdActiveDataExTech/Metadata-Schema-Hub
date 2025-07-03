@@ -15,50 +15,32 @@ KST = timezone(timedelta(hours=9))
 
 class CatalogEntry(SQLModel, table=True):  # pyright: ignore
     """CatalogEntry 모델."""
+
     __tablename__: str = "catalog_entry"  # pyright: ignore
 
-    id: Optional[int] = Field(
-        default=None, primary_key=True
-    )
+    id: Optional[int] = Field(default=None, primary_key=True)
     title: Optional[str] = None
     description: Optional[str] = None
     issued: Optional[date] = None
     modified: Optional[date] = None
-    identifier: str = Field(
-        nullable=False,
-        default_factory=lambda: str(uuid.uuid4())
-    )
+    identifier: str = Field(nullable=False, default_factory=lambda: str(uuid.uuid4()))
     publisher: Optional[str] = None
-    keyword: Optional[List[str]] = Field(
-        default=None,
-        sa_column=Column(ARRAY(String))
-    )
+    keyword: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(String)))
     landing_page: Optional[str] = None
-    theme: Optional[List[str]] = Field(
-        default=None,
-        sa_column=Column(ARRAY(String))
-    )
+    theme: Optional[List[str]] = Field(default=None, sa_column=Column(ARRAY(String)))
     access_url: Optional[str] = None
-    raw_metadata: Dict[str, Any] = Field(
-        default_factory=dict,
-        sa_column=Column(JSONB, nullable=False)
-    )
+    raw_metadata: Dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
     ingested_at: Optional[datetime] = Field(
         default=None,
         sa_column=Column(
             TIMESTAMP(timezone=True),
             server_default=func.now(),
             nullable=False,
-        )
+        ),
     )
     updated_at: Optional[datetime] = Field(
         default=None,
-        sa_column=Column(
-            TIMESTAMP(timezone=True),
-            server_default=func.now(),
-            onupdate=func.now(),
-            nullable=False
-        )
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False),
     )
 
     @classmethod
@@ -76,6 +58,7 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
 
 class CatalogEntrySummary(BaseModel):
     """카탈로그 목록 응답 DTO"""
+
     id: int
     title: Optional[str] = None
     issued: Optional[str] = None
