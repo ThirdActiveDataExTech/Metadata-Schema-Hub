@@ -31,7 +31,6 @@ class MetadataEntryRepository:
         )
 
         rows = db.exec(stmt).all()
-        db.commit()
 
         return [
             MetadataEntry(
