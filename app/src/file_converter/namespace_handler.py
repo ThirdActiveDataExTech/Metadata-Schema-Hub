@@ -12,6 +12,10 @@ class NamespaceHandler:
         "http://www.w3.org/2006/vcard/ns#": "vcard",
         "http://www.w3.org/XML/1998/namespace": "",
         "http://www.w3.org/2001/XMLSchema#": "",
+        "http://www.w3.org/2001/XMLSchema-instance": "xsi",
+        "http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message": "sdmx-msg",
+        "http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common": "sdmx-common",
+        "http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure": "sdmx-str",
     }
 
     def __init__(self, custom_namespaces: Dict[str, str] | None = None):
