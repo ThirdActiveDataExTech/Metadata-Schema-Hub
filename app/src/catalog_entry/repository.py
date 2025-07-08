@@ -42,6 +42,45 @@ class CatalogEntryRepository:
         stmt = select(CatalogEntry).where(CatalogEntry.identifier.in_(catalog_entry_identifiers))  # pyright: ignore
         return list(db.exec(stmt).all())
 
+    def select_summaries_by_identifiers(
+        self, db: SessionDep, catalog_entry_identifiers: List[str]
+    ) -> List[CatalogEntrySummary]:
+        """Select catalog entry summaries by identifiers."""
+        statement = select(  # pyright: ignore
+            CatalogEntry.id,
+            CatalogEntry.title,
+            CatalogEntry.issued,
+            CatalogEntry.modified,
+            CatalogEntry.identifier,
+            CatalogEntry.publisher,
+            CatalogEntry.keyword,
+            CatalogEntry.landing_page,
+            CatalogEntry.theme,
+            CatalogEntry.access_url,
+            CatalogEntry.ingested_at,
+            CatalogEntry.updated_at,
+        ).where(CatalogEntry.identifier.in_(catalog_entry_identifiers))  # pyright: ignore
+
+        rows = db.exec(statement).all()
+
+        return [
+            CatalogEntrySummary(
+                id=row.id,
+                title=row.title,
+                issued=str(row.issued) if row.issued else None,
+                modified=str(row.modified) if row.modified else None,
+                identifier=row.identifier,
+                publisher=row.publisher,
+                keyword=row.keyword,
+                landing_page=row.landing_page,
+                theme=row.theme,
+                access_url=row.access_url,
+                ingested_at=str(row.ingested_at) if row.ingested_at else None,
+                updated_at=str(row.updated_at) if row.updated_at else None,
+            )
+            for row in rows
+        ]
+
     def export_data_list(self, db: SessionDep, limit: int = None):
         """데이터베이스의 catalog_entry 테이블 전체를 list로 내보냄."""
         # 모든 레코드 조회 쿼리 작성 (필요시 limit 추가)

@@ -48,7 +48,7 @@ class CatalogEntryService:
     def get_catalog_entry(self, db: SessionDep, catalog_entry_id: int) -> CatalogEntry:
         """Get Catalog Entry."""
         return self.repository.select(db, catalog_entry_id)
-    
+
     def get_catalog_entry_by_identifier(self, db: SessionDep, catalog_entry_identifier: str) -> CatalogEntry:
         """Get Catalog Entry."""
         return self.repository.select_by_identifier(db, catalog_entry_identifier)
@@ -60,6 +60,12 @@ class CatalogEntryService:
     def get_catalog_entries_by_identifier(self, db: SessionDep, catalog_entry_identifiers: List[str]) -> List[CatalogEntry]:
         """Get Catalog Entry."""
         return self.repository.select_by_identifiers(db, catalog_entry_identifiers)
+
+    def get_catalog_entry_summary_by_identifier(
+        self, db: SessionDep, catalog_entry_identifiers: List[str]
+    ) -> List[CatalogEntrySummary]:
+        """Get CatalogEntrySummary."""
+        return self.repository.select_summaries_by_identifiers(db, catalog_entry_identifiers)
 
     def get_raw_metadata(self, db: SessionDep, catalog_entry_id: int, data_format: Literal["json", "xml"] = "json") -> Any:
         """Get raw metadata."""
