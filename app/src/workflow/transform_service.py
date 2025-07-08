@@ -3,7 +3,7 @@ from datetime import datetime
 from typing import Dict, Iterable, List, Tuple
 
 from app.dependencies import SessionDep
-from app.src.catalog_entry.model import CatalogEntry, CatalogEntryUpdate
+from app.src.catalog_entry.model import CatalogEntry, CatalogEntryUpdate, CatalogEntrySummary
 from app.src.catalog_entry.service import CatalogEntryService
 from app.src.column_relation.model import ColumnRelation
 from app.src.column_relation.service import ColumnRelationService
@@ -96,7 +96,7 @@ class CatalogEntryTransformService:
         self,
         db: SessionDep,
         files: List[MetadataFile],
-    ) -> Tuple[List[CatalogEntry], List[Dict[str, str]]]:
+    ) -> Tuple[List[CatalogEntrySummary], List[Dict[str, str]]]:
         """여러 메타데이터 파일을 처리하여 CatalogEntry 리스트 생성."""
         processed_metadatas, errors = process_metadata_files(files)
         if not processed_metadatas:
@@ -138,7 +138,7 @@ class CatalogEntryTransformService:
                 db, catalog_entries=[entry.model_dump() for entry, _ in iterrables]
             )
 
-        return self.catalog_entry_service.get_catalog_entries_by_identifier(
+        return self.catalog_entry_service.get_catalog_entry_summary_by_identifier(
             db, [entry.identifier for entry, _ in iterrables]
         ), errors
 

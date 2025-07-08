@@ -26,7 +26,24 @@ VALUES ('publisher', 0.50,
        ('theme', 0.89, 'dcat:Catalog.dcat:service.dcat:DataService.dcat:theme'),
        ('publisher', 0.50, 'creator.contactPoint.contactType'),
        ('landing_page', 0.50, 'dcat:Catalog.dcat:service.dcat:DataService.dcat:accessURL.rdf:resource'),
-       ('keyword', 0.89, 'dcat:Catalog.dcat:service.dcat:DataService.dcat:keyword');
+       ('keyword', 0.89, 'dcat:Catalog.dcat:service.dcat:DataService.dcat:keyword'),
+       ('title', 0.95, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dct:title.lang:kr'),
+       ('title', 0.90, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dct:title.lang:en'),
+       ('description', 0.95, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dct:description.lang:kr'),
+       ('description', 0.90, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dct:description.lang:en'),
+       ('modified', 0.95, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dct:modified.rdf:datatype:date'),
+       ('issued', 0.95, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dct:issued.rdf:datatype:date'),
+       ('publisher', 0.99, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dct:publisher.foaf:Organization.foaf:name'),
+       ('keyword', 0.95, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dcat:keyword.lang:kr'),
+       ('keyword', 0.90, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dcat:keyword.lang:en'),
+       ('landing_page', 0.99, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dcat:landingPage.rdf:resource'),
+       ('theme', 0.99, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dcat:theme'),
+       ('access_url', 0.70, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dcat:distribution.dcat:Distribution.dcat:title'),
+       ('publisher', 0.50,
+        'dcat:Catalog.dcat:dataset.dcat:Dataset.dcat:contactPoint.vcard:Organization.vcard:organization-unit'),
+       ('publisher', 0.50,
+        'dcat:Catalog.dcat:dataset.dcat:Dataset.dcat:contactPoint.vcard:Organization.vcard:hasTelephone.rdf:resource'),
+       ('title', 0.70, 'alternateName');
 
 -- data.go.kr schema.org 데이터 매핑
 INSERT INTO datagokr.public.column_relation (catalog_column, correlation, metadata_column)

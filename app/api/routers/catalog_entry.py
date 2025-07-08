@@ -132,7 +132,7 @@ async def export_catalog_entries_csv(
 async def import_metadata_files_bulk(
     session: SessionDep,
     catalog_entry_transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
-    files: List[UploadFile] = File(description="JSON/XML 형식의 메타데이터 파일들 (.json, .jsonl, .xml, .rdf)"),
+    files: List[UploadFile] = File(description="JSON/XML 형식의 메타데이터 파일들 (.json, .jsonl, .xml, .rdf, .zip)"),
 ):
     """메타데이터 파일들 bulk 업로드 및 카탈로그 엔트리 변환 처리"""
 
