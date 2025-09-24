@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<message:Structure
+	xmlns:message="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message"
+	xmlns:structure="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/structure"
+	xmlns:common="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/common"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://www.sdmx.org/resources/sdmxml/schemas/v2_1/message ../schemas/SDMXmessage.xsd">
+	<message:Header>
+		<message:ID>CATEGORY_MT_ZTITLE</message:ID>
+		<message:Test>false</message:Test>
+		<message:Prepared>2025-07-04T09:31:19</message:Prepared>
+		<message:Sender id="KOSIS">
+			<common:Name>통계청</common:Name>
+		</message:Sender>
+		<common:Name>국내통계 주제별</common:Name>
+	</message:Header>
+	<message:Structures>
+		<structure:OrganisationSchemes>
+			<structure:AgencyScheme id="AGENCIES" agencyID="SDMX" version="1.0">
+				<common:Name xml:lang="en">SDMX Agency Scheme</common:Name>
+				<structure:Agency id="SDMX">
+					<common:Name xml:lang="en">SDMX</common:Name>
+				</structure:Agency>
+				<structure:Agency id="KOSIS">
+					<common:Name xml:lang="en">KOSIS</common:Name>
+				</structure:Agency>
+			</structure:AgencyScheme>
+		</structure:OrganisationSchemes>
+		<structure:CategorySchemes>
+			<structure:CategoryScheme id="P2_3" agencyID="KOSIS">
+				<common:Name>산지쌀값조사</common:Name>
+				<structure:Category id="101_DT_1EI10179">
+					<common:Name>정곡(일반계, 20kg, 단순평균가격), 월 2013.7.~2022.12.</common:Name>
+					<common:Description xml:lang="en">101_DT_1EI10179</common:Description>
+					<structure:RecTblSe>
+						<common:Name>N</common:Name>
+					</structure:RecTblSe>
+					<structure:StatId>
+						<common:Name>2013012</common:Name>
+					</structure:StatId>
+					<structure:SendDe>
+						<common:Name>2022-12-27</common:Name>
+					</structure:SendDe>
+				</structure:Category>
+			</structure:CategoryScheme>
+		</structure:CategorySchemes>
+	</message:Structures>
+</message:Structure>

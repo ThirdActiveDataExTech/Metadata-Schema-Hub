@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List, Optional, Dict, Any
 
 from sqlalchemy import insert, or_
 from sqlmodel import select
@@ -10,15 +10,15 @@ from app.src.metadata_entry.model import MetadataEntry
 class MetadataEntryRepository:
     """MetadataEntryRepository."""
 
-    def save(self, db: SessionDep, metadata_entry: List[MetadataEntry]) -> List[MetadataEntry]:
-        """Save metadata_entry."""
+    def save(self, db: SessionDep, metadata_entries: List[MetadataEntry]) -> List[MetadataEntry]:
+        """메타데이터 엔트리 저장."""
         values = [
             {
                 "metadata_id": entry.metadata_id,
                 "metadata_schema": entry.metadata_schema,
                 "value": entry.value
             }
-            for entry in metadata_entry
+            for entry in metadata_entries
         ]
 
         # 특정 컬럼만 returning
@@ -29,10 +29,9 @@ class MetadataEntryRepository:
             MetadataEntry.value,
             MetadataEntry.ingested_at
         )
-        rows = db.exec(stmt).all()
-        db.commit()
 
-        # Row를 MetadataEntry로 변환
+        rows = db.exec(stmt).all()
+
         return [
             MetadataEntry(
                 id=row.id,
@@ -44,11 +43,20 @@ class MetadataEntryRepository:
             for row in rows
         ]
 
+    def create_bulk(self, db: SessionDep, creates: List[Dict[str, Any]]) -> None:
+        """Bulk create using SQLAlchemy Core for performance"""
+        db.bulk_insert_mappings(MetadataEntry, creates)
+
     def select_metadata_entry(self, db: SessionDep, metadata_id: str) -> List[MetadataEntry]:
         """Select metadata_entry."""
         statement = select(MetadataEntry).where(MetadataEntry.metadata_id == metadata_id)
         results = db.exec(statement).all()
         return list(results)
+
+    def select_metadata_entries_by_metadata_ids(self, db: SessionDep, metadata_ids: List[str]) -> List[MetadataEntry]:
+        """여러 identifier에 대한 metadata entries 일괄 조회."""
+        stmt = select(MetadataEntry).where(MetadataEntry.metadata_id.in_(metadata_ids))  # pyright: ignore
+        return list(db.exec(stmt).all())
 
     def search_metadata(
             self,
@@ -94,3 +102,16 @@ class MetadataEntryRepository:
 
         results = db.exec(statement).all()
         return list(results)
+
+    def select_distinct_metadata_schemas(self, db: SessionDep, metadata_id_list: List[str]) -> List[str]:
+        """주어진 메타데이터 id 로 스키마들을 조회."""
+        statement = (
+            select(MetadataEntry.metadata_schema)
+            .where(MetadataEntry.metadata_id.in_(metadata_id_list))  # pyright: ignore
+            .distinct()
+        )
+
+        # db.exec(statement).all()은 [(id1,), (id2,), ...] 와 같이 튜플의 리스트를 반환함
+        # 각 튜플에서 첫 번째 요소를 추출하여 문자열 리스트로 반환
+        results = db.exec(statement).all()
+        return [result[0] for result in results]

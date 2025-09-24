@@ -1,5 +1,5 @@
 import json
-from typing import List, Optional, Sequence
+from typing import List, Optional, Sequence, Dict, Any
 
 from sqlalchemy import and_, or_
 from sqlmodel import select
@@ -14,20 +14,7 @@ class CatalogEntryRepository:
     def save(self, db: SessionDep, catalog_entry: CatalogEntry) -> CatalogEntry:
         """Save catalog_entry."""
         db.add(catalog_entry)
-        db.commit()
-        db.refresh(catalog_entry)
         return catalog_entry
-
-    def save_bulk(self, db: SessionDep, catalog_entries: List[CatalogEntry]) -> List[CatalogEntry]:
-        """Bulk save catalog_entries."""
-        if not catalog_entries:
-            return []
-
-        db.add_all(catalog_entries)
-        db.commit()
-        for entry in catalog_entries:
-            db.refresh(entry)
-        return catalog_entries
 
     def select(self, db: SessionDep, catalog_entry_id: int) -> CatalogEntry:
         """Select catalog_entry."""
@@ -36,6 +23,63 @@ class CatalogEntryRepository:
             raise ValueError(f"{catalog_entry_id=} not found.")
 
         return catalog_entry
+
+    def select_by_identifier(self, db: SessionDep, catalog_entry_identifier: str) -> CatalogEntry:
+        """Select catalog_entry by identifier."""
+        stmt = select(CatalogEntry).where(CatalogEntry.identifier == catalog_entry_identifier)
+        catalog_entry = db.exec(stmt).first()
+        if not catalog_entry:
+            raise ValueError(f"Catalog entry with identifier '{catalog_entry_identifier}' not found.")
+        return catalog_entry
+
+    def select_by_ids(self, db: SessionDep, catalog_entry_ids: List[int]) -> List[CatalogEntry]:
+        """Select multiple catalog entries by ids."""
+        stmt = select(CatalogEntry).where(CatalogEntry.id.in_(catalog_entry_ids))  # pyright: ignore
+        return list(db.exec(stmt).all())
+
+    def select_by_identifiers(self, db: SessionDep, catalog_entry_identifiers: List[str]) -> List[CatalogEntry]:
+        """Select catalog entries by identifiers."""
+        stmt = select(CatalogEntry).where(CatalogEntry.identifier.in_(catalog_entry_identifiers))  # pyright: ignore
+        return list(db.exec(stmt).all())
+
+    def select_summaries_by_identifiers(
+        self, db: SessionDep, catalog_entry_identifiers: List[str]
+    ) -> List[CatalogEntrySummary]:
+        """Select catalog entry summaries by identifiers."""
+        statement = select(  # pyright: ignore
+            CatalogEntry.id,
+            CatalogEntry.title,
+            CatalogEntry.issued,
+            CatalogEntry.modified,
+            CatalogEntry.identifier,
+            CatalogEntry.publisher,
+            CatalogEntry.keyword,
+            CatalogEntry.landing_page,
+            CatalogEntry.theme,
+            CatalogEntry.access_url,
+            CatalogEntry.ingested_at,
+            CatalogEntry.updated_at,
+        ).where(CatalogEntry.identifier.in_(catalog_entry_identifiers))  # pyright: ignore
+
+        rows = db.exec(statement).all()
+
+        return [
+            CatalogEntrySummary(
+                id=row.id,
+                title=row.title,
+                issued=str(row.issued) if row.issued else None,
+                modified=str(row.modified) if row.modified else None,
+                identifier=row.identifier,
+                publisher=row.publisher,
+                keyword=row.keyword,
+                landing_page=row.landing_page,
+                theme=row.theme,
+                access_url=row.access_url,
+                ingested_at=str(row.ingested_at) if row.ingested_at else None,
+                updated_at=str(row.updated_at) if row.updated_at else None,
+            )
+            for row in rows
+        ]
 
     def export_data_list(self, db: SessionDep, limit: int = None):
         """데이터베이스의 catalog_entry 테이블 전체를 list로 내보냄."""
@@ -103,7 +147,7 @@ class CatalogEntryRepository:
             CatalogEntry.theme,
             CatalogEntry.access_url,
             CatalogEntry.ingested_at,
-            CatalogEntry.updated_at
+            CatalogEntry.updated_at,
         )
 
         if limit is not None:
@@ -130,10 +174,7 @@ class CatalogEntryRepository:
         ]
 
     def search_catalog(
-            self,
-            db: SessionDep,
-            query: Optional[str] = None,
-            keyword: Optional[str] = None
+        self, db: SessionDep, query: Optional[str] = None, keyword: Optional[str] = None
     ) -> Sequence[CatalogEntry]:
         """검색 조건에 따른 카탈로그 엔트리 검색"""
         statement = select(CatalogEntry)
@@ -143,7 +184,7 @@ class CatalogEntryRepository:
         if query:
             text_condition = or_(
                 CatalogEntry.title.ilike(f"%{query}%"),  # type: ignore
-                CatalogEntry.description.ilike(f"%{query}%")  # type: ignore
+                CatalogEntry.description.ilike(f"%{query}%"),  # type: ignore
             )
             conditions.append(text_condition)
 
@@ -161,3 +202,17 @@ class CatalogEntryRepository:
         results = db.exec(statement).all()
 
         return results
+
+    def create_bulk(self, db: SessionDep, creates: List[Dict[str, Any]]) -> None:
+        """Bulk create using SQLAlchemy Core for performance"""
+        if not creates:
+            return
+
+        db.bulk_insert_mappings(CatalogEntry, creates)
+
+    def update_bulk(self, db: SessionDep, updates: List[Dict[str, Any]]) -> None:
+        """Bulk update using SQLAlchemy Core for performance"""
+        if not updates:
+            return
+
+        db.bulk_update_mappings(CatalogEntry, updates)

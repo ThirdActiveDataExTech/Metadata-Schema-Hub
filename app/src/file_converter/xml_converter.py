@@ -1,13 +1,23 @@
-from typing import List, Dict
+from typing import List, Dict, Any, Iterable
 
+import xmltodict
 from lxml import etree
 
+from app.src.file_converter.converter import Converter
+from app.src.file_converter.namespace_handler import NamespaceHandler
 from app.src.metadata_entry.model import MetadataBase
-from app.src.metadata_entry.namespace_handler import NamespaceHandler
 
 
-class LxmlConverter:
+class LxmlConverter(Converter):
     """lxml 기반 고성능 XML 변환기"""
+
+    def get_supported_extensions(self) -> Iterable[str]:
+        """지원하는 파일 확장자 목록 반환"""
+        return [".rdf", ".xml"]
+
+    def convert_to_dict(self, content: bytes) -> Dict[str, Any]:
+        """XML 콘텐츠를 딕셔너리로 변환"""
+        return xmltodict.parse(content)
 
     def __init__(self):
         """RDF 변환기 초기화."""
@@ -62,8 +72,8 @@ class LxmlConverter:
 
         return results
 
-    def convert_to_table(self, xml_content: str | bytes) -> List[MetadataBase]:
-        """XML을 테이블로 변환"""
+    def convert_to_metadata_bases(self, xml_content: str | bytes) -> List[MetadataBase]:
+        """XML을 MetadataBase로 변환"""
         try:
             if isinstance(xml_content, bytes):
                 root = etree.fromstring(xml_content)
