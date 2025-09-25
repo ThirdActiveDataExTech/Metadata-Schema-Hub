@@ -1,11 +1,12 @@
 services:
-  active-metadata-management:
+  catalog-service:
     build:
-      context: .
+      context: ./apps/catalog-service
       dockerfile: Dockerfile
-    image: active-metadata-management:dev  # 빌드된 이미지 태그명
+    image: catalog-service:dev
     restart: unless-stopped
     environment:
+      LEVEL: INFO
       X_TOKEN: wisenut
       TZ: Asia/Seoul
       POSTGRES_USER: admin
@@ -15,6 +16,26 @@ services:
       POSTGRES_DB: datagokr
     ports:
       - 8084:8084
+    depends_on:
+      - postgres-174
+
+  metadata-ingestion:
+    build:
+      context: ./apps/metadata-ingestion
+      dockerfile: Dockerfile
+    image: metadata-ingestion:dev
+    restart: unless-stopped
+    environment:
+      LEVEL: INFO
+      X_TOKEN: wisenut
+      TZ: Asia/Seoul
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_HOST: postgres-174
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: datagokr
+    ports:
+      - 8085:8085
     depends_on:
       - postgres-174
 
