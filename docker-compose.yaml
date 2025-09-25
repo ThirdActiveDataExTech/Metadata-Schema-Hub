@@ -9,11 +9,11 @@ services:
       LEVEL: INFO
       X_TOKEN: wisenut
       TZ: Asia/Seoul
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       POSTGRES_HOST: postgres-174
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: datagokr
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-datagokr}
     ports:
       - 8084:8084
     depends_on:
@@ -29,11 +29,11 @@ services:
       LEVEL: INFO
       X_TOKEN: wisenut
       TZ: Asia/Seoul
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
       POSTGRES_HOST: postgres-174
-      POSTGRES_PORT: 5432
-      POSTGRES_DB: datagokr
+      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
+      POSTGRES_DB: ${POSTGRES_DB:-datagokr}
     ports:
       - 8085:8085
     depends_on:
@@ -51,13 +51,13 @@ services:
     #    tmpfs:
     #      size: 134217728 # 128*2^20 bytes = 128Mb
     environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: datagokr # datagokr 메타데이터로 테스트 진행
+      POSTGRES_USER: ${POSTGRES_USER:-admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-admin}
+      POSTGRES_DB: ${POSTGRES_DB:-datagokr}
       TZ: Asia/Seoul
       LANG: en_US.UTF-8
     ports:
-      - 5432:5432
+      - ${POSTGRES_PORT:-5432}:5432
     volumes:
       - pgdata-postgres17:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d # todo create table 필요할 경우
