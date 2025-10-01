@@ -153,7 +153,6 @@ async def import_metadata_files_bulk(
 @router.put("/match/relations")
 async def match_relations(
     session: SessionDep,
-    service: CatalogEntryService = Depends(get_catalog_entry_service),
     catalog_transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
     catalog_entry_id: int = Path(description="갱신할 카탈로그 엔트리 ID", example=31),
 ):
