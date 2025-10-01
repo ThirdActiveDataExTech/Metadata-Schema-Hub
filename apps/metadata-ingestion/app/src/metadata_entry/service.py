@@ -51,8 +51,9 @@ class MetadataEntryService:
         if not processed_metadatas:
             return [], errors
 
+        ingested_at = datetime.now()
         metadata_creates = [
-            MetadataCreate(metadata_bases=metadata_bases, ingested_at=datetime.now())
+            MetadataCreate(metadata_bases=metadata_bases, ingested_at=ingested_at)
             for _, metadata_bases in processed_metadatas
         ]
 
