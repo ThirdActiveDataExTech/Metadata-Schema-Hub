@@ -1,14 +1,6 @@
-from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional
 
-from app.config import settings
 from app.dependencies import SessionDep
-from app.src.file_converter.file_handler import MetadataFile, process_metadata_file, process_metadata_files
-from app.src.metadata_entry.exceptions import (
-    MetadataEntryFileNotFoundError,
-    MetadataEntryNotSupportedTypeError,
-    MetadataEntryTooManyFileError,
-)
 from app.src.metadata_entry.model import MetadataCreate, MetadataEntry
 from app.src.metadata_entry.repository import MetadataEntryRepository
 
@@ -28,38 +20,6 @@ class MetadataEntryService:
         """Create MetadataEntry in bulk."""
         dumps = [e.model_dump() for metadata_create in metadata_create_list for e in metadata_create.get_metadata_entries()]
         self.repository.create_bulk(db, dumps)
-
-    def ingest(self, db: SessionDep, file: MetadataFile) -> List[MetadataEntry]:
-        """Create MetadataEntry from Metadata File."""
-        try:
-            _, metadata_bases = process_metadata_file(file)
-        except ValueError as e:
-            raise MetadataEntryNotSupportedTypeError(type=file.get_extension(), result=str(e))
-
-        ingested_at = datetime.now()
-        metadata_create = MetadataCreate(metadata_bases=metadata_bases, ingested_at=ingested_at)
-        return self.create(db=db, metadata_create=metadata_create)
-
-    def ingest_bulk(self, db: SessionDep, files: List[MetadataFile]) -> Tuple[List[MetadataCreate], List[Dict[str, str]]]:
-        """Create MetadataEntry from Metadata Files."""
-        if not files:
-            raise MetadataEntryFileNotFoundError(message="최소 1개 이상의 파일이 필요")
-        if len(files) > settings.MAXIMUM_INGESTION_LIMIT:
-            raise MetadataEntryTooManyFileError(message=f"최대 {settings.MAXIMUM_INGESTION_LIMIT}개 파일까지 처리 가능")
-
-        processed_metadatas, errors = process_metadata_files(files)
-        if not processed_metadatas:
-            return [], errors
-
-        ingested_at = datetime.now()
-        metadata_creates = [
-            MetadataCreate(metadata_bases=metadata_bases, ingested_at=ingested_at)
-            for _, metadata_bases in processed_metadatas
-        ]
-
-        self.create_bulk(db=db, metadata_create_list=metadata_creates)
-
-        return metadata_creates, errors
 
     def select_metadata(self, db: SessionDep, metadata_id: str) -> List[MetadataEntry]:
         """Select MetadataEntry."""

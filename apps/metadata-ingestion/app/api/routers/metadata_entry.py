@@ -1,14 +1,24 @@
 import pathlib
-from typing import List, Optional
+from datetime import datetime
+from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, Path, Query, UploadFile
 
+from app.config import settings
 from app.dependencies import SessionDep
 from app.schemas.response import APIResponseModel
-from app.src.file_converter.file_handler import MetadataFile
+from app.src.catalog_entry.model import CatalogEntry
+from app.src.catalog_entry.repository import CatalogEntryRepository
+from app.src.catalog_entry.service import CatalogEntryService
+from app.src.file_converter.file_handler import MetadataFile, process_metadata_file, process_metadata_files
 from app.src.file_converter.json_converter import JsonConverter
 from app.src.file_converter.xml_converter import LxmlConverter
-from app.src.metadata_entry.exceptions import MetadataEntryNotSupportedTypeError
+from app.src.metadata_entry.exceptions import (
+    MetadataEntryFileNotFoundError,
+    MetadataEntryNotSupportedTypeError,
+    MetadataEntryTooManyFileError,
+)
+from app.src.metadata_entry.model import MetadataCreate
 from app.src.metadata_entry.repository import MetadataEntryRepository
 from app.src.metadata_entry.service import MetadataEntryService
 
@@ -23,6 +33,11 @@ def get_json_converter():
 def get_xml_converter():
     """Converter dependency injection."""
     return LxmlConverter()
+
+
+def get_catalog_entry_service(repository=Depends(CatalogEntryRepository)):
+    """Repository dependency injection."""
+    return CatalogEntryService(repository)
 
 
 def get_metadata_entry_service(repository=Depends(MetadataEntryRepository)):
@@ -97,12 +112,30 @@ async def convert_dcat_metadata(
 @router.post("/ingest/metadata")
 async def ingest_metadata(
     session: SessionDep,
-    service: MetadataEntryService = Depends(get_metadata_entry_service),
+    metadata_service: MetadataEntryService = Depends(get_metadata_entry_service),
+    catalog_service: CatalogEntryService = Depends(get_catalog_entry_service),
     file: UploadFile = File(description="메타데이터 파일"),
 ):
     """메타데이터를 테이블 구조로 변환하여 수집"""
+    metadata_file = MetadataFile(filename=file.filename, content=await file.read())
+    try:
+        serialized_content, metadata_bases = process_metadata_file(metadata_file)
+    except ValueError as e:
+        raise MetadataEntryNotSupportedTypeError(type=file.get_extension(), result=str(e))
+
+    catalog_entry = catalog_service.create_catalog_entry(
+        db=session, catalog_entry=CatalogEntry(raw_metadata=serialized_content)
+    )
+
+    metadata_result = metadata_service.create(
+        db=session,
+        metadata_create=MetadataCreate(
+            metadata_id=catalog_entry.identifier, metadata_bases=metadata_bases, ingested_at=catalog_entry.ingested_at
+        ),
+    )
+
     return APIResponseModel(
-        result=service.ingest(db=session, file=MetadataFile(filename=file.filename, content=await file.read())),
+        result=metadata_result,
         description="메타데이터 수집 완료",
     )
 
@@ -110,14 +143,38 @@ async def ingest_metadata(
 @router.post("/ingest/metadata/bulk")
 async def ingest_metadata_bulk(
     session: SessionDep,
-    service: MetadataEntryService = Depends(get_metadata_entry_service),
+    metadata_service: MetadataEntryService = Depends(get_metadata_entry_service),
+    catalog_service: CatalogEntryService = Depends(get_catalog_entry_service),
     files: List[UploadFile] = File(description="메타데이터 파일들"),
 ):
     """여러 메타데이터를 테이블 구조로 변환하여 수집"""
+    if not files:
+        raise MetadataEntryFileNotFoundError(message="최소 1개 이상의 파일이 필요")
+    if len(files) > settings.MAXIMUM_INGESTION_LIMIT:
+        raise MetadataEntryTooManyFileError(message=f"최대 {settings.MAXIMUM_INGESTION_LIMIT}개 파일까지 처리 가능")
+
+    metadata_files = [MetadataFile(filename=file.filename, content=await file.read()) for file in files]
+
+    processed_metadatas, errors = process_metadata_files(metadata_files)
+    if not processed_metadatas:
+        return [], errors
+
+    ingested_at = datetime.now()
+
+    iterables: List[Tuple[CatalogEntry, MetadataCreate]] = []
+    for serialized_content, metadata_bases in processed_metadatas:
+        metadata_create = MetadataCreate(metadata_bases=metadata_bases, ingested_at=ingested_at)
+        catalog_entry = CatalogEntry(
+            identifier=metadata_create.metadata_id,
+            raw_metadata=serialized_content,
+            ingested_at=ingested_at,
+        )
+        iterables.append((catalog_entry, metadata_create))
+    catalog_service.create_catalog_entry_bulk(db=session, catalog_entries=[entry.model_dump() for entry, _ in iterables])
+    metadata_service.create_bulk(db=session, metadata_create_list=[metadata_create for _, metadata_create in iterables])
+
     return APIResponseModel(
-        result=service.ingest_bulk(
-            db=session, files=[MetadataFile(filename=file.filename, content=await file.read()) for file in files]
-        ),
+        result={"result": iterables, "errors": errors},
         description="메타데이터 벌크 수집 완료",
     )
 
