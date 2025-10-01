@@ -1,7 +1,7 @@
 import io
-from typing import Optional, Literal, List
+from typing import List, Literal, Optional
 
-from fastapi import APIRouter, Depends, File, Path, UploadFile, Query
+from fastapi import APIRouter, Depends, File, Path, Query, UploadFile
 from starlette.responses import StreamingResponse
 
 from app.dependencies import SessionDep
@@ -148,3 +148,16 @@ async def import_metadata_files_bulk(
         result={"results": results, "errors": errors},
         description=f"Bulk import 완료.",
     )
+
+
+@router.put("/match/relations")
+async def match_relations(
+    session: SessionDep,
+    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    catalog_transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
+    catalog_entry_id: int = Path(description="갱신할 카탈로그 엔트리 ID", example=31),
+):
+    updated_catalog_entry = catalog_transform_service.update_catalog_entry_from_metadata_and_relation(
+        db=session, catalog_entry_id=catalog_entry_id
+    )
+    return APIResponseModel(result=updated_catalog_entry, description="카탈로그 엔트리 갱신됨")
