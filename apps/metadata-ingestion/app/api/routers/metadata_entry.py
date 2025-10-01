@@ -123,19 +123,19 @@ async def ingest_metadata(
     except ValueError as e:
         raise MetadataEntryNotSupportedTypeError(type=file.get_extension(), result=str(e))
 
-    catalog_entry = catalog_service.create_catalog_entry(
+    catalog_result = catalog_service.create_catalog_entry(
         db=session, catalog_entry=CatalogEntry(raw_metadata=serialized_content)
     )
 
     metadata_result = metadata_service.create(
         db=session,
         metadata_create=MetadataCreate(
-            metadata_id=catalog_entry.identifier, metadata_bases=metadata_bases, ingested_at=catalog_entry.ingested_at
+            metadata_id=catalog_result.identifier, metadata_bases=metadata_bases, ingested_at=catalog_result.ingested_at
         ),
     )
 
     return APIResponseModel(
-        result=metadata_result,
+        result={"catalog_result": catalog_result, "metadata_result": metadata_result},
         description="메타데이터 수집 완료",
     )
 
@@ -177,7 +177,12 @@ async def ingest_metadata_bulk(
     metadata_service.create_bulk(db=session, metadata_create_list=[metadata_create for _, metadata_create in iterables])
 
     return APIResponseModel(
-        result={"processed_count": len(iterables), "metadata_entries": iterables, "errors": errors},
+        result={
+            "processed_count": len(iterables),
+            "catalog_result": [entry for entry, _ in iterables],
+            "metadata_result": [metadata_create for _, metadata_create in iterables],
+            "errors": errors,
+        },
         description="메타데이터 벌크 수집 완료",
     )
 
