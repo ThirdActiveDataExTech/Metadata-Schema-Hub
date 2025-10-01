@@ -108,6 +108,8 @@ class Settings(BaseSettings):
 
     POSTGRES_VERBOSE: bool = False
 
+    MAXIMUM_INGESTION_LIMIT: int = 200
+
 
 settings = Settings()  # type: ignore
 print(settings.model_dump_json())

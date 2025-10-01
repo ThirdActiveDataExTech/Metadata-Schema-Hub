@@ -60,7 +60,7 @@ def process_metadata_file(file: MetadataFile) -> Tuple[Dict[str, Any], List[Meta
         elif file.get_extension() in xml_converter.get_supported_extensions():
             return xml_converter.convert_to_dict(file.content), xml_converter.convert_to_metadata_bases(file.content)
         else:
-            raise ValueError(f"Unsupported file type: {file.filename}")
+            raise ValueError(f"Unsupported file type: {file.get_extension}")
     except Exception as e:
         raise ValueError(f"Error processing file {file.filename}: {str(e)}") from e
 

@@ -1,15 +1,16 @@
 import pathlib
-from typing import Optional
+from typing import List, Optional
 
-from fastapi import APIRouter, Depends, File, UploadFile, Path, Query
+from fastapi import APIRouter, Depends, File, Path, Query, UploadFile
 
 from app.dependencies import SessionDep
 from app.schemas.response import APIResponseModel
-from app.src.metadata_entry.exceptions import MetadataEntryNotSupportedTypeError
+from app.src.file_converter.file_handler import MetadataFile
 from app.src.file_converter.json_converter import JsonConverter
+from app.src.file_converter.xml_converter import LxmlConverter
+from app.src.metadata_entry.exceptions import MetadataEntryNotSupportedTypeError
 from app.src.metadata_entry.repository import MetadataEntryRepository
 from app.src.metadata_entry.service import MetadataEntryService
-from app.src.file_converter.xml_converter import LxmlConverter
 
 router = APIRouter(prefix="/metadata", tags=["metadata"])
 
@@ -91,6 +92,34 @@ async def convert_dcat_metadata(
     parsed_data = converter.convert_to_metadata_bases(content)
 
     return APIResponseModel(result=parsed_data, description="DCAT XML 파일 파싱 완료")
+
+
+@router.post("/ingest/metadata")
+async def ingest_metadata(
+    session: SessionDep,
+    service: MetadataEntryService = Depends(get_metadata_entry_service),
+    file: UploadFile = File(description="메타데이터 파일"),
+):
+    """메타데이터를 테이블 구조로 변환하여 수집"""
+    return APIResponseModel(
+        result=service.ingest(db=session, file=MetadataFile(filename=file.filename, content=await file.read())),
+        description="메타데이터 수집 완료",
+    )
+
+
+@router.post("/ingest/metadata/bulk")
+async def ingest_metadata_bulk(
+    session: SessionDep,
+    service: MetadataEntryService = Depends(get_metadata_entry_service),
+    files: List[UploadFile] = File(description="메타데이터 파일들"),
+):
+    """여러 메타데이터를 테이블 구조로 변환하여 수집"""
+    return APIResponseModel(
+        result=service.ingest_bulk(
+            db=session, files=[MetadataFile(filename=file.filename, content=await file.read()) for file in files]
+        ),
+        description="메타데이터 벌크 수집 완료",
+    )
 
 
 @router.get("/{metadata_id}")

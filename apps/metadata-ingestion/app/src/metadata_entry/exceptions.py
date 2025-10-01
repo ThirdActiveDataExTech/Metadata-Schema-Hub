@@ -26,6 +26,16 @@ class MetadataEntryFileNotFoundError(ApplicationError):
         self.message = message
 
 
+class MetadataEntryTooManyFileError(ApplicationError):
+    """MetadataEntry File Too Many Found error."""
+
+    def __init__(self, message: str, result: Any = None):
+        """Initialize Exceptions."""
+        self.code = int(f"{settings.SERVICE_CODE}{status.HTTP_400_BAD_REQUEST}")
+        self.result = result
+        self.message = message
+
+
 class MetadataEntryNotSupportedTypeError(ApplicationError):
     """MetadataEntry Transform Not Supported Type error."""
 
