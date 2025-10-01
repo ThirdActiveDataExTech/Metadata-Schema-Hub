@@ -12,7 +12,7 @@ venv
 .ruff_cache
 .coverage
 coverage.xml
-/logs/
+logs/
 version_info.py
 sql_app.db
 build/

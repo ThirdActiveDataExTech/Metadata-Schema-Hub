@@ -1,7 +1,7 @@
-from typing import List, Optional, Dict, Any
+from typing import Any, Dict, List, Optional
 
 from app.dependencies import SessionDep
-from app.src.metadata_entry.model import MetadataEntry, MetadataCreate
+from app.src.metadata_entry.model import MetadataCreate, MetadataEntry
 from app.src.metadata_entry.repository import MetadataEntryRepository
 
 
