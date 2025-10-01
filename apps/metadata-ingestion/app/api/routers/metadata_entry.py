@@ -157,7 +157,10 @@ async def ingest_metadata_bulk(
 
     processed_metadatas, errors = process_metadata_files(metadata_files)
     if not processed_metadatas:
-        return [], errors
+        return APIResponseModel(
+            result={"processed_count": 0, "errors": errors},
+            description="처리된 메타데이터가 없습니다",
+        )
 
     ingested_at = datetime.now()
 
@@ -174,7 +177,7 @@ async def ingest_metadata_bulk(
     metadata_service.create_bulk(db=session, metadata_create_list=[metadata_create for _, metadata_create in iterables])
 
     return APIResponseModel(
-        result={"result": iterables, "errors": errors},
+        result={"processed_count": len(iterables), "metadata_entries": iterables, "errors": errors},
         description="메타데이터 벌크 수집 완료",
     )
 
