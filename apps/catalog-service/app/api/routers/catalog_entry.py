@@ -150,7 +150,7 @@ async def import_metadata_files_bulk(
     )
 
 
-@router.put("/match/relations")
+@router.put("/match/relations/{catalog_entry_id}")
 async def match_relations(
     session: SessionDep,
     catalog_transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
