@@ -4,6 +4,9 @@
 [![Postgres](https://img.shields.io/badge/Postgres-17.4-%23316192)]([#](https://hub.docker.com/layers/library/postgres/17.4/images/sha256-48f04a5009fe444f00178907dd32f6df809246a959468f72248284752f31dadd))
 [![Postgres](https://img.shields.io/badge/Postgres-%23316192.svg?logo=postgresql&logoColor=white)]([#](https://www.postgresql.org/download/))
 
+> **[공개 SW] 모노레포**: 액티브 메타데이터 관리 + 통합 데이터 카탈로그 생성  
+> **성과지표**: 관계형 데이터 유사 속성 탐지율
+
 ## 개요
 
 ![아키텍처](amd.drawio.svg)
