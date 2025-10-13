@@ -4,6 +4,9 @@
 [![Postgres](https://img.shields.io/badge/Postgres-17.4-%23316192)]([#](https://hub.docker.com/layers/library/postgres/17.4/images/sha256-48f04a5009fe444f00178907dd32f6df809246a959468f72248284752f31dadd))
 [![Postgres](https://img.shields.io/badge/Postgres-%23316192.svg?logo=postgresql&logoColor=white)]([#](https://www.postgresql.org/download/))
 
+> **[공개 SW] 모노레포**: 액티브 메타데이터 관리 + 통합 데이터 카탈로그 생성  
+> **성과지표**: 관계형 데이터 유사 속성 탐지율
+
 ## 개요
 
 ![아키텍처](amd.drawio.svg)
@@ -91,16 +94,37 @@
 - 컬럼 간 연관성 분석 결과 기반 매핑 자동화를 위한 예측 결과 저장
 - 메타데이터와 카탈로그 간 의미적 연관성 정량화
 
+---
+
+## 레포지토리 구조
+
+```
+active-metadata-management/
+├── apps/
+│   ├── metadata-ingestion/         # 데이터 수집 / 처리 레이어
+│   └── catalog-service/            # 카탈로그 서비스 레이어
+├── initdb/                         # 데이터베이스 스키마 정의
+│   ├── 001_init.sql                # 초기 설정
+│   ├── 002_catalog_entry.sql       # 통합 카탈로그 DB 스키마
+│   ├── 002_metadata_entry.sql      # 메타데이터 스키마 DB 스키마
+│   └── 002_column_relation.sql     # 스키마 관계 DB 스키마
+├── sample/                         # 테스트용 메타데이터 샘플
+└── docker-compose.yaml             # 전체 시스템 오케스트레이션
+```
+
+## 서비스 아키텍처
+
+- **metadata-ingestion**: 스키마 및 메타데이터 수집/전처리
+- **catalog-service**: 통합 카탈로그 질의 및 데이터 변환
+- **PostgreSQL**: 메타데이터 스키마 DB, 통합 카탈로그 DB, 스키마 관계 DB
+
+---
+
 ## 사용 방법
 
 ```bash
 $ docker compose up -d
 ```
-
-### DDL 위치
-- `/initdb/` 디렉터리 하위의 DDL 기반으로 스키마가 정의됨
-- 해당 테이블이 없을 경우, 로직이 실패할 수 있음
-- 동봉된 docker compose 의 PostgreSQL 를 사용할 경우, table 생성 DDL 이 실행됨  
 
 ### 데이터 처리 흐름
 1. **메타데이터 수집**: 다양한 소스에서 원본 메타데이터 수집
