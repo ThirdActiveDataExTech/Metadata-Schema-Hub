@@ -1,17 +1,15 @@
 import io
-from typing import List, Literal, Optional
+from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, File, Path, Query, UploadFile
+from fastapi import APIRouter, Depends, Path, Query
 from starlette.responses import StreamingResponse
 
 from app.dependencies import SessionDep
 from app.schemas.response import APIResponseModel
-from app.src.catalog_entry.exceptions import CatalogEntryServiceError
 from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.catalog_entry.service import CatalogEntryService
 from app.src.column_relation.repository import ColumnRelationRepository
 from app.src.column_relation.service import ColumnRelationService
-from app.src.file_converter.file_handler import MetadataFile
 from app.src.metadata_entry.repository import MetadataEntryRepository
 from app.src.metadata_entry.service import MetadataEntryService
 from app.src.workflow.transform_service import CatalogEntryTransformService
@@ -98,21 +96,6 @@ async def search_catalog_entries(
     return APIResponseModel(result=result, description=description)
 
 
-@router.post("/import")
-async def import_metadata_file(
-    session: SessionDep,
-    catalog_transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
-    file: UploadFile = File(description="JSON/XML 형식의 메타데이터 파일 (.json, .xml, .rdf)"),
-):
-    """메타데이터 파일 업로드 및 카탈로그 엔트리 변환 처리"""
-    return APIResponseModel(
-        result=catalog_transform_service.create_metadata_catalog_entry_from_metadata(
-            db=session, file=MetadataFile(filename=file.filename, content=await file.read())
-        ),
-        description="Metadata import 및 변환 완료",
-    )
-
-
 @router.get("/export/csv")
 async def export_catalog_entries_csv(
     session: SessionDep,
@@ -125,28 +108,6 @@ async def export_catalog_entries_csv(
         io.StringIO(csv_stream.getvalue()),
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=catalog_entries.csv"},
-    )
-
-
-@router.post("/import/bulk")
-async def import_metadata_files_bulk(
-    session: SessionDep,
-    catalog_entry_transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
-    files: List[UploadFile] = File(description="JSON/XML 형식의 메타데이터 파일들 (.json, .jsonl, .xml, .rdf, .zip)"),
-):
-    """메타데이터 파일들 bulk 업로드 및 카탈로그 엔트리 변환 처리"""
-
-    if not files:
-        raise CatalogEntryServiceError(message="최소 1개 이상의 파일이 필요")
-    if len(files) > 200:
-        raise CatalogEntryServiceError(message="최대 200개 파일까지 처리 가능")
-
-    results, errors = catalog_entry_transform_service.create_metadata_catalog_entries_from_metadatas(
-        db=session, files=[MetadataFile(filename=file.filename, content=await file.read()) for file in files]
-    )
-    return APIResponseModel(
-        result={"results": results, "errors": errors},
-        description=f"Bulk import 완료.",
     )
 
 
