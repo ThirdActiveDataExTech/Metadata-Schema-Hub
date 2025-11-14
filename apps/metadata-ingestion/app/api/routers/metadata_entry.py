@@ -1,4 +1,5 @@
 import pathlib
+from collections import defaultdict
 from datetime import datetime
 from typing import List, Optional, Tuple
 
@@ -10,6 +11,8 @@ from app.schemas.response import APIResponseModel
 from app.src.catalog_entry.model import CatalogEntry
 from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.catalog_entry.service import CatalogEntryService
+from app.src.column_relation.repository import ColumnRelationRepository
+from app.src.column_relation.service import ColumnRelationService
 from app.src.file_converter.file_handler import MetadataFile, process_metadata_file, process_metadata_files
 from app.src.file_converter.json_converter import JsonConverter
 from app.src.file_converter.xml_converter import LxmlConverter
@@ -38,6 +41,11 @@ def get_xml_converter():
 def get_catalog_entry_service(repository=Depends(CatalogEntryRepository)):
     """Repository dependency injection."""
     return CatalogEntryService(repository)
+
+
+def get_column_relation_service(repository=Depends(ColumnRelationRepository)):
+    """Repository dependency injection."""
+    return ColumnRelationService(repository)
 
 
 def get_metadata_entry_service(repository=Depends(MetadataEntryRepository)):
@@ -201,3 +209,57 @@ async def get_metadata_entry(
     result = service.select_metadata(session, metadata_id=metadata_id)
 
     return APIResponseModel(result=result, description="Metadata Found.")
+
+
+@router.post("/preview")
+async def preview_metadata(
+    session: SessionDep,
+    relation_service: ColumnRelationService = Depends(get_column_relation_service),
+    file: UploadFile = File(description="메타데이터 파일"),
+):
+    """메타데이터를 json 으로 변환하여 preview"""
+    metadata_file = MetadataFile(filename=file.filename, content=await file.read())
+    
+    try:
+        _, metadata_bases = process_metadata_file(metadata_file)
+    except ValueError as e:
+        raise MetadataEntryNotSupportedTypeError(type=file.get_extension(), result=str(e))
+
+    metadata_schemas = [base.metadata_schema for base in metadata_bases]
+    relations = relation_service.get_relations_by_metadata_columns(session, metadata_schemas)
+
+    metadata_candidates = defaultdict(list)
+    for relation in relations:
+        metadata_candidates[relation.metadata_column].append({
+            "catalog_column": relation.catalog_column,
+            "correlation": relation.correlation,
+        })
+
+    best_matches = {
+        meta_col: max(candidates, key=lambda x: x["correlation"])["catalog_column"]
+        for meta_col, candidates in metadata_candidates.items()
+        if candidates
+    }
+
+    schema_to_value = {base.metadata_schema: base.value for base in metadata_bases}
+
+    metadata = {
+        best_matches[schema]: schema_to_value[schema]
+        for schema in best_matches
+        if schema in schema_to_value
+    }
+
+    untyped = {
+        base.metadata_schema: base.value
+        for base in metadata_bases
+        if base.metadata_schema not in metadata_candidates
+    }
+
+    return APIResponseModel(
+        result={
+            "metadata": metadata,
+            "metadata_candidates": metadata_candidates,
+            "untyped": untyped,
+        },
+        description="메타데이터 미리보기 생성 완료.",
+    )
