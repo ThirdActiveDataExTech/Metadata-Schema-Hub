@@ -214,7 +214,7 @@ async def get_metadata_entry(
 @router.post("/preview")
 async def preview_metadata(
     session: SessionDep,
-    relation_service=Depends(get_column_relation_service),
+    relation_service: ColumnRelationService = Depends(get_column_relation_service),
     file: UploadFile = File(description="메타데이터 파일"),
 ):
     """메타데이터를 json 으로 변환하여 preview"""
@@ -238,6 +238,7 @@ async def preview_metadata(
     best_matches = {
         meta_col: max(candidates, key=lambda x: x["correlation"])["catalog_column"]
         for meta_col, candidates in metadata_candidates.items()
+        if candidates
     }
 
     schema_to_value = {base.metadata_schema: base.value for base in metadata_bases}
