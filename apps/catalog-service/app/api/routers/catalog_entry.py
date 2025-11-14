@@ -121,4 +121,3 @@ async def match_relations(
         db=session, catalog_entry_id=catalog_entry_id
     )
     return APIResponseModel(result=updated_catalog_entry, description="카탈로그 엔트리 갱신됨")
-
