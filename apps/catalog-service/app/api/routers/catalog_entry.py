@@ -1,7 +1,7 @@
 import io
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, File, Path, Query, UploadFile
+from fastapi import APIRouter, Depends, Path, Query
 from starlette.responses import StreamingResponse
 
 from app.dependencies import SessionDep
