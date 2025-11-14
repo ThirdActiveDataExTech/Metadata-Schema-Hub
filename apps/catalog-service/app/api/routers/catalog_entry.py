@@ -122,13 +122,3 @@ async def match_relations(
     )
     return APIResponseModel(result=updated_catalog_entry, description="카탈로그 엔트리 갱신됨")
 
-
-@router.post("/preview")
-async def preview_metadata(
-    session: SessionDep,
-    relation_service: ColumnRelationService,
-    file: UploadFile = File(description="메타데이터 파일"),
-):
-    result = {"catalog_entry": dict(), "untyped": dict()}
-
-    return APIResponseModel(result=result, description="메타데이터 미리보기 생성 완료.")
