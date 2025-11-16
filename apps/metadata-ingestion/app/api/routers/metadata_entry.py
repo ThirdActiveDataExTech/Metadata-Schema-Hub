@@ -1,12 +1,15 @@
+import json
 import pathlib
 from collections import defaultdict
 from datetime import datetime
 from typing import List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, File, Path, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
+from pydantic import Json
 
 from app.config import settings
 from app.dependencies import SessionDep
+from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
 from app.src.catalog_entry.model import CatalogEntry
 from app.src.catalog_entry.repository import CatalogEntryRepository
@@ -25,7 +28,7 @@ from app.src.metadata_entry.model import MetadataCreate
 from app.src.metadata_entry.repository import MetadataEntryRepository
 from app.src.metadata_entry.service import MetadataEntryService
 
-router = APIRouter(prefix="/metadata", tags=["metadata"])
+router = APIRouter(prefix="/metadata", tags=["metadata"], route_class=ExceptionHandlingRoute)
 
 
 def get_json_converter():
@@ -219,7 +222,7 @@ async def preview_metadata(
 ):
     """메타데이터를 json 으로 변환하여 preview"""
     metadata_file = MetadataFile(filename=file.filename, content=await file.read())
-    
+
     try:
         _, metadata_bases = process_metadata_file(metadata_file)
     except ValueError as e:
@@ -262,4 +265,33 @@ async def preview_metadata(
             "untyped": untyped,
         },
         description="메타데이터 미리보기 생성 완료.",
+    )
+
+
+@router.post("/form")
+async def ingest_form(
+    session: SessionDep,
+    metadata_service: MetadataEntryService = Depends(get_metadata_entry_service),
+    catalog_service: CatalogEntryService = Depends(get_catalog_entry_service),
+    json_converter: JsonConverter = Depends(get_json_converter),
+    metadata_form: str = Form(description="메타데이터 Json"),
+):
+    """메타데이터를 테이블 구조로 변환하여 수집"""
+    serialized_content = json.loads(metadata_form)
+    metadata_bases = json_converter.convert_to_metadata_bases(metadata_form)
+
+    catalog_result = catalog_service.create_catalog_entry(
+        db=session, catalog_entry=CatalogEntry(raw_metadata=serialized_content)
+    )
+
+    metadata_result = metadata_service.create(
+        db=session,
+        metadata_create=MetadataCreate(
+            metadata_id=catalog_result.identifier, metadata_bases=metadata_bases, ingested_at=catalog_result.ingested_at
+        ),
+    )
+
+    return APIResponseModel(
+        result={"catalog_result": catalog_result, "metadata_result": metadata_result},
+        description="메타데이터 수집 완료",
     )
