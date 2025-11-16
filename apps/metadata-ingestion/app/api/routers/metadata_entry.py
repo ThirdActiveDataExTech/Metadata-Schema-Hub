@@ -21,6 +21,7 @@ from app.src.file_converter.json_converter import JsonConverter
 from app.src.file_converter.xml_converter import LxmlConverter
 from app.src.metadata_entry.exceptions import (
     MetadataEntryFileNotFoundError,
+    MetadataEntryInvalidFormatError,
     MetadataEntryNotSupportedTypeError,
     MetadataEntryTooManyFileError,
 )
@@ -233,10 +234,12 @@ async def preview_metadata(
 
     metadata_candidates = defaultdict(list)
     for relation in relations:
-        metadata_candidates[relation.metadata_column].append({
-            "catalog_column": relation.catalog_column,
-            "correlation": relation.correlation,
-        })
+        metadata_candidates[relation.metadata_column].append(
+            {
+                "catalog_column": relation.catalog_column,
+                "correlation": relation.correlation,
+            }
+        )
 
     best_matches = {
         meta_col: max(candidates, key=lambda x: x["correlation"])["catalog_column"]
@@ -246,16 +249,10 @@ async def preview_metadata(
 
     schema_to_value = {base.metadata_schema: base.value for base in metadata_bases}
 
-    metadata = {
-        best_matches[schema]: schema_to_value[schema]
-        for schema in best_matches
-        if schema in schema_to_value
-    }
+    metadata = {best_matches[schema]: schema_to_value[schema] for schema in best_matches if schema in schema_to_value}
 
     untyped = {
-        base.metadata_schema: base.value
-        for base in metadata_bases
-        if base.metadata_schema not in metadata_candidates
+        base.metadata_schema: base.value for base in metadata_bases if base.metadata_schema not in metadata_candidates
     }
 
     return APIResponseModel(
@@ -277,7 +274,11 @@ async def ingest_form(
     metadata_form: str = Form(description="메타데이터 Json"),
 ):
     """메타데이터를 테이블 구조로 변환하여 수집"""
-    serialized_content = json.loads(metadata_form)
+    try:
+        serialized_content = json.loads(metadata_form)
+    except json.JSONDecodeError as e:
+        raise MetadataEntryInvalidFormatError(format_type="JSON", message=str(e))
+
     metadata_bases = json_converter.convert_to_metadata_bases(metadata_form)
 
     catalog_result = catalog_service.create_catalog_entry(
