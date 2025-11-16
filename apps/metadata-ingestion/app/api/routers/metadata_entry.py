@@ -132,7 +132,7 @@ async def ingest_metadata(
     try:
         serialized_content, metadata_bases = process_metadata_file(metadata_file)
     except ValueError as e:
-        raise MetadataEntryNotSupportedTypeError(type=file.get_extension(), result=str(e))
+        raise MetadataEntryNotSupportedTypeError(type=metadata_file.get_extension(), result=str(e))
 
     catalog_result = catalog_service.create_catalog_entry(
         db=session, catalog_entry=CatalogEntry(raw_metadata=serialized_content)
@@ -226,7 +226,7 @@ async def preview_metadata(
     try:
         _, metadata_bases = process_metadata_file(metadata_file)
     except ValueError as e:
-        raise MetadataEntryNotSupportedTypeError(type=file.get_extension(), result=str(e))
+        raise MetadataEntryNotSupportedTypeError(type=metadata_file.get_extension(), result=str(e))
 
     metadata_schemas = [base.metadata_schema for base in metadata_bases]
     relations = relation_service.get_relations_by_metadata_columns(session, metadata_schemas)
