@@ -51,7 +51,7 @@ class ExceptionHandlingRoute(APIRoute):
         원본 예외 정보는 'from exc' 체이닝을 통해 traceback에 보존됩니다.
     """
 
-    def get_route_handler(self) -> Callable:
+    def get_route_handler(self) -> Callable[[Request], Response]:
         original_route_handler = super().get_route_handler()
 
         async def custom_route_handler(request: Request) -> Response:
