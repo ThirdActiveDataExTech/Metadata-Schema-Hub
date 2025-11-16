@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, Path, Query
 from starlette.responses import StreamingResponse
 
 from app.dependencies import SessionDep
+from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
 from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.catalog_entry.service import CatalogEntryService
@@ -14,7 +15,7 @@ from app.src.metadata_entry.repository import MetadataEntryRepository
 from app.src.metadata_entry.service import MetadataEntryService
 from app.src.workflow.transform_service import CatalogEntryTransformService
 
-router = APIRouter(prefix="/catalog", tags=["catalog"])
+router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=ExceptionHandlingRoute)
 
 
 def get_catalog_entry_service(repository=Depends(CatalogEntryRepository)) -> CatalogEntryService:
