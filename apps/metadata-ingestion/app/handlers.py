@@ -68,7 +68,7 @@ class ExceptionHandlingRoute(APIRoute):
                 raise HTTPException(
                     status_code=500,
                     detail={
-                        "code": 100500,
+                        "code": int(f"{settings.SERVICE_CODE}500"),
                         "message": f"Internal Server Error: {type(exc).__name__}",
                         "result": {
                             "exception_type": type(exc).__name__,
