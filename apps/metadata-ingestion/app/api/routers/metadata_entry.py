@@ -5,7 +5,6 @@ from datetime import datetime
 from typing import List, Optional, Tuple
 
 from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
-from pydantic import Json
 
 from app.config import settings
 from app.dependencies import SessionDep
