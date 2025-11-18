@@ -93,10 +93,13 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
 
 
         if self.modified:
-            dataset["dct:modified"] = {
-                "@type": "xsd:date",
-                "@value": self.modified.isoformat()
-            }
+            try:
+                dataset["dct:modified"] = {
+                    "@type": "xsd:date",
+                    "@value": self.modified.isoformat()
+                }
+            except AttributeError:
+                dataset["dct:modified"] = str(self.modified)
 
         if self.keyword:
             dataset["dcat:keyword"] = self.keyword
