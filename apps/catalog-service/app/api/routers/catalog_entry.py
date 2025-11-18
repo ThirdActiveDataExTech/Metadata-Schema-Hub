@@ -68,13 +68,25 @@ async def get_raw_metadata(
     catalog_entry = service.get_raw_metadata(db=session, catalog_entry_id=catalog_entry_id, data_format=output_format)
     return APIResponseModel(result=catalog_entry, description="Raw Metadata Found.")
 
-@router.get("/entries/normalized-metadata/{catalog_entry_id}")
-async def get_normalized_metadata(
+
+@router.get("/entries/{catalog_entry_id}/rdf")
+async def get_rdf_representation(
     session: SessionDep,
     service: CatalogEntryService = Depends(get_catalog_entry_service),
     catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리 ID", example=31),
 ):
-    """카탈로그 엔트리의 DCAT 기반 형식 메타데이터(json-ld) 반환"""
+    """카탈로그 엔트리의 RDF 표현을 JSON-LD 형식으로 반환
+
+    DCAT(Data Catalog Vocabulary) 표준에 따라 정규화된 메타데이터를 제공합니다.
+    반환된 JSON-LD는 Semantic Web 환경에서 직접 사용 가능하며,
+    외부 시스템과의 메타데이터 교환 시 표준 포맷으로 활용됩니다.
+
+    Args:
+        catalog_entry_id: 조회할 카탈로그 엔트리의 고유 식별자
+
+    Returns:
+        DCAT 기반 RDF 메타데이터 (JSON-LD 형식)
+    """
     catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id).get_rdf_dict()
     return APIResponseModel(result=catalog_entry, description="Raw Metadata Found.")
 
