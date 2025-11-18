@@ -118,7 +118,7 @@ async def download_rdf_representation(
     json_stream = io.StringIO(json_content)
 
     # 파일명 생성 (카탈로그 엔트리 ID 포함)
-    filename = f"catalog_entry_{catalog_entry_id}_rdf.jsonld"
+    filename = f"catalog_entry_{catalog_entry_id}_rdf.json"
 
     return StreamingResponse(
         json_stream,
