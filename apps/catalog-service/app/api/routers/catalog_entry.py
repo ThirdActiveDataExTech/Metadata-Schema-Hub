@@ -1,4 +1,5 @@
 import io
+import json
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, Path, Query
@@ -89,6 +90,41 @@ async def get_rdf_representation(
     """
     catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id).get_rdf_dict()
     return APIResponseModel(result=catalog_entry, description="RDF Metadata Found.")
+
+
+@router.get("/entries/{catalog_entry_id}/rdf/download")
+async def download_rdf_representation(
+    session: SessionDep,
+    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    catalog_entry_id: int = Path(description="다운로드할 카탈로그 엔트리 ID", example=31),
+):
+    """카탈로그 엔트리의 RDF 표현을 JSON-LD 파일로 다운로드
+
+    DCAT(Data Catalog Vocabulary) 표준에 따라 정규화된 메타데이터를 JSON-LD 파일로 제공합니다.
+    다운로드된 파일은 Semantic Web 환경에서 직접 사용 가능하며,
+    외부 시스템과의 메타데이터 교환 시 표준 포맷으로 활용됩니다.
+
+    Args:
+        catalog_entry_id: 다운로드할 카탈로그 엔트리의 고유 식별자
+
+    Returns:
+        DCAT 기반 RDF 메타데이터 JSON-LD 파일
+    """
+    catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id)
+    rdf_dict = catalog_entry.get_rdf_dict()
+
+    # JSON-LD를 보기 좋게 포맷팅
+    json_content = json.dumps(rdf_dict, ensure_ascii=False, indent=2)
+    json_stream = io.StringIO(json_content)
+
+    # 파일명 생성 (카탈로그 엔트리 ID 포함)
+    filename = f"catalog_entry_{catalog_entry_id}_rdf.jsonld"
+
+    return StreamingResponse(
+        json_stream,
+        media_type="application/ld+json",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.get("/entries")
