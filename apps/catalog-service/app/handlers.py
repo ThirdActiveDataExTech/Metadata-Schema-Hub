@@ -66,9 +66,9 @@ class ExceptionHandlingRoute(APIRoute):
                 # 이후 흐름은 HTTPException 전용 exception handler가 처리
                 # detail에 원본 예외 정보를 담음
                 raise HTTPException(
-                    status_code=500,
+                    status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
                     detail={
-                        "code": int(f"{settings.SERVICE_CODE}500"),
+                        "code": int(f"{settings.SERVICE_CODE}{status.HTTP_500_INTERNAL_SERVER_ERROR}"),
                         "message": f"Internal Server Error: {type(exc).__name__}",
                         "result": {
                             "exception_type": type(exc).__name__,
@@ -83,9 +83,9 @@ class ExceptionHandlingRoute(APIRoute):
 async def http_exception_handler(request: Request, exc: StarletteHTTPException):
     logging.error(f"{request.client} {request.method} {request.url} → {repr(exc)}")
     status_code = int(f"{settings.SERVICE_CODE}{exc.status_code}")
-    if exc.status_code == 404:
+    if exc.status_code == status.HTTP_404_NOT_FOUND:
         return JSONResponse(
-            status_code=200,
+            status_code=status.HTTP_404_NOT_FOUND,
             content=ApplicationError(
                 code=status_code,
                 message="Invalid URL. see api-doc `/docs` or `/openapi.json`",
@@ -93,7 +93,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
             ).to_dict(),
         )
     return JSONResponse(
-        status_code=200,
+        status_code=status.HTTP_400_BAD_REQUEST,
         content=ApplicationError(code=status_code, message=exc.detail, result={"headers": exc.headers}).to_dict(),
     )
 
@@ -101,7 +101,7 @@ async def http_exception_handler(request: Request, exc: StarletteHTTPException):
 async def request_validation_exception_handler(request: Request, exc: RequestValidationError):
     logging.error(f"{request.client} {request.method} {request.url} → {repr(exc)}")
     return JSONResponse(
-        status_code=200,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=ApplicationError(
             code=int(f"{settings.SERVICE_CODE}{status.HTTP_422_UNPROCESSABLE_ENTITY}"),
             message=f"Invalid Request: {exc.errors()[0]['msg']} (type: {exc.errors()[0]['type']}), "
@@ -114,7 +114,7 @@ async def request_validation_exception_handler(request: Request, exc: RequestVal
 async def validation_exception_handler(request: Request, exc: ValidationError):
     logging.error(f"{request.client} {request.method} {request.url} → {repr(exc)}")
     return JSONResponse(
-        status_code=200,
+        status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
         content=ApplicationError(
             code=int(f"{settings.SERVICE_CODE}{status.HTTP_422_UNPROCESSABLE_ENTITY}"),
             message="Pydantic Model ValidationError",
@@ -126,5 +126,6 @@ async def validation_exception_handler(request: Request, exc: ValidationError):
 async def application_error_handler(request: Request, exc: ApplicationError):
     logging.error(f"{request.client} {request.method} {request.url} → {repr(exc)}")
     return JSONResponse(
-        status_code=200, content=ApplicationError(code=exc.code, result=exc.result, message=exc.message).to_dict()
+        status_code=status.HTTP_400_BAD_REQUEST,
+        content=ApplicationError(code=exc.code, result=exc.result, message=exc.message).to_dict(),
     )
