@@ -16,6 +16,16 @@ class MetadataEntryError(ApplicationError):
         self.message = "MetadataEntryError"
 
 
+class MetadataEntryInvalidFormatError(ApplicationError):
+    """MetadataEntry Invalid Format Error."""
+
+    def __init__(self, format_type: str, message: str, result: Any = None):
+        """Initialize Exceptions."""
+        self.code = int(f"{settings.SERVICE_CODE}{status.HTTP_400_BAD_REQUEST}")
+        self.result = result
+        self.message = f"Invalid {format_type} format: {message}"
+
+
 class MetadataEntryFileNotFoundError(ApplicationError):
     """MetadataEntry File Not Found error."""
 

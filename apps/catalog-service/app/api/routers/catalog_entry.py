@@ -1,10 +1,12 @@
 import io
+import json
 from typing import Literal, Optional
 
 from fastapi import APIRouter, Depends, Path, Query
 from starlette.responses import StreamingResponse
 
 from app.dependencies import SessionDep
+from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
 from app.src.catalog_entry.repository import CatalogEntryRepository
 from app.src.catalog_entry.service import CatalogEntryService
@@ -14,7 +16,7 @@ from app.src.metadata_entry.repository import MetadataEntryRepository
 from app.src.metadata_entry.service import MetadataEntryService
 from app.src.workflow.transform_service import CatalogEntryTransformService
 
-router = APIRouter(prefix="/catalog", tags=["catalog"])
+router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=ExceptionHandlingRoute)
 
 
 def get_catalog_entry_service(repository=Depends(CatalogEntryRepository)) -> CatalogEntryService:
@@ -66,6 +68,62 @@ async def get_raw_metadata(
     """특정 카탈로그 엔트리의 원본 메타데이터 조회"""
     catalog_entry = service.get_raw_metadata(db=session, catalog_entry_id=catalog_entry_id, data_format=output_format)
     return APIResponseModel(result=catalog_entry, description="Raw Metadata Found.")
+
+
+@router.get("/entries/{catalog_entry_id}/rdf")
+async def get_rdf_representation(
+    session: SessionDep,
+    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리 ID", example=31),
+):
+    """카탈로그 엔트리의 RDF 표현을 JSON-LD 형식으로 반환
+
+    DCAT(Data Catalog Vocabulary) 표준에 따라 정규화된 메타데이터를 제공합니다.
+    반환된 JSON-LD는 Semantic Web 환경에서 직접 사용 가능하며,
+    외부 시스템과의 메타데이터 교환 시 표준 포맷으로 활용됩니다.
+
+    Args:
+        catalog_entry_id: 조회할 카탈로그 엔트리의 고유 식별자
+
+    Returns:
+        DCAT 기반 RDF 메타데이터 (JSON-LD 형식)
+    """
+    catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id).get_rdf_dict()
+    return APIResponseModel(result=catalog_entry, description="RDF Metadata Found.")
+
+
+@router.get("/entries/{catalog_entry_id}/rdf/download")
+async def download_rdf_representation(
+    session: SessionDep,
+    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    catalog_entry_id: int = Path(description="다운로드할 카탈로그 엔트리 ID", example=31),
+):
+    """카탈로그 엔트리의 RDF 표현을 JSON-LD 파일로 다운로드
+
+    DCAT(Data Catalog Vocabulary) 표준에 따라 정규화된 메타데이터를 JSON-LD 파일로 제공합니다.
+    다운로드된 파일은 Semantic Web 환경에서 직접 사용 가능하며,
+    외부 시스템과의 메타데이터 교환 시 표준 포맷으로 활용됩니다.
+
+    Args:
+        catalog_entry_id: 다운로드할 카탈로그 엔트리의 고유 식별자
+
+    Returns:
+        DCAT 기반 RDF 메타데이터 JSON-LD 파일
+    """
+    catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id)
+    rdf_dict = catalog_entry.get_rdf_dict()
+
+    # JSON-LD를 보기 좋게 포맷팅
+    json_content = json.dumps(rdf_dict, ensure_ascii=False, indent=2)
+
+    # 파일명 생성 (카탈로그 엔트리 ID 포함)
+    filename = f"catalog_entry_{catalog_entry_id}_rdf.json"
+
+    return StreamingResponse(
+        io.BytesIO(json_content.encode("utf-8")),
+        media_type="application/ld+json",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @router.get("/entries")

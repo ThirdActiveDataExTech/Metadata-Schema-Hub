@@ -5,6 +5,7 @@ from sqlalchemy import and_, or_
 from sqlmodel import select
 
 from app.dependencies import SessionDep
+from app.src.catalog_entry.exceptions import CatalogEntryNotFoundError
 from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary
 
 
@@ -20,7 +21,7 @@ class CatalogEntryRepository:
         """Select catalog_entry."""
         catalog_entry = db.get(CatalogEntry, catalog_entry_id)
         if not catalog_entry:
-            raise ValueError(f"{catalog_entry_id=} not found.")
+            raise CatalogEntryNotFoundError(catalog_entry_id=catalog_entry_id)
 
         return catalog_entry
 
@@ -29,7 +30,10 @@ class CatalogEntryRepository:
         stmt = select(CatalogEntry).where(CatalogEntry.identifier == catalog_entry_identifier)
         catalog_entry = db.exec(stmt).first()
         if not catalog_entry:
-            raise ValueError(f"Catalog entry with identifier '{catalog_entry_identifier}' not found.")
+            raise CatalogEntryNotFoundError(
+                catalog_entry_id=-1,
+                result={"identifier": catalog_entry_identifier}
+            )
         return catalog_entry
 
     def select_by_ids(self, db: SessionDep, catalog_entry_ids: List[int]) -> List[CatalogEntry]:
