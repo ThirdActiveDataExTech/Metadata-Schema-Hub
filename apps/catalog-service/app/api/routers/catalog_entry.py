@@ -115,13 +115,12 @@ async def download_rdf_representation(
 
     # JSON-LD를 보기 좋게 포맷팅
     json_content = json.dumps(rdf_dict, ensure_ascii=False, indent=2)
-    json_stream = io.StringIO(json_content)
 
     # 파일명 생성 (카탈로그 엔트리 ID 포함)
     filename = f"catalog_entry_{catalog_entry_id}_rdf.json"
 
     return StreamingResponse(
-        json_stream,
+        io.BytesIO(json_content.encode("utf-8")),
         media_type="application/ld+json",
         headers={"Content-Disposition": f"attachment; filename={filename}"},
     )
