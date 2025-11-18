@@ -55,7 +55,7 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
         """
         return ["keyword", "theme"]
 
-    def get_rdf_dict(self) -> dict:
+    def get_rdf_dict(self) -> dict[str, Any]:
         """catalog_entry 를 DCAT 기반의 json-ld 로 변환하여 반환"""
         # TODO: validation 필요, 표준 - DCAT-AP Validator, 커스텀 - SHACL
 
@@ -82,10 +82,15 @@ class CatalogEntry(SQLModel, table=True):  # pyright: ignore
             }
 
         if self.issued:
-            dataset["dct:issued"] = {
-                "@type": "xsd:date",
-                "@value": self.issued.isoformat()
-            }
+            try:
+                dataset["dct:issued"] = {
+                    "@type": "xsd:date",
+                    "@value": self.issued.isoformat()
+                }
+            except AttributeError:
+                # fallback: 타입 명시 없이 문자열로만 처리
+                dataset["dct:issued"] = str(self.issued)
+
 
         if self.modified:
             dataset["dct:modified"] = {
