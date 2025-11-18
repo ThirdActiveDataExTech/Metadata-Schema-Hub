@@ -88,7 +88,7 @@ async def get_rdf_representation(
         DCAT 기반 RDF 메타데이터 (JSON-LD 형식)
     """
     catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id).get_rdf_dict()
-    return APIResponseModel(result=catalog_entry, description="Raw Metadata Found.")
+    return APIResponseModel(result=catalog_entry, description="RDF Metadata Found.")
 
 
 @router.get("/entries")
