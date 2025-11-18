@@ -1,5 +1,5 @@
 import logging
-from typing import Callable
+from typing import Awaitable, Callable
 
 from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
@@ -51,15 +51,15 @@ class ExceptionHandlingRoute(APIRoute):
         원본 예외 정보는 'from exc' 체이닝을 통해 traceback에 보존됩니다.
     """
 
-    def get_route_handler(self) -> Callable[[Request], Response]:
+    def get_route_handler(self) -> Callable[[Request], Awaitable[Response]]:
         original_route_handler = super().get_route_handler()
 
         async def custom_route_handler(request: Request) -> Response:
             try:
                 return await original_route_handler(request)
-            except (HTTPException, StarletteHTTPException):
-                # HTTPException 계열은 그대로 re-raise
-                # 기존 http_exception_handler가 처리
+            except (HTTPException, StarletteHTTPException, ApplicationError):
+                # HTTPException 및 ApplicationError 계열은 그대로 re-raise
+                # 각각의 exception handler가 처리
                 raise
             except Exception as exc:
                 # 모든 비-HTTPException을 HTTPException으로 변환
