@@ -17,7 +17,6 @@ include:
 variables:
   APP_NAME: metadata-ingestion
   APP_DIR: apps/metadata-ingestion
-  IMAGE_TAG_LATEST: "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
 
 default:
   before_script:
@@ -67,6 +66,8 @@ pytest:
       - PYTHON_VERSION: ["3.11"]
 
 build-and-push-app:
+  variables:
+    IMAGE_TAG_LATEST: "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
   before_script:
     - !reference [default, before_script]
     - apk add --no-cache tzdata
