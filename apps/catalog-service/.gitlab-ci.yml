@@ -1,5 +1,4 @@
 stages:
-  - secret_detection
   - lint
   - test
   - build-and-push-app
@@ -9,7 +8,6 @@ include:
   - project: wisenut-research/starter/templates/gitlab-ci-template
     ref: main
     file:
-      - templates/Security/Secret-Detection.gitlab-ci.yml
       - templates/Python/Dependency-Management.gitlab-ci.yml
       - templates/Python/Lint/Uv-Lint.gitlab-ci.yml
       - templates/Python/Test/Uv-Test.gitlab-ci.yml
