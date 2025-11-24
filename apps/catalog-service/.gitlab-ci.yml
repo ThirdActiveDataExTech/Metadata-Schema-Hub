@@ -1,12 +1,20 @@
 stages:
+  - secret_detection
   - lint
+  - test
+  - build-and-push-app
+  - container_test
 
 include:
   - project: wisenut-research/starter/templates/gitlab-ci-template
     ref: main
     file:
+      - templates/Security/Secret-Detection.gitlab-ci.yml
       - templates/Python/Dependency-Management.gitlab-ci.yml
       - templates/Python/Lint/Uv-Lint.gitlab-ci.yml
+      - templates/Python/Test/Uv-Test.gitlab-ci.yml
+      - templates/Security/Container-Scanning.gitlab-ci.yml
+      - templates/Python/Build-and-Push-App.gitlab-ci.yml
 
 variables:
   APP_NAME: catalog-service
@@ -40,6 +48,21 @@ pyright-lint:
   extends: .app-lint
   script:
     - pyright --pythonversion $PYTHON_VERSION ./
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.11"]
+
+.app-test:
+  extends:
+    - .uv-unit-test
+  before_script:
+    - !reference [default, before_script]
+    - echo "Running before_script tasks for $CI_JOB_NAME";
+    - uv sync --group test
+    - source .venv/bin/activate
+
+pytest:
+  extends: .app-test
   parallel:
     matrix:
       - PYTHON_VERSION: ["3.11"]
