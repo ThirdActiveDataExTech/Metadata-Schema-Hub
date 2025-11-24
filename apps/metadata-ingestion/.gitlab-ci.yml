@@ -12,11 +12,6 @@ variables:
   APP_NAME: metadata-ingestion
   APP_DIR: apps/metadata-ingestion
 
-# All jobs run in the app directory by default
-default:
-  before_script:
-    - cd $APP_DIR
-
 .app-lint:
   extends: .uv-lint
   before_script:
