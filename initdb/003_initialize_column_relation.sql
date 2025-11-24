@@ -9,6 +9,19 @@
 -- 0.70	- 동일 속성으로 분류 가능
 -- 0.50	- 하위속성/유사속성
 
+-- catalog_entry 컬럼 자기 매핑 (완벽한 일치)
+INSERT INTO column_relation (catalog_column, correlation, metadata_column)
+VALUES ('title', 1.00, 'title'),
+       ('description', 1.00, 'description'),
+       ('issued', 1.00, 'issued'),
+       ('modified', 1.00, 'modified'),
+       ('identifier', 1.00, 'identifier'),
+       ('publisher', 1.00, 'publisher'),
+       ('keyword', 1.00, 'keyword'),
+       ('landing_page', 1.00, 'landing_page'),
+       ('theme', 1.00, 'theme'),
+       ('access_url', 1.00, 'access_url');
+
 -- data.go.kr DCAT 데이터 매핑
 INSERT INTO column_relation (catalog_column, correlation, metadata_column)
 VALUES ('publisher', 0.50,
