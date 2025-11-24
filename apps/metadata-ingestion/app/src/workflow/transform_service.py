@@ -61,6 +61,7 @@ class CatalogEntryTransformService:
         file: MetadataFile,
     ) -> CatalogEntry:
         """메타데이터 파일을 처리하여 CatalogEntry 생성."""
+        # TODO: unused method
         serialized_content, metadata_bases = process_metadata_file(file)
         ingested_at = datetime.now()
 
@@ -98,6 +99,7 @@ class CatalogEntryTransformService:
         files: List[MetadataFile],
     ) -> Tuple[List[CatalogEntrySummary], List[Dict[str, str]]]:
         """여러 메타데이터 파일을 처리하여 CatalogEntry 리스트 생성."""
+        # TODO: unused method
         processed_metadatas, errors = process_metadata_files(files)
         if not processed_metadatas:
             logging.warning("Empty files in bulk transform.")
