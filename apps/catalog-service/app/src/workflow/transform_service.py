@@ -1,7 +1,7 @@
 import logging
 from typing import List
 
-from app.dependencies import SessionDep
+from sqlmodel import Session
 from app.src.catalog_entry.model import CatalogEntry, CatalogEntryUpdate
 from app.src.catalog_entry.service import CatalogEntryService
 from app.src.column_relation.model import ColumnRelation
@@ -55,7 +55,7 @@ class CatalogEntryTransformService:
 
     def update_catalog_entry_from_metadata_and_relation(
         self,
-        db: SessionDep,
+        db: Session,
         catalog_entry_id: int,
     ) -> CatalogEntry:
         """CatalogEntry 를 메타데이터와 컬럼 관계 기반으로 매핑함."""
@@ -82,7 +82,7 @@ class CatalogEntryTransformService:
         return self.catalog_entry_service.update_catalog_entry(db, catalog_entry.id, catalog_entry_update)
 
     def update_catalog_entry_from_metadata_and_relation_bulk(
-        self, db: SessionDep, catalog_entry_identifiers: List[str]
+        self, db: Session, catalog_entry_identifiers: List[str]
     ) -> None:
         """CatalogEntry 를 메타데이터와 컬럼 관계 기반으로 매핑함."""
         if not catalog_entry_identifiers:

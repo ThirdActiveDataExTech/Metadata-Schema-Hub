@@ -2,55 +2,22 @@ import io
 import json
 from typing import Literal, Optional
 
-from fastapi import APIRouter, Depends, Path, Query
+from fastapi import APIRouter, Path, Query
 from starlette.responses import StreamingResponse
 
 from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
-from app.src.catalog_entry.repository import CatalogEntryRepository
-from app.src.catalog_entry.service import CatalogEntryService
-from app.src.column_relation.repository import ColumnRelationRepository
-from app.src.column_relation.service import ColumnRelationService
-from app.src.metadata_entry.repository import MetadataEntryRepository
-from app.src.metadata_entry.service import MetadataEntryService
-from app.src.workflow.transform_service import CatalogEntryTransformService
+from app.src.catalog_entry.dependencies import CatalogEntryServiceDep
+from app.src.workflow.dependencies import CatalogEntryTransformServiceDep
 
 router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=ExceptionHandlingRoute)
-
-
-def get_catalog_entry_service(repository=Depends(CatalogEntryRepository)) -> CatalogEntryService:
-    """Repository dependency injection."""
-    return CatalogEntryService(repository)
-
-
-def get_column_relation_service(repository=Depends(ColumnRelationRepository)) -> ColumnRelationService:
-    """Repository dependency injection."""
-    return ColumnRelationService(repository)
-
-
-def get_metadata_entry_service(repository=Depends(MetadataEntryRepository)) -> MetadataEntryService:
-    """Repository dependency injection."""
-    return MetadataEntryService(repository)
-
-
-def get_catalog_entry_transform_service(
-    catalog_entry_service=Depends(get_catalog_entry_service),
-    column_relation_service=Depends(get_column_relation_service),
-    metadata_entry_service=Depends(get_metadata_entry_service),
-) -> CatalogEntryTransformService:
-    """Repository dependency injection."""
-    return CatalogEntryTransformService(
-        catalog_entry_service=catalog_entry_service,
-        column_relation_service=column_relation_service,
-        metadata_entry_service=metadata_entry_service,
-    )
 
 
 @router.get("/entries/{catalog_entry_id}")
 async def get_catalog_entry(
     session: SessionDep,
-    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    service: CatalogEntryServiceDep,
     catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리 ID", example=31),
 ):
     """특정 카탈로그 엔트리 조회"""
@@ -61,7 +28,7 @@ async def get_catalog_entry(
 @router.get("/entries/raw-metadata/{catalog_entry_id}")
 async def get_raw_metadata(
     session: SessionDep,
-    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    service: CatalogEntryServiceDep,
     catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리 ID", example=31),
     output_format: Literal["json", "xml"] = Query(default="json", description="출력 형식 선택", example="json"),
 ):
@@ -73,7 +40,7 @@ async def get_raw_metadata(
 @router.get("/entries/{catalog_entry_id}/rdf")
 async def get_rdf_representation(
     session: SessionDep,
-    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    service: CatalogEntryServiceDep,
     catalog_entry_id: int = Path(description="조회할 카탈로그 엔트리 ID", example=31),
 ):
     """카탈로그 엔트리의 RDF 표현을 JSON-LD 형식으로 반환
@@ -95,7 +62,7 @@ async def get_rdf_representation(
 @router.get("/entries/{catalog_entry_id}/rdf/download")
 async def download_rdf_representation(
     session: SessionDep,
-    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    service: CatalogEntryServiceDep,
     catalog_entry_id: int = Path(description="다운로드할 카탈로그 엔트리 ID", example=31),
 ):
     """카탈로그 엔트리의 RDF 표현을 JSON-LD 파일로 다운로드
@@ -129,7 +96,7 @@ async def download_rdf_representation(
 @router.get("/entries")
 async def search_catalog_entries(
     session: SessionDep,
-    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    service: CatalogEntryServiceDep,
     query: Optional[str] = Query(None, description="제목, 설명 텍스트 검색 (LIKE 패턴)"),
     keyword: Optional[str] = Query(None, description="키워드 정확 일치 필터"),
     limit: int = Query(10, description="검색 결과 제한 개수", ge=1, le=100),  # TODO: test 되지 않은 limit
@@ -157,7 +124,7 @@ async def search_catalog_entries(
 @router.get("/export/csv")
 async def export_catalog_entries_csv(
     session: SessionDep,
-    service: CatalogEntryService = Depends(get_catalog_entry_service),
+    service: CatalogEntryServiceDep,
     limit: int = Query(100, description="내보낼 엔트리 개수 제한"),  # TODO: test 되지 않은 limit
 ):
     """카탈로그 엔트리를 CSV 파일로 내보내기"""
@@ -172,7 +139,7 @@ async def export_catalog_entries_csv(
 @router.put("/match/relations/{catalog_entry_id}")
 async def match_relations(
     session: SessionDep,
-    catalog_transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
+    catalog_transform_service: CatalogEntryTransformServiceDep,
     catalog_entry_id: int = Path(description="갱신할 카탈로그 엔트리 ID", example=31),
 ):
     updated_catalog_entry = catalog_transform_service.update_catalog_entry_from_metadata_and_relation(
