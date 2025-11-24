@@ -19,9 +19,9 @@ dependencies = [
     "fastapi[standard]<=0.115.0",
     "lxml>=5.4.0",
 ]
-name = "active-metadata-management"
+name = "catalog-service"
 version = "v1"
-description = "Active Metadata Management"
+description = "Active Metadata Management - Catalog Service"
 readme = "README.md"
 keywords = [
     "python",
