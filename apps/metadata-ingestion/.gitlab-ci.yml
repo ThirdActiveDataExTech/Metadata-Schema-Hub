@@ -1,6 +1,5 @@
 stages:
   - lint
-  - test
 
 include:
   - project: wisenut-research/starter/templates/gitlab-ci-template
@@ -11,25 +10,37 @@ include:
 
 variables:
   APP_NAME: metadata-ingestion
+  APP_DIR: apps/metadata-ingestion
+
+# All jobs run in the app directory by default
+default:
+  before_script:
+    - cd $APP_DIR
+
+.app-lint:
+  extends: .uv-lint
+  before_script:
+    - cd $APP_DIR
+    - echo "Running before_script tasks for $CI_JOB_NAME"
+    - apt-get update && apt-get install -y libatomic1
+    - uv sync --group lint
+    - source .venv/bin/activate
+  rules:
+    - changes:
+        - apps/metadata-ingestion/**/*
 
 ruff-lint:
-  extends: .uv-lint
+  extends: .app-lint
   script:
     - ruff check --target-version $PYTHON_VERSION .
   parallel:
     matrix:
       - PYTHON_VERSION: ["py311"]
-  rules:
-    - changes:
-        - apps/metadata-ingestion/**/*
 
 pyright-lint:
-  extends: .uv-lint
+  extends: .app-lint
   script:
     - pyright --pythonversion $PYTHON_VERSION ./
   parallel:
     matrix:
       - PYTHON_VERSION: ["3.11"]
-  rules:
-    - changes:
-        - apps/metadata-ingestion/**/*
