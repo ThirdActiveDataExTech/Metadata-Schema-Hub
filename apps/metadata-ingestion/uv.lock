@@ -1,78 +1,11 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.9, <3.13"
 resolution-markers = [
     "python_full_version >= '3.12'",
     "python_full_version == '3.11.*'",
     "python_full_version == '3.10.*'",
     "python_full_version < '3.10'",
-]
-
-[[package]]
-name = "active-metadata-management"
-version = "1"
-source = { virtual = "." }
-dependencies = [
-    { name = "fastapi", extra = ["standard"] },
-    { name = "loguru" },
-    { name = "lxml" },
-    { name = "pandas" },
-    { name = "psycopg2-binary" },
-    { name = "pyarrow" },
-    { name = "pydantic-settings" },
-    { name = "pyyaml" },
-    { name = "requests" },
-    { name = "xmltodict" },
-]
-
-[package.dev-dependencies]
-db = [
-    { name = "sqlmodel" },
-]
-gunicorn = [
-    { name = "gunicorn" },
-]
-lint = [
-    { name = "lxml-stubs" },
-    { name = "pre-commit" },
-    { name = "pyright" },
-    { name = "ruff" },
-]
-test = [
-    { name = "pytest" },
-    { name = "pytest-cov" },
-    { name = "setuptools" },
-    { name = "tabulate" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "fastapi", extras = ["standard"], specifier = "<=0.115.0" },
-    { name = "loguru", specifier = ">=0.7.2,<1.0.0" },
-    { name = "lxml", specifier = ">=5.4.0" },
-    { name = "pandas", specifier = ">=2.2.3" },
-    { name = "psycopg2-binary", specifier = ">=2.9.10" },
-    { name = "pyarrow", specifier = ">=19.0.1" },
-    { name = "pydantic-settings", specifier = ">=2.5.2,<3.0.0" },
-    { name = "pyyaml", specifier = ">=6.0.2,<7.0.0" },
-    { name = "requests", specifier = ">=2.32.3" },
-    { name = "xmltodict", specifier = ">=0.14.2" },
-]
-
-[package.metadata.requires-dev]
-db = [{ name = "sqlmodel", specifier = ">=0.0.24" }]
-gunicorn = [{ name = "gunicorn", specifier = ">=23.0.0,<24.0.0" }]
-lint = [
-    { name = "lxml-stubs", specifier = ">=0.5.1" },
-    { name = "pre-commit", specifier = ">=4.0.1,<5.0.0" },
-    { name = "pyright", specifier = ">=1.1.397" },
-    { name = "ruff", specifier = ">=0.6.4,<1.0.0" },
-]
-test = [
-    { name = "pytest", specifier = ">=8.3.3,<9.0.0" },
-    { name = "pytest-cov", specifier = ">=5.0.0,<6.0.0" },
-    { name = "setuptools", specifier = ">=77.0.3" },
-    { name = "tabulate", specifier = ">=0.9.0,<1.0.0" },
 ]
 
 [[package]]
@@ -686,6 +619,73 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/d6/54/cfe61301667036ec958cb99bd3efefba235e65cdeb9c84d24a8293ba1d90/mdurl-0.1.2.tar.gz", hash = "sha256:bb413d29f5eea38f31dd4754dd7377d4465116fb207585f97bf925588687c1ba", size = 8729, upload-time = "2022-08-14T12:40:10.846Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b3/38/89ba8ad64ae25be8de66a6d463314cf1eb366222074cfda9ee839c56a4b4/mdurl-0.1.2-py3-none-any.whl", hash = "sha256:84008a41e51615a49fc9966191ff91509e3c40b939176e643fd50a5c2196b8f8", size = 9979, upload-time = "2022-08-14T12:40:09.779Z" },
+]
+
+[[package]]
+name = "metadata-ingestion"
+version = "1"
+source = { virtual = "." }
+dependencies = [
+    { name = "fastapi", extra = ["standard"] },
+    { name = "loguru" },
+    { name = "lxml" },
+    { name = "pandas" },
+    { name = "psycopg2-binary" },
+    { name = "pyarrow" },
+    { name = "pydantic-settings" },
+    { name = "pyyaml" },
+    { name = "requests" },
+    { name = "xmltodict" },
+]
+
+[package.dev-dependencies]
+db = [
+    { name = "sqlmodel" },
+]
+gunicorn = [
+    { name = "gunicorn" },
+]
+lint = [
+    { name = "lxml-stubs" },
+    { name = "pre-commit" },
+    { name = "pyright" },
+    { name = "ruff" },
+]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "setuptools" },
+    { name = "tabulate" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "fastapi", extras = ["standard"], specifier = "<=0.115.0" },
+    { name = "loguru", specifier = ">=0.7.2,<1.0.0" },
+    { name = "lxml", specifier = ">=5.4.0" },
+    { name = "pandas", specifier = ">=2.2.3" },
+    { name = "psycopg2-binary", specifier = ">=2.9.10" },
+    { name = "pyarrow", specifier = ">=19.0.1" },
+    { name = "pydantic-settings", specifier = ">=2.5.2,<3.0.0" },
+    { name = "pyyaml", specifier = ">=6.0.2,<7.0.0" },
+    { name = "requests", specifier = ">=2.32.3" },
+    { name = "xmltodict", specifier = ">=0.14.2" },
+]
+
+[package.metadata.requires-dev]
+db = [{ name = "sqlmodel", specifier = ">=0.0.24" }]
+gunicorn = [{ name = "gunicorn", specifier = ">=23.0.0,<24.0.0" }]
+lint = [
+    { name = "lxml-stubs", specifier = ">=0.5.1" },
+    { name = "pre-commit", specifier = ">=4.0.1,<5.0.0" },
+    { name = "pyright", specifier = ">=1.1.397" },
+    { name = "ruff", specifier = ">=0.6.4,<1.0.0" },
+]
+test = [
+    { name = "pytest", specifier = ">=8.3.3,<9.0.0" },
+    { name = "pytest-cov", specifier = ">=5.0.0,<6.0.0" },
+    { name = "setuptools", specifier = ">=77.0.3" },
+    { name = "tabulate", specifier = ">=0.9.0,<1.0.0" },
 ]
 
 [[package]]

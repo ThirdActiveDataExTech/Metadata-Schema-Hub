@@ -1,19 +1,22 @@
 stages:
-  - lint
-  - test
+  - trigger
 
-include:
-  - project: wisenut-research/starter/templates/gitlab-ci-template
-    ref: main
-    file:
-      - templates/Python/Dependency-Management.gitlab-ci.yml
-      - templates/Python/Lint/Uv-Lint.gitlab-ci.yml
+# Trigger child pipeline for catalog-service
+catalog-service:
+  stage: trigger
+  trigger:
+    include: apps/catalog-service/.gitlab-ci.yml
+    strategy: depend
+  rules:
+    - changes:
+        - apps/catalog-service/**/*
 
-ruff-lint:
-  parallel:
-    matrix:
-      - PYTHON_VERSION: [ "py311" ]
-pyright-lint:
-  parallel:
-    matrix:
-      - PYTHON_VERSION: [ "3.11" ]
+# Trigger child pipeline for metadata-ingestion
+metadata-ingestion:
+  stage: trigger
+  trigger:
+    include: apps/metadata-ingestion/.gitlab-ci.yml
+    strategy: depend
+  rules:
+    - changes:
+        - apps/metadata-ingestion/**/*

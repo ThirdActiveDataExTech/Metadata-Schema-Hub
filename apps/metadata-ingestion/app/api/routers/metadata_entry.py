@@ -27,8 +27,11 @@ from app.src.metadata_entry.exceptions import (
 from app.src.metadata_entry.model import MetadataCreate
 from app.src.metadata_entry.repository import MetadataEntryRepository
 from app.src.metadata_entry.service import MetadataEntryService
+from app.src.workflow.transform_service import CatalogEntryTransformService
 
 router = APIRouter(prefix="/metadata", tags=["metadata"], route_class=ExceptionHandlingRoute)
+
+# TODO: DI 선언위치 변경
 
 
 def get_json_converter():
@@ -54,6 +57,19 @@ def get_column_relation_service(repository=Depends(ColumnRelationRepository)):
 def get_metadata_entry_service(repository=Depends(MetadataEntryRepository)):
     """Repository dependency injection."""
     return MetadataEntryService(repository)
+
+
+def get_catalog_entry_transform_service(
+    catalog_entry_service=Depends(get_catalog_entry_service),
+    column_relation_service=Depends(get_column_relation_service),
+    metadata_entry_service=Depends(get_metadata_entry_service),
+) -> CatalogEntryTransformService:
+    """Repository dependency injection."""
+    return CatalogEntryTransformService(
+        catalog_entry_service=catalog_entry_service,
+        column_relation_service=column_relation_service,
+        metadata_entry_service=metadata_entry_service,
+    )
 
 
 @router.get("/entries")
@@ -120,11 +136,15 @@ async def convert_dcat_metadata(
     return APIResponseModel(result=parsed_data, description="DCAT XML 파일 파싱 완료")
 
 
+# TODO: draft 구조 변경
+
+
 @router.post("/ingest/metadata")
 async def ingest_metadata(
     session: SessionDep,
     metadata_service: MetadataEntryService = Depends(get_metadata_entry_service),
     catalog_service: CatalogEntryService = Depends(get_catalog_entry_service),
+    transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
     file: UploadFile = File(description="메타데이터 파일"),
 ):
     """메타데이터를 테이블 구조로 변환하여 수집"""
@@ -134,15 +154,19 @@ async def ingest_metadata(
     except ValueError as e:
         raise MetadataEntryNotSupportedTypeError(type=metadata_file.get_extension(), result=str(e))
 
-    catalog_result = catalog_service.create_catalog_entry(
+    catalog_draft = catalog_service.create_catalog_entry(
         db=session, catalog_entry=CatalogEntry(raw_metadata=serialized_content)
     )
 
     metadata_result = metadata_service.create(
         db=session,
         metadata_create=MetadataCreate(
-            metadata_id=catalog_result.identifier, metadata_bases=metadata_bases, ingested_at=catalog_result.ingested_at
+            metadata_id=catalog_draft.identifier, metadata_bases=metadata_bases, ingested_at=catalog_draft.ingested_at
         ),
+    )
+
+    catalog_result = transform_service.update_catalog_entry_from_metadata_and_relation(
+        db=session, catalog_entry_id=catalog_draft.id
     )
 
     return APIResponseModel(
@@ -156,6 +180,7 @@ async def ingest_metadata_bulk(
     session: SessionDep,
     metadata_service: MetadataEntryService = Depends(get_metadata_entry_service),
     catalog_service: CatalogEntryService = Depends(get_catalog_entry_service),
+    transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
     files: List[UploadFile] = File(description="메타데이터 파일들"),
 ):
     """여러 메타데이터를 테이블 구조로 변환하여 수집"""
@@ -186,6 +211,10 @@ async def ingest_metadata_bulk(
         iterables.append((catalog_entry, metadata_create))
     catalog_service.create_catalog_entry_bulk(db=session, catalog_entries=[entry.model_dump() for entry, _ in iterables])
     metadata_service.create_bulk(db=session, metadata_create_list=[metadata_create for _, metadata_create in iterables])
+
+    transform_service.update_catalog_entry_from_metadata_and_relation_bulk(
+        db=session, catalog_entry_identifiers=[entry.identifier for entry, _ in iterables]
+    )
 
     return APIResponseModel(
         result={
@@ -269,6 +298,7 @@ async def ingest_form(
     session: SessionDep,
     metadata_service: MetadataEntryService = Depends(get_metadata_entry_service),
     catalog_service: CatalogEntryService = Depends(get_catalog_entry_service),
+    transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
     json_converter: JsonConverter = Depends(get_json_converter),
     metadata_form: str = Form(description="메타데이터 Json"),
 ):
@@ -280,15 +310,19 @@ async def ingest_form(
 
     metadata_bases = json_converter.convert_to_metadata_bases(metadata_form)
 
-    catalog_result = catalog_service.create_catalog_entry(
+    catalog_draft = catalog_service.create_catalog_entry(
         db=session, catalog_entry=CatalogEntry(raw_metadata=serialized_content)
     )
 
     metadata_result = metadata_service.create(
         db=session,
         metadata_create=MetadataCreate(
-            metadata_id=catalog_result.identifier, metadata_bases=metadata_bases, ingested_at=catalog_result.ingested_at
+            metadata_id=catalog_draft.identifier, metadata_bases=metadata_bases, ingested_at=catalog_draft.ingested_at
         ),
+    )
+
+    catalog_result = transform_service.update_catalog_entry_from_metadata_and_relation(
+        db=session, catalog_entry_id=catalog_draft.id
     )
 
     return APIResponseModel(

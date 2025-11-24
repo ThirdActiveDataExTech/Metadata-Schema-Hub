@@ -19,9 +19,9 @@ dependencies = [
     "fastapi[standard]<=0.115.0",
     "lxml>=5.4.0",
 ]
-name = "active-metadata-management"
+name = "metadata-ingestion"
 version = "v1"
-description = "Active Metadata Management"
+description = "Active Metadata Management - Metadata Ingestion"
 readme = "README.md"
 keywords = [
     "python",
