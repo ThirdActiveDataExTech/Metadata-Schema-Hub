@@ -4,20 +4,18 @@ from collections import defaultdict
 from datetime import datetime
 from typing import List, Optional, Tuple
 
-from fastapi import APIRouter, Depends, File, Form, Path, Query, UploadFile
+from fastapi import APIRouter, File, Form, Path, Query, UploadFile
 
 from app.config import settings
 from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
+from app.src.catalog_entry.dependencies import CatalogEntryServiceDep
 from app.src.catalog_entry.model import CatalogEntry
-from app.src.catalog_entry.repository import CatalogEntryRepository
-from app.src.catalog_entry.service import CatalogEntryService
-from app.src.column_relation.repository import ColumnRelationRepository
-from app.src.column_relation.service import ColumnRelationService
+from app.src.column_relation.dependencies import ColumnRelationServiceDep
+from app.src.file_converter.dependencies import JsonConverterDep, XmlConverterDep
 from app.src.file_converter.file_handler import MetadataFile, process_metadata_file, process_metadata_files
-from app.src.file_converter.json_converter import JsonConverter
-from app.src.file_converter.xml_converter import LxmlConverter
+from app.src.metadata_entry.dependencies import MetadataEntryServiceDep
 from app.src.metadata_entry.exceptions import (
     MetadataEntryFileNotFoundError,
     MetadataEntryInvalidFormatError,
@@ -25,57 +23,15 @@ from app.src.metadata_entry.exceptions import (
     MetadataEntryTooManyFileError,
 )
 from app.src.metadata_entry.model import MetadataCreate
-from app.src.metadata_entry.repository import MetadataEntryRepository
-from app.src.metadata_entry.service import MetadataEntryService
-from app.src.workflow.transform_service import CatalogEntryTransformService
+from app.src.workflow.dependencies import CatalogEntryTransformServiceDep
 
 router = APIRouter(prefix="/metadata", tags=["metadata"], route_class=ExceptionHandlingRoute)
-
-# TODO: DI 선언위치 변경
-
-
-def get_json_converter():
-    """Converter dependency injection."""
-    return JsonConverter()
-
-
-def get_xml_converter():
-    """Converter dependency injection."""
-    return LxmlConverter()
-
-
-def get_catalog_entry_service(repository=Depends(CatalogEntryRepository)):
-    """Repository dependency injection."""
-    return CatalogEntryService(repository)
-
-
-def get_column_relation_service(repository=Depends(ColumnRelationRepository)):
-    """Repository dependency injection."""
-    return ColumnRelationService(repository)
-
-
-def get_metadata_entry_service(repository=Depends(MetadataEntryRepository)):
-    """Repository dependency injection."""
-    return MetadataEntryService(repository)
-
-
-def get_catalog_entry_transform_service(
-    catalog_entry_service=Depends(get_catalog_entry_service),
-    column_relation_service=Depends(get_column_relation_service),
-    metadata_entry_service=Depends(get_metadata_entry_service),
-) -> CatalogEntryTransformService:
-    """Repository dependency injection."""
-    return CatalogEntryTransformService(
-        catalog_entry_service=catalog_entry_service,
-        column_relation_service=column_relation_service,
-        metadata_entry_service=metadata_entry_service,
-    )
 
 
 @router.get("/entries")
 async def search_metadata_entries(
     session: SessionDep,
-    service: MetadataEntryService = Depends(get_metadata_entry_service),
+    service: MetadataEntryServiceDep,
     query: Optional[str] = Query(None, description="값, 스키마 텍스트 검색 (LIKE 패턴)"),
     schema: Optional[str] = Query(None, description="메타데이터 스키마 정확 일치 필터"),
     metadata_id: Optional[str] = Query(None, description="메타데이터 ID 정확 일치 필터"),
@@ -103,7 +59,7 @@ async def search_metadata_entries(
 
 @router.post("/convert/schema-org")
 async def convert_schema_org_metadata(
-    converter: JsonConverter = Depends(get_json_converter),
+    converter: JsonConverterDep,
     file: UploadFile = File(description="Schema.org JSON-LD 메타데이터 파일", media_type="application/json"),
 ):
     """Schema.org JSON-LD 형식 메타데이터를 테이블 구조로 변환"""
@@ -120,7 +76,7 @@ async def convert_schema_org_metadata(
 
 @router.post("/convert/dcat")
 async def convert_dcat_metadata(
-    converter: LxmlConverter = Depends(get_xml_converter),
+    converter: XmlConverterDep,
     file: UploadFile = File(description="DCAT RDF/XML 메타데이터 파일", media_type="application/xml"),
 ):
     """DCAT RDF/XML 형식 메타데이터를 테이블 구조로 변환"""
@@ -142,9 +98,9 @@ async def convert_dcat_metadata(
 @router.post("/ingest/metadata")
 async def ingest_metadata(
     session: SessionDep,
-    metadata_service: MetadataEntryService = Depends(get_metadata_entry_service),
-    catalog_service: CatalogEntryService = Depends(get_catalog_entry_service),
-    transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
+    metadata_service: MetadataEntryServiceDep,
+    catalog_service: CatalogEntryServiceDep,
+    transform_service: CatalogEntryTransformServiceDep,
     file: UploadFile = File(description="메타데이터 파일"),
 ):
     """메타데이터를 테이블 구조로 변환하여 수집"""
@@ -178,9 +134,9 @@ async def ingest_metadata(
 @router.post("/ingest/metadata/bulk")
 async def ingest_metadata_bulk(
     session: SessionDep,
-    metadata_service: MetadataEntryService = Depends(get_metadata_entry_service),
-    catalog_service: CatalogEntryService = Depends(get_catalog_entry_service),
-    transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
+    metadata_service: MetadataEntryServiceDep,
+    catalog_service: CatalogEntryServiceDep,
+    transform_service: CatalogEntryTransformServiceDep,
     files: List[UploadFile] = File(description="메타데이터 파일들"),
 ):
     """여러 메타데이터를 테이블 구조로 변환하여 수집"""
@@ -230,7 +186,7 @@ async def ingest_metadata_bulk(
 @router.get("/{metadata_id}")
 async def get_metadata_entry(
     session: SessionDep,
-    service: MetadataEntryService = Depends(get_metadata_entry_service),
+    service: MetadataEntryServiceDep,
     metadata_id: str = Path(
         description="메타데이터 엔트리 UUID",
         example="18e6f7bc-5791-488a-bc7b-d78b18e51dcd",
@@ -246,7 +202,7 @@ async def get_metadata_entry(
 @router.post("/preview")
 async def preview_metadata(
     session: SessionDep,
-    relation_service: ColumnRelationService = Depends(get_column_relation_service),
+    relation_service: ColumnRelationServiceDep,
     file: UploadFile = File(description="메타데이터 파일"),
 ):
     """메타데이터를 json 으로 변환하여 preview"""
@@ -296,10 +252,10 @@ async def preview_metadata(
 @router.post("/form")
 async def ingest_form(
     session: SessionDep,
-    metadata_service: MetadataEntryService = Depends(get_metadata_entry_service),
-    catalog_service: CatalogEntryService = Depends(get_catalog_entry_service),
-    transform_service: CatalogEntryTransformService = Depends(get_catalog_entry_transform_service),
-    json_converter: JsonConverter = Depends(get_json_converter),
+    metadata_service: MetadataEntryServiceDep,
+    catalog_service: CatalogEntryServiceDep,
+    transform_service: CatalogEntryTransformServiceDep,
+    json_converter: JsonConverterDep,
     metadata_form: str = Form(description="메타데이터 Json"),
 ):
     """메타데이터를 테이블 구조로 변환하여 수집"""
