@@ -1,0 +1,35 @@
+stages:
+  - lint
+  - test
+
+include:
+  - project: wisenut-research/starter/templates/gitlab-ci-template
+    ref: main
+    file:
+      - templates/Python/Dependency-Management.gitlab-ci.yml
+      - templates/Python/Lint/Uv-Lint.gitlab-ci.yml
+
+variables:
+  APP_NAME: metadata-ingestion
+
+ruff-lint:
+  extends: .uv-lint
+  script:
+    - ruff check --target-version $PYTHON_VERSION .
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["py311"]
+  rules:
+    - changes:
+        - apps/metadata-ingestion/**/*
+
+pyright-lint:
+  extends: .uv-lint
+  script:
+    - pyright --pythonversion $PYTHON_VERSION ./
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.11"]
+  rules:
+    - changes:
+        - apps/metadata-ingestion/**/*
