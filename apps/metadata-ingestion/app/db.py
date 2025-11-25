@@ -3,17 +3,23 @@ import logging
 import re
 from datetime import date, datetime
 
-from sqlalchemy import create_engine, event
+from sqlalchemy import URL, create_engine, event
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import SQLModel
 
 from app.config import settings
 
 connect_args = {}
-postgres_url: str = f"postgresql://{settings.POSTGRES_USER}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_DB}"
+postgres_url = URL.create(
+    "postgresql",
+    username=settings.POSTGRES_USER,
+    password=settings.POSTGRES_PASSWORD,
+    host=settings.POSTGRES_HOST,
+    port=settings.POSTGRES_PORT,
+    database=settings.POSTGRES_DB,
+)
 
 engine = create_engine(postgres_url, connect_args=connect_args)
-
 
 
 def create_db_and_tables():
