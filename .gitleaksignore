@@ -1,0 +1,3 @@
+# Gitleaks ignore file
+# Documentation files with development examples
+SCENARIO.md
