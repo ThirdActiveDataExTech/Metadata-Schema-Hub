@@ -9,11 +9,18 @@ description = "Allowlist for development defaults"
 
 # Allow documentation with example credentials
 paths = [
-  '''SCENARIO\.md''',
-  '''README\.md'''
+  '''SCENARIO\.md$''',
+  '''README\.md$''',
+  '''^SCENARIO\.md$''',
 ]
 
 # Allow development default credentials (admin/admin)
 regexes = [
+  '''postgresql://admin:admin@localhost''',
   '''POSTGRES_(USER|PASSWORD):\s*str\s*=\s*"admin"'''
+]
+
+# Stopwords - ignore specific strings
+stopwords = [
+  '''admin:admin@localhost:5432/datagokr'''
 ]
