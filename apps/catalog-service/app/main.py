@@ -23,7 +23,7 @@ from starlette.types import HTTPExceptionHandler
 from app import handlers
 from app.api.api_router import api_router
 from app.config import settings
-from app.constants import DESCRIPTION, SUMMARY, LICENSE_INFO
+from app.constants import DESCRIPTION, SUMMARY, LICENSE_INFO, TAGS_METADATA
 from app.dependencies import get_token_header
 from app.exceptions.base import ApplicationError
 from app.log import setup_logging
@@ -68,6 +68,7 @@ app = FastAPI(
     description=DESCRIPTION,
     version=VERSION,
     license_info=LICENSE_INFO,
+    openapi_tags=TAGS_METADATA,
     servers=settings.servers,
     root_path_in_servers=settings.root_path_in_servers,
     docs_url=None, redoc_url=None,  # Serve the static files
