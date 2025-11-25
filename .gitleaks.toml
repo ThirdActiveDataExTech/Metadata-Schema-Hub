@@ -1,0 +1,19 @@
+# Gitleaks configuration
+# https://github.com/gitleaks/gitleaks
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Allowlist for development defaults"
+
+# Allow documentation with example credentials
+paths = [
+  '''SCENARIO\.md''',
+  '''README\.md'''
+]
+
+# Allow development default credentials (admin/admin)
+regexes = [
+  '''POSTGRES_(USER|PASSWORD):\s*str\s*=\s*"admin"'''
+]
