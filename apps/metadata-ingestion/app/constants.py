@@ -20,10 +20,6 @@ LICENSE_INFO = {"name": "Wisenut"}
 TAGS_METADATA = [
     {
         "name": "metadata",
-        "description": """
-## 메타데이터 엔트리 관리
-
-다양한 형식의 메타데이터를 수집, 변환, 저장하고 조회하는 API입니다.
-        """,
+        "description": "다양한 형식의 메타데이터를 수집, 변환, 저장하고 조회하는 API입니다.",
     }
 ]

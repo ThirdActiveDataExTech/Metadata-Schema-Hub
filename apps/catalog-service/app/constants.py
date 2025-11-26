@@ -20,18 +20,10 @@ LICENSE_INFO = {"name": "Wisenut"}
 TAGS_METADATA = [
     {
         "name": "catalog",
-        "description": """
-## 카탈로그 엔트리 관리
-
-DCAT 표준 기반의 통합 카탈로그 엔트리를 조회, 검색하고 다양한 형식으로 출력하는 API입니다.
-        """,
+        "description": "DCAT 표준 기반의 통합 카탈로그 엔트리를 조회, 검색하고 다양한 형식으로 출력하는 API입니다.",
     },
     {
         "name": "relation",
-        "description": """
-## 컬럼 관계 관리
-
-카탈로그 컬럼과 메타데이터 컬럼 간의 매핑 관계 및 연관성 점수를 관리하는 API입니다.
-        """,
+        "description": "카탈로그 컬럼과 메타데이터 컬럼 간의 매핑 관계 및 연관성 점수를 관리하는 API입니다.",
     },
 ]
