@@ -4,7 +4,7 @@ from typing import Any, Dict, List, Optional, Sequence, Literal
 import pandas as pd
 import xmltodict
 
-from app.dependencies import SessionDep
+from sqlmodel import Session
 from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary, CatalogEntryCreate, CatalogEntryUpdate
 from app.src.catalog_entry.repository import CatalogEntryRepository
 
@@ -16,11 +16,11 @@ class CatalogEntryService:
         """Connect Repository."""
         self.repository = repository
 
-    def create_catalog_entry(self, db: SessionDep, catalog_entry: CatalogEntry) -> CatalogEntry:
+    def create_catalog_entry(self, db: Session, catalog_entry: CatalogEntry) -> CatalogEntry:
         """CatalogEntry 생성."""
         return self.repository.save(db, catalog_entry)
 
-    def create_catalog_entry_draft(self, db: SessionDep, catalog_entry_create: CatalogEntryCreate) -> CatalogEntry:
+    def create_catalog_entry_draft(self, db: Session, catalog_entry_create: CatalogEntryCreate) -> CatalogEntry:
         """CatalogEntry 초안 생성."""
         catalog_entry = CatalogEntry(
             identifier=catalog_entry_create.identifier,
@@ -31,7 +31,7 @@ class CatalogEntryService:
         return catalog_entry
 
     def update_catalog_entry(
-        self, db: SessionDep, catalog_entry_id: int, catalog_entry_update: CatalogEntryUpdate
+        self, db: Session, catalog_entry_id: int, catalog_entry_update: CatalogEntryUpdate
     ) -> CatalogEntry:
         """CatalogEntry 업데이트."""
         if not catalog_entry_update.has_changes():
@@ -45,29 +45,29 @@ class CatalogEntryService:
 
         return self.repository.save(db, catalog_entry)
 
-    def get_catalog_entry(self, db: SessionDep, catalog_entry_id: int) -> CatalogEntry:
+    def get_catalog_entry(self, db: Session, catalog_entry_id: int) -> CatalogEntry:
         """Get Catalog Entry."""
         return self.repository.select(db, catalog_entry_id)
 
-    def get_catalog_entry_by_identifier(self, db: SessionDep, catalog_entry_identifier: str) -> CatalogEntry:
+    def get_catalog_entry_by_identifier(self, db: Session, catalog_entry_identifier: str) -> CatalogEntry:
         """Get Catalog Entry."""
         return self.repository.select_by_identifier(db, catalog_entry_identifier)
 
-    def get_catalog_entries(self, db: SessionDep, catalog_entry_ids: List[int]) -> List[CatalogEntry]:
+    def get_catalog_entries(self, db: Session, catalog_entry_ids: List[int]) -> List[CatalogEntry]:
         """Get Catalog Entries."""
         return self.repository.select_by_ids(db, catalog_entry_ids)
 
-    def get_catalog_entries_by_identifier(self, db: SessionDep, catalog_entry_identifiers: List[str]) -> List[CatalogEntry]:
+    def get_catalog_entries_by_identifier(self, db: Session, catalog_entry_identifiers: List[str]) -> List[CatalogEntry]:
         """Get Catalog Entry."""
         return self.repository.select_by_identifiers(db, catalog_entry_identifiers)
 
     def get_catalog_entry_summary_by_identifier(
-        self, db: SessionDep, catalog_entry_identifiers: List[str]
+        self, db: Session, catalog_entry_identifiers: List[str]
     ) -> List[CatalogEntrySummary]:
         """Get CatalogEntrySummary."""
         return self.repository.select_summaries_by_identifiers(db, catalog_entry_identifiers)
 
-    def get_raw_metadata(self, db: SessionDep, catalog_entry_id: int, data_format: Literal["json", "xml"] = "json") -> Any:
+    def get_raw_metadata(self, db: Session, catalog_entry_id: int, data_format: Literal["json", "xml"] = "json") -> Any:
         """Get raw metadata."""
         raw_metadata = self.repository.select(db, catalog_entry_id).raw_metadata
 
@@ -77,13 +77,13 @@ class CatalogEntryService:
 
         return raw_metadata
 
-    def get_raw_metadatas(self, db: SessionDep, catalog_entry_ids: List[int]) -> List[Any]:
+    def get_raw_metadatas(self, db: Session, catalog_entry_ids: List[int]) -> List[Any]:
         """Get raw metadatas for multiple catalog entries."""
         # WHERE IN 절로 단일 쿼리 실행
         entries = self.repository.select_by_ids(db, catalog_entry_ids)
         return [entry.raw_metadata for entry in entries]
 
-    def export_to_csv_stream(self, db: SessionDep, limit: int = 100) -> io.StringIO:
+    def export_to_csv_stream(self, db: Session, limit: int = 100) -> io.StringIO:
         """메모리에서 CSV 스트림 생성"""
         data_list = self.repository.export_data_list(db, limit=limit)
         df = pd.DataFrame(data_list)
@@ -95,12 +95,12 @@ class CatalogEntryService:
 
         return csv_buffer
 
-    def list_catalog(self, db: SessionDep, limit: Optional[int]) -> List[CatalogEntrySummary]:
+    def list_catalog(self, db: Session, limit: Optional[int]) -> List[CatalogEntrySummary]:
         """전체 카탈로그 목록 조회"""
         return self.repository.list_catalog_summary(db, limit=limit)
 
     def search_catalog(
-        self, db: SessionDep, query: Optional[str] = None, keyword: Optional[str] = None
+        self, db: Session, query: Optional[str] = None, keyword: Optional[str] = None
     ) -> Sequence[Dict[str, Any]]:
         """검색 조건에 따른 카탈로그 엔트리 검색."""
         items = self.repository.search_catalog(db=db, query=query, keyword=keyword)
@@ -125,10 +125,10 @@ class CatalogEntryService:
 
         return result_items
 
-    def create_catalog_entry_bulk(self, db: SessionDep, catalog_entries: List[Dict[str, Any]]) -> None:
+    def create_catalog_entry_bulk(self, db: Session, catalog_entries: List[Dict[str, Any]]) -> None:
         """CatalogEntry bulk 생성."""
         self.repository.create_bulk(db, catalog_entries)
 
-    def update_catalog_entry_bulk(self, db: SessionDep, catalog_entries: List[Dict[str, Any]]) -> None:
+    def update_catalog_entry_bulk(self, db: Session, catalog_entries: List[Dict[str, Any]]) -> None:
         """CatalogEntry bulk 업데이트."""
         self.repository.update_bulk(db, catalog_entries)

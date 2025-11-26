@@ -1,23 +1,22 @@
 from typing import List
 
 from sqlalchemy import insert
-from sqlmodel import select
+from sqlmodel import Session, select
 
-from app.dependencies import SessionDep
 from app.src.column_relation.model import ColumnRelation
 
 
 class ColumnRelationRepository:
     """ColumnRelationRepository."""
 
-    def save(self, db: SessionDep, column_relation: ColumnRelation) -> ColumnRelation:
+    def save(self, db: Session, column_relation: ColumnRelation) -> ColumnRelation:
         """Save column_relation."""
         db.add(column_relation)
         db.commit()
         db.refresh(column_relation)
         return column_relation
 
-    def save_bulk(self, db: SessionDep, column_relations: List[ColumnRelation]) -> List[ColumnRelation]:
+    def save_bulk(self, db: Session, column_relations: List[ColumnRelation]) -> List[ColumnRelation]:
         """Save column_relations."""
         values = [
             {
@@ -49,7 +48,7 @@ class ColumnRelationRepository:
             for row in rows
         ]
 
-    def select_relations_by_catalog_column(self, db: SessionDep, catalog_column: str) -> List[ColumnRelation]:
+    def select_relations_by_catalog_column(self, db: Session, catalog_column: str) -> List[ColumnRelation]:
         """Select relations by catalog column."""
         statement = (
             select(ColumnRelation)
@@ -59,7 +58,7 @@ class ColumnRelationRepository:
         results = db.exec(statement).all()
         return list(results)
 
-    def select_relations_by_metadata_column(self, db: SessionDep, metadata_column: str) -> List[ColumnRelation]:
+    def select_relations_by_metadata_column(self, db: Session, metadata_column: str) -> List[ColumnRelation]:
         """Select relations by metadata column."""
         statement = (
             select(ColumnRelation)
@@ -69,7 +68,7 @@ class ColumnRelationRepository:
         results = db.exec(statement).all()
         return list(results)
 
-    def select_relations_by_threshold(self, db: SessionDep, min_correlation: float) -> List[ColumnRelation]:
+    def select_relations_by_threshold(self, db: Session, min_correlation: float) -> List[ColumnRelation]:
         """Select relations above correlation threshold."""
         statement = (
             select(ColumnRelation)
@@ -79,13 +78,13 @@ class ColumnRelationRepository:
         results = db.exec(statement).all()
         return list(results)
 
-    def select_all_relations(self, db: SessionDep) -> List[ColumnRelation]:
+    def select_all_relations(self, db: Session) -> List[ColumnRelation]:
         """Select all column relations."""
         statement = select(ColumnRelation)
         results = db.exec(statement).all()
         return list(results)
 
-    def delete_relations_by_catalog_column(self, db: SessionDep, catalog_column: str) -> int:
+    def delete_relations_by_catalog_column(self, db: Session, catalog_column: str) -> int:
         """Delete relations by catalog column. Returns deleted count."""
         statement = select(ColumnRelation).where(ColumnRelation.catalog_column == catalog_column)
         relations = db.exec(statement).all()
@@ -96,7 +95,7 @@ class ColumnRelationRepository:
         db.commit()
         return count
 
-    def select_relations_by_metadata_columns(self, db: SessionDep, metadata_columns: List[str]) -> List[ColumnRelation]:
+    def select_relations_by_metadata_columns(self, db: Session, metadata_columns: List[str]) -> List[ColumnRelation]:
         """Select relations by metadata columns."""
         statement = (
             select(ColumnRelation)

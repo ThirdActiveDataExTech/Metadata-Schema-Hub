@@ -10,7 +10,7 @@ from uuid import uuid4
 import uvicorn
 from fastapi import Depends, FastAPI, Request
 from fastapi.exceptions import RequestValidationError
-from fastapi.openapi.docs import get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html, get_redoc_html
+from fastapi.openapi.docs import get_redoc_html, get_swagger_ui_html, get_swagger_ui_oauth2_redirect_html
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from loguru import logger
@@ -23,11 +23,11 @@ from starlette.types import HTTPExceptionHandler
 from app import handlers
 from app.api.api_router import api_router
 from app.config import settings
-from app.constants import DESCRIPTION, SUMMARY, LICENSE_INFO
+from app.constants import DESCRIPTION, LICENSE_INFO, SUMMARY, TAGS_METADATA
 from app.dependencies import get_token_header
 from app.exceptions.base import ApplicationError
 from app.log import setup_logging
-from app.version import GIT_REVISION, GIT_BRANCH, BUILD_DATE, GIT_SHORT_REVISION, VERSION, get_current_datetime
+from app.version import BUILD_DATE, GIT_BRANCH, GIT_REVISION, GIT_SHORT_REVISION, VERSION, get_current_datetime
 
 # 앱 구동 성공 여부와 상관없이 앱 정보 출력
 print(json.dumps(
@@ -42,7 +42,6 @@ async def lifespan(lifespan_app: FastAPI):
     logging.info(f"uptime: {get_current_datetime()}")
     logging.debug(f"Working Directory: {repr(os.getcwd())}")
     logging.info(f"Start {settings.SERVICE_NAME} {VERSION}")
-    logging.info(f"Creating tables before the app starts for hero service")
     yield
     # shutdown event
     logging.info(f"Shut down {settings.SERVICE_NAME} Service")
@@ -68,6 +67,7 @@ app = FastAPI(
     description=DESCRIPTION,
     version=VERSION,
     license_info=LICENSE_INFO,
+    openapi_tags=TAGS_METADATA,
     servers=settings.servers,
     root_path_in_servers=settings.root_path_in_servers,
     docs_url=None, redoc_url=None,  # Serve the static files

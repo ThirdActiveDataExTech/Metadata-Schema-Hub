@@ -1,5 +1,12 @@
 stages:
+  - secret_detection
   - trigger
+
+include:
+  - project: wisenut-research/starter/templates/gitlab-ci-template
+    ref: main
+    file:
+      - templates/Security/Secret-Detection.gitlab-ci.yml
 
 # Trigger child pipeline for catalog-service
 catalog-service:

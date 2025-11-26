@@ -2,21 +2,20 @@ import json
 from typing import List, Optional, Sequence, Dict, Any
 
 from sqlalchemy import and_, or_
-from sqlmodel import select
+from sqlmodel import Session, select
 
-from app.dependencies import SessionDep
 from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary
 
 
 class CatalogEntryRepository:
     """CatalogEntryRepository."""
 
-    def save(self, db: SessionDep, catalog_entry: CatalogEntry) -> CatalogEntry:
+    def save(self, db: Session, catalog_entry: CatalogEntry) -> CatalogEntry:
         """Save catalog_entry."""
         db.add(catalog_entry)
         return catalog_entry
 
-    def select(self, db: SessionDep, catalog_entry_id: int) -> CatalogEntry:
+    def select(self, db: Session, catalog_entry_id: int) -> CatalogEntry:
         """Select catalog_entry."""
         catalog_entry = db.get(CatalogEntry, catalog_entry_id)
         if not catalog_entry:
@@ -24,7 +23,7 @@ class CatalogEntryRepository:
 
         return catalog_entry
 
-    def select_by_identifier(self, db: SessionDep, catalog_entry_identifier: str) -> CatalogEntry:
+    def select_by_identifier(self, db: Session, catalog_entry_identifier: str) -> CatalogEntry:
         """Select catalog_entry by identifier."""
         stmt = select(CatalogEntry).where(CatalogEntry.identifier == catalog_entry_identifier)
         catalog_entry = db.exec(stmt).first()
@@ -32,18 +31,18 @@ class CatalogEntryRepository:
             raise ValueError(f"Catalog entry with identifier '{catalog_entry_identifier}' not found.")
         return catalog_entry
 
-    def select_by_ids(self, db: SessionDep, catalog_entry_ids: List[int]) -> List[CatalogEntry]:
+    def select_by_ids(self, db: Session, catalog_entry_ids: List[int]) -> List[CatalogEntry]:
         """Select multiple catalog entries by ids."""
         stmt = select(CatalogEntry).where(CatalogEntry.id.in_(catalog_entry_ids))  # pyright: ignore
         return list(db.exec(stmt).all())
 
-    def select_by_identifiers(self, db: SessionDep, catalog_entry_identifiers: List[str]) -> List[CatalogEntry]:
+    def select_by_identifiers(self, db: Session, catalog_entry_identifiers: List[str]) -> List[CatalogEntry]:
         """Select catalog entries by identifiers."""
         stmt = select(CatalogEntry).where(CatalogEntry.identifier.in_(catalog_entry_identifiers))  # pyright: ignore
         return list(db.exec(stmt).all())
 
     def select_summaries_by_identifiers(
-        self, db: SessionDep, catalog_entry_identifiers: List[str]
+        self, db: Session, catalog_entry_identifiers: List[str]
     ) -> List[CatalogEntrySummary]:
         """Select catalog entry summaries by identifiers."""
         statement = select(  # pyright: ignore
@@ -81,7 +80,7 @@ class CatalogEntryRepository:
             for row in rows
         ]
 
-    def export_data_list(self, db: SessionDep, limit: int = None):
+    def export_data_list(self, db: Session, limit: int = None):
         """데이터베이스의 catalog_entry 테이블 전체를 list로 내보냄."""
         # 모든 레코드 조회 쿼리 작성 (필요시 limit 추가)
         statement = select(CatalogEntry)
@@ -133,7 +132,7 @@ class CatalogEntryRepository:
 
         return data_list
 
-    def list_catalog_summary(self, db: SessionDep, limit: Optional[int] = None) -> List[CatalogEntrySummary]:
+    def list_catalog_summary(self, db: Session, limit: Optional[int] = None) -> List[CatalogEntrySummary]:
         """요약된 카탈로그 목록 조회."""
         statement = select(  # type: ignore
             CatalogEntry.id,
@@ -174,7 +173,7 @@ class CatalogEntryRepository:
         ]
 
     def search_catalog(
-        self, db: SessionDep, query: Optional[str] = None, keyword: Optional[str] = None
+        self, db: Session, query: Optional[str] = None, keyword: Optional[str] = None
     ) -> Sequence[CatalogEntry]:
         """검색 조건에 따른 카탈로그 엔트리 검색"""
         statement = select(CatalogEntry)
@@ -203,14 +202,14 @@ class CatalogEntryRepository:
 
         return results
 
-    def create_bulk(self, db: SessionDep, creates: List[Dict[str, Any]]) -> None:
+    def create_bulk(self, db: Session, creates: List[Dict[str, Any]]) -> None:
         """Bulk create using SQLAlchemy Core for performance"""
         if not creates:
             return
 
         db.bulk_insert_mappings(CatalogEntry, creates)
 
-    def update_bulk(self, db: SessionDep, updates: List[Dict[str, Any]]) -> None:
+    def update_bulk(self, db: Session, updates: List[Dict[str, Any]]) -> None:
         """Bulk update using SQLAlchemy Core for performance"""
         if not updates:
             return

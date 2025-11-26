@@ -15,9 +15,7 @@ def parse_cors(v: Any) -> Union[List[str], str]:
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(
-        env_file=".env", env_ignore_empty=True, extra="ignore"
-    )
+    model_config = SettingsConfigDict(env_file=".env", env_ignore_empty=True, extra="ignore")
 
     # Environment: local, staging, production
     ENVIRONMENT: Literal["local", "staging", "production"] = "local"
@@ -35,10 +33,12 @@ class Settings(BaseSettings):
     # LOG
     LEVEL: str = "INFO"
     JSON_LOG: bool = False
-    LOGURU_FORMAT: str = "<green>{time:YY-MM-DD HH:mm:ss.SSS}</green> | " \
-                         "<level>{level: <8}</level> | " \
-                         "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> " \
-                         "- {process} {thread} {extra[request_id]} <level>{message}</level>"
+    LOGURU_FORMAT: str = (
+        "<green>{time:YY-MM-DD HH:mm:ss.SSS}</green> | "
+        "<level>{level: <8}</level> | "
+        "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> "
+        "- {process} {thread} {extra[request_id]} <level>{message}</level>"
+    )
 
     # LOG SAVE CONFIG
     SAVE: bool = True
@@ -47,15 +47,15 @@ class Settings(BaseSettings):
     RETENTION: str = "10 days"
     COMPRESSION: str = "zip"
 
-    @field_validator('LEVEL')
+    @field_validator("LEVEL")
     def validate_log_level(cls, v):
-        if v.upper() not in 'CRITICAL|ERROR|WARNING|INFO|DEBUG|NOTSET'.split('|'):
+        if v.upper() not in "CRITICAL|ERROR|WARNING|INFO|DEBUG|NOTSET".split("|"):
             raise ValueError(f"로그레벨 `LEVEL` 은 'CRITICAL|ERROR|WARNING|INFO|DEBUG|NOTSET' 만 가능. LEVEL={v}")
         return v
 
-    @field_validator('SERVER_URL')
+    @field_validator("SERVER_URL")
     def valid_server_url(cls, v):
-        server_url_regex = r'^https?:\/\/(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z]{2,})+(\/[a-zA-Z0-9-._~:/?#[\]@!$&\'()*+,;=]*)?$'
+        server_url_regex = r"^https?:\/\/(www\.)?[a-zA-Z0-9-]+(\.[a-zA-Z]{2,})+(\/[a-zA-Z0-9-._~:/?#[\]@!$&\'()*+,;=]*)?$"
         pattern = re.compile(server_url_regex)
         if v:
             if bool(pattern.match(v)):
@@ -100,11 +100,6 @@ class Settings(BaseSettings):
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: str = "5432"
     POSTGRES_DB: str = "datagokr"
-
-    @computed_field
-    @property
-    def POSTGRES_URL(self) -> str:
-        return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
     POSTGRES_VERBOSE: bool = False
 
