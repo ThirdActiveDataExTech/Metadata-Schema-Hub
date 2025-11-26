@@ -1,6 +1,6 @@
 import io
 import json
-from typing import Literal, Optional
+from typing import Annotated, Any, Dict, List, Literal, Optional
 
 from fastapi import APIRouter, Path, Query
 from starlette.responses import StreamingResponse
@@ -9,6 +9,7 @@ from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
 from app.src.catalog_entry.dependencies import CatalogEntryServiceDep
+from app.src.catalog_entry.schemas import CatalogEntryResponse
 from app.src.workflow.dependencies import CatalogEntryTransformServiceDep
 
 router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=ExceptionHandlingRoute)
@@ -17,12 +18,13 @@ router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=ExceptionHan
 @router.get(
     "/entries/{catalog_entry_id}",
     summary="카탈로그 엔트리 조회",
-    response_model=APIResponseModel,
+    response_model=APIResponseModel[CatalogEntryResponse],
 )
 async def get_catalog_entry(
     session: SessionDep,
     service: CatalogEntryServiceDep,
     catalog_entry_id: int = Path(
+        title="카탈로그 엔트리 ID",
         description="조회할 카탈로그 엔트리의 고유 식별 번호",
         example=31,
         ge=1,
@@ -46,19 +48,21 @@ async def get_catalog_entry(
 @router.get(
     "/entries/raw-metadata/{catalog_entry_id}",
     summary="원본 메타데이터 조회",
-    response_model=APIResponseModel,
+    response_model=APIResponseModel[Dict[str, Any]],
 )
 async def get_raw_metadata(
     session: SessionDep,
     service: CatalogEntryServiceDep,
     catalog_entry_id: int = Path(
+        title="카탈로그 엔트리 ID",
         description="조회할 카탈로그 엔트리의 고유 식별 번호",
         example=31,
         ge=1,
     ),
     output_format: Literal["json", "xml"] = Query(
         default="json",
-        description="출력 형식 선택 (json 또는 xml)",
+        title="출력 형식",
+        description="원본 메타데이터 출력 형식 (json: JSON-LD, xml: RDF/XML)",
         examples=["json", "xml"],
     ),
 ):
@@ -84,12 +88,13 @@ async def get_raw_metadata(
 @router.get(
     "/entries/{catalog_entry_id}/rdf",
     summary="RDF 표현 조회",
-    response_model=APIResponseModel,
+    response_model=APIResponseModel[Dict[str, Any]],
 )
 async def get_rdf_representation(
     session: SessionDep,
     service: CatalogEntryServiceDep,
     catalog_entry_id: int = Path(
+        title="카탈로그 엔트리 ID",
         description="조회할 카탈로그 엔트리의 고유 식별 번호",
         example=31,
         ge=1,
@@ -128,6 +133,7 @@ async def download_rdf_representation(
     session: SessionDep,
     service: CatalogEntryServiceDep,
     catalog_entry_id: int = Path(
+        title="카탈로그 엔트리 ID",
         description="다운로드할 카탈로그 엔트리의 고유 식별 번호",
         example=31,
         ge=1,
@@ -167,28 +173,47 @@ async def download_rdf_representation(
 @router.get(
     "/entries",
     summary="카탈로그 엔트리 검색 및 목록 조회",
-    response_model=APIResponseModel,
+    response_model=APIResponseModel[List[Dict[str, Any]]],
 )
 async def search_catalog_entries(
     session: SessionDep,
     service: CatalogEntryServiceDep,
-    query: Optional[str] = Query(
-        None,
-        description="제목, 설명 텍스트 검색 (LIKE 패턴)",
-        examples=["데이터", "공공데이터"],
-    ),
-    keyword: Optional[str] = Query(
-        None,
-        description="키워드 정확 일치 필터",
-        examples=["교통", "환경"],
-    ),
-    limit: int = Query(
-        10,
-        description="검색 결과 제한 개수",
-        ge=1,
-        le=100,
-        example=10,
-    ),
+    query: Annotated[
+        Optional[str],
+        Query(
+            title="검색어",
+            description="제목, 설명 텍스트 검색 (LIKE 패턴)",
+            openapi_examples={
+                "simple": {"summary": "간단한 검색", "value": "데이터"},
+                "detailed": {"summary": "공공데이터 검색", "value": "공공데이터"},
+            },
+        ),
+    ] = None,
+    keyword: Annotated[
+        Optional[str],
+        Query(
+            title="키워드",
+            description="키워드 정확 일치 필터",
+            openapi_examples={
+                "transport": {"summary": "교통 데이터", "value": "교통"},
+                "environment": {"summary": "환경 데이터", "value": "환경"},
+            },
+        ),
+    ] = None,
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=100,
+            title="결과 제한",
+            description="검색 결과 제한 개수",
+            openapi_examples={
+                "small": {"summary": "소량 조회", "value": 10},
+                "medium": {"summary": "중량 조회", "value": 20},
+                "large": {"summary": "대량 조회", "value": 50},
+            },
+        ),
+    ] = 10,
 ):
     """카탈로그 엔트리를 검색하거나 전체 목록을 조회합니다.
 
@@ -196,9 +221,9 @@ async def search_catalog_entries(
     조건이 없으면 전체 목록을 반환합니다.
 
     Args:
-        query: 제목 또는 설명에서 텍스트 검색 (부분 일치)
-        keyword: 키워드 배열에서 정확히 일치하는 항목 검색
-        limit: 반환할 최대 결과 개수 (1-100)
+        query: 제목, 설명 텍스트 검색어
+        keyword: 키워드 정확 일치 필터
+        limit: 검색 결과 제한 개수
 
     Returns:
         카탈로그 엔트리 목록
@@ -238,13 +263,20 @@ async def search_catalog_entries(
 async def export_catalog_entries_csv(
     session: SessionDep,
     service: CatalogEntryServiceDep,
-    limit: int = Query(
-        100,
-        description="내보낼 카탈로그 엔트리 개수 제한",
-        ge=1,
-        le=1000,
-        example=100,
-    ),
+    limit: Annotated[
+        int,
+        Query(
+            ge=1,
+            le=1000,
+            title="내보낼 개수",
+            description="내보낼 카탈로그 엔트리 개수 제한",
+            openapi_examples={
+                "standard": {"summary": "표준 내보내기", "value": 100},
+                "medium": {"summary": "중량 내보내기", "value": 500},
+                "maximum": {"summary": "최대 내보내기", "value": 1000},
+            },
+        ),
+    ] = 100,
 ):
     """카탈로그 엔트리를 CSV 파일로 내보냅니다.
 
@@ -252,7 +284,7 @@ async def export_catalog_entries_csv(
     다운로드 가능한 파일로 제공합니다.
 
     Args:
-        limit: 내보낼 엔트리 개수 (1-1000)
+        limit: 내보낼 카탈로그 엔트리 개수 제한
 
     Returns:
         StreamingResponse: CSV 형식의 카탈로그 엔트리 데이터
@@ -268,12 +300,13 @@ async def export_catalog_entries_csv(
 @router.put(
     "/match/relations/{catalog_entry_id}",
     summary="컬럼 관계 기반 카탈로그 갱신",
-    response_model=APIResponseModel,
+    response_model=APIResponseModel[CatalogEntryResponse],
 )
 async def match_relations(
     session: SessionDep,
     catalog_transform_service: CatalogEntryTransformServiceDep,
     catalog_entry_id: int = Path(
+        title="카탈로그 엔트리 ID",
         description="갱신할 카탈로그 엔트리의 고유 식별 번호",
         example=31,
         ge=1,
