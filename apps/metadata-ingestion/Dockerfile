@@ -40,7 +40,7 @@ USER $APP_USER
 
 # Copy necessary files and directory
 COPY --from=builder-base $VIRTUAL_ENV $VIRTUAL_ENV
-COPY pyproject.toml .env ./
+COPY pyproject.toml version_info.py .env ./
 COPY ./static ./static/
 COPY ./app ./app/
 
