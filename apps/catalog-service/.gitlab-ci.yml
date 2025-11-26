@@ -122,8 +122,8 @@ push-to-github-registry:
     - echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin 2>/dev/null
     - docker tag "$CI_REGISTRY_IMAGE/$APP_NAME:latest" "ghcr.io/$GITHUB_OWNER/$APP_NAME:latest"
     - docker tag "$CI_REGISTRY_IMAGE/$APP_NAME:latest" "ghcr.io/$GITHUB_OWNER/$APP_NAME:$VERSION"
-    - docker push "ghcr.io/$GITHUB_OWNER/$APP_NAME:latest"
     - docker push "ghcr.io/$GITHUB_OWNER/$APP_NAME:$VERSION"
+    - docker push "ghcr.io/$GITHUB_OWNER/$APP_NAME:latest"
   rules:
     - if: $CI_COMMIT_BRANCH == "github"
       changes:
