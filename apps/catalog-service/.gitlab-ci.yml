@@ -105,27 +105,23 @@ push-to-github-registry:
   variables:
     DOCKER_HOST: tcp://docker:2376
     DOCKER_TLS_CERTDIR: "/certs"
-    TZ: Asia/Seoul
   before_script:
     - cd $APP_DIR
-    - apk add --no-cache tzdata
-    - export TZ=Asia/Seoul
-    - |
-      set -o allexport
-      source .env
-      VERSION=${MAJOR_VERSION}.$(date +'%y%m.%d')-${STATUS}-$CI_COMMIT_SHORT_SHA
-      set +o allexport
-    - IMAGE_TAG=$CI_REGISTRY_IMAGE/$APP_NAME:$VERSION
   script:
-    # GitLab Registry에서 이미지 pull
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
-    - docker pull $CI_REGISTRY_IMAGE/$APP_NAME:latest
-    - docker pull $IMAGE_TAG || true
+    # GitLab Registry에서 latest 이미지 pull
+    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
+    - docker pull "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
+
+    # 이미지에서 VERSION 추출
+    - |
+      VERSION=$(docker run --rm "$CI_REGISTRY_IMAGE/$APP_NAME:latest" \
+        sh -c "cat version_info.py | grep '^version:' | cut -d \"'\" -f2")
+      echo "Extracted version: $VERSION"
 
     # GitHub Registry에 push
     - echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin 2>/dev/null
     - docker tag "$CI_REGISTRY_IMAGE/$APP_NAME:latest" "ghcr.io/$GITHUB_OWNER/$APP_NAME:latest"
-    - docker tag "$IMAGE_TAG" "ghcr.io/$GITHUB_OWNER/$APP_NAME:$VERSION"
+    - docker tag "$CI_REGISTRY_IMAGE/$APP_NAME:latest" "ghcr.io/$GITHUB_OWNER/$APP_NAME:$VERSION"
     - docker push "ghcr.io/$GITHUB_OWNER/$APP_NAME:latest"
     - docker push "ghcr.io/$GITHUB_OWNER/$APP_NAME:$VERSION"
   rules:
