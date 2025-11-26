@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict, Any, Iterable
+from typing import Any, Dict, Iterable, List
 
 from app.src.file_converter.converter import Converter
 from app.src.metadata_entry.model import MetadataBase
@@ -16,15 +16,16 @@ class JsonConverter(Converter):
         """JSON 콘텐츠를 딕셔너리로 변환"""
         return json.loads(content)
 
-    def convert_to_metadata_bases(self, json_content: str | bytes) -> List[MetadataBase]:
+    def convert_to_metadata_bases(self, json_content: str | bytes | dict) -> List[MetadataBase]:
         """JSON을 MetadataBase로 변환"""
-        try:
-            data = json.loads(json_content)
-        except json.JSONDecodeError as e:
-            raise ValueError(f"JSON 파싱 오류: {e}")
+        if not isinstance(json_content, dict):
+            try:
+                json_content = json.loads(json_content)
+            except json.JSONDecodeError as e:
+                raise ValueError(f"JSON 파싱 오류: {e}")
 
         # JSON 평면화
-        flattened_data = self._flatten_json(data)
+        flattened_data = self._flatten_json(json_content)
 
         # 결과 생성
         result = []

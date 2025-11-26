@@ -33,3 +33,6 @@ archive.zip
 *~
 .*.sw?
 .cache
+
+# macOS temporary files
+.DS_Store
