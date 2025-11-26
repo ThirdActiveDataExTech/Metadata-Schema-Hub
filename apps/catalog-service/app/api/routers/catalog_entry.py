@@ -88,7 +88,7 @@ async def get_raw_metadata(
 @router.get(
     "/entries/{catalog_entry_id}/rdf",
     summary="RDF 표현 조회",
-    response_model=APIResponseModel[str],
+    response_model=APIResponseModel[Dict[str, Any]],
 )
 async def get_rdf_representation(
     session: SessionDep,
