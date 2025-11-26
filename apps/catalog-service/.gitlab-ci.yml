@@ -115,7 +115,11 @@ push-to-github-registry:
     # 이미지에서 VERSION 추출
     - |
       VERSION=$(docker run --rm "$CI_REGISTRY_IMAGE/$APP_NAME:latest" \
-        sh -c "cat version_info.py | grep '^version:' | cut -d \"'\" -f2")
+        sh -c "cat version_info.py | grep '^version:' | cut -d \"'\" -f2" || echo "")
+      if [ -z "$VERSION" ]; then
+        echo "Error: Failed to extract version from container"
+        exit 1
+      fi
       echo "Extracted version: $VERSION"
 
     # GitHub Registry에 push
