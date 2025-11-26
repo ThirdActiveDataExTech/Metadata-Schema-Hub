@@ -1,10 +1,7 @@
 from datetime import date, datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, Dict, List, Optional
 
 from pydantic import BaseModel, Field
-
-# ==================== Request Schemas ====================
-
 
 # ==================== Response Schemas ====================
 
@@ -26,3 +23,11 @@ class CatalogEntryResponse(BaseModel):
     raw_metadata: Dict[str, Any] = Field(description="원본 메타데이터 (JSONB)")
     ingested_at: Optional[datetime] = Field(None, description="데이터 수집 시각")
     updated_at: Optional[datetime] = Field(None, description="후처리/재매핑 갱신 시각")
+
+
+class MetadataCreateSummary(BaseModel):
+    """메타데이터 생성 요약 (bulk 수집 응답용)"""
+
+    metadata_id: str = Field(description="메타데이터 UUID", examples=["18e6f7bc-5791-488a-bc7b-d78b18e51dcd"])
+    total_entries: int = Field(description="생성된 엔트리 개수", examples=[15])
+    ingested_at: datetime = Field(description="수집 시각")

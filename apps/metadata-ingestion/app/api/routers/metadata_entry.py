@@ -26,6 +26,7 @@ from app.src.metadata_entry.schemas import (
     IngestBulkResponse,
     IngestResponse,
     MetadataBaseResponse,
+    MetadataEntryResponse,
     PreviewResponse,
 )
 from app.src.workflow.dependencies import CatalogEntryTransformServiceDep
@@ -36,7 +37,7 @@ router = APIRouter(prefix="/metadata", tags=["metadata"], route_class=ExceptionH
 @router.get(
     "/entries",
     summary="메타데이터 엔트리 검색 및 목록 조회",
-    response_model=APIResponseModel[List[Dict[str, Any]]],
+    response_model=APIResponseModel[List[Dict[str, Any]] | List[MetadataEntryResponse]],
 )
 async def search_metadata_entries(
     session: SessionDep,
@@ -366,7 +367,7 @@ async def ingest_metadata_bulk(
 @router.get(
     "/{metadata_id}",
     summary="메타데이터 ID로 조회",
-    response_model=APIResponseModel[List[Dict[str, Any]]],
+    response_model=APIResponseModel[List[MetadataEntryResponse]],
 )
 async def get_metadata_entry(
     session: SessionDep,

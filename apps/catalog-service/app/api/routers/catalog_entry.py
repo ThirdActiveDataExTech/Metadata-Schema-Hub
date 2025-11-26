@@ -48,7 +48,7 @@ async def get_catalog_entry(
 @router.get(
     "/entries/raw-metadata/{catalog_entry_id}",
     summary="원본 메타데이터 조회",
-    response_model=APIResponseModel[Dict[str, Any]],
+    response_model=APIResponseModel[str],
 )
 async def get_raw_metadata(
     session: SessionDep,
@@ -88,7 +88,7 @@ async def get_raw_metadata(
 @router.get(
     "/entries/{catalog_entry_id}/rdf",
     summary="RDF 표현 조회",
-    response_model=APIResponseModel[Dict[str, Any]],
+    response_model=APIResponseModel[str],
 )
 async def get_rdf_representation(
     session: SessionDep,
@@ -115,8 +115,9 @@ async def get_rdf_representation(
     Raises:
         404: 해당 ID의 카탈로그 엔트리가 존재하지 않음
     """
-    catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id).get_rdf_dict()
-    return APIResponseModel(result=catalog_entry, description="RDF Metadata Found.")
+    catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id)
+    rdf_representation = catalog_entry.get_rdf_dict()
+    return APIResponseModel(result=rdf_representation, description="RDF Metadata Found.")
 
 
 @router.get(
@@ -173,7 +174,7 @@ async def download_rdf_representation(
 @router.get(
     "/entries",
     summary="카탈로그 엔트리 검색 및 목록 조회",
-    response_model=APIResponseModel[List[Dict[str, Any]]],
+    response_model=APIResponseModel[List[Dict[str, Any]] | List[CatalogEntryResponse]],
 )
 async def search_catalog_entries(
     session: SessionDep,
