@@ -3,6 +3,7 @@ stages:
   - test
   - build-and-push-app
   - container_test
+  - push-to-github
 
 include:
   - project: wisenut-research/starter/templates/gitlab-ci-template
@@ -68,6 +69,10 @@ pytest:
 build-and-push-app:
   variables:
     IMAGE_TAG_LATEST: "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - $APP_DIR/**/*
   before_script:
     - !reference [default, before_script]
     - apk add --no-cache tzdata
@@ -88,6 +93,43 @@ build-and-push-app:
       echo "build_date: str = '$BUILD_DATE'" >> version_info.py
 
 container_scanning:
-  before_script: []  # GIT_STRATEGY: none이므로 cd $APP_DIR 실행 안 함
+  before_script: [] # GIT_STRATEGY: none이므로 cd $APP_DIR 실행 안 함
   variables:
     CS_IMAGE: "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
+
+push-to-github-registry:
+  stage: push-to-github
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+    TZ: Asia/Seoul
+  before_script:
+    - cd $APP_DIR
+    - apk add --no-cache tzdata
+    - export TZ=Asia/Seoul
+    - |
+      set -o allexport
+      source .env
+      VERSION=${MAJOR_VERSION}.$(date +'%y%m.%d')-${STATUS}-$CI_COMMIT_SHORT_SHA
+      set +o allexport
+    - IMAGE_TAG=$CI_REGISTRY_IMAGE/$APP_NAME:$VERSION
+  script:
+    # GitLab Registry에서 이미지 pull
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker pull $CI_REGISTRY_IMAGE/$APP_NAME:latest
+    - docker pull $IMAGE_TAG || true
+
+    # GitHub Registry에 push
+    - echo $GITHUB_TOKEN | docker login ghcr.io -u $GITHUB_USERNAME --password-stdin
+    - docker tag $CI_REGISTRY_IMAGE/$APP_NAME:latest ghcr.io/$GITHUB_OWNER/$APP_NAME:latest
+    - docker tag $IMAGE_TAG ghcr.io/$GITHUB_OWNER/$APP_NAME:$VERSION
+    - docker push ghcr.io/$GITHUB_OWNER/$APP_NAME:latest
+    - docker push ghcr.io/$GITHUB_OWNER/$APP_NAME:$VERSION
+  rules:
+    - if: $CI_COMMIT_BRANCH == "github"
+      changes:
+        - $APP_DIR/**/*
+  dependencies: []
