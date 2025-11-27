@@ -122,12 +122,13 @@ push-to-github-registry:
       fi
       echo "Extracted version: $VERSION"
 
-    # GitHub Registry에 push
+    # GitHub Registry에 push (소문자 변환)
+    - GITHUB_OWNER_LOWER=$(echo "$GITHUB_OWNER" | tr '[:upper:]' '[:lower:]')
     - echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin 2>/dev/null
-    - docker tag "$CI_REGISTRY_IMAGE/$APP_NAME:latest" "ghcr.io/$GITHUB_OWNER/$APP_NAME:latest"
-    - docker tag "$CI_REGISTRY_IMAGE/$APP_NAME:latest" "ghcr.io/$GITHUB_OWNER/$APP_NAME:$VERSION"
-    - docker push "ghcr.io/$GITHUB_OWNER/$APP_NAME:$VERSION"
-    - docker push "ghcr.io/$GITHUB_OWNER/$APP_NAME:latest"
+    - docker tag "$CI_REGISTRY_IMAGE/$APP_NAME:latest" "ghcr.io/$GITHUB_OWNER_LOWER/$APP_NAME:latest"
+    - docker tag "$CI_REGISTRY_IMAGE/$APP_NAME:latest" "ghcr.io/$GITHUB_OWNER_LOWER/$APP_NAME:$VERSION"
+    - docker push "ghcr.io/$GITHUB_OWNER_LOWER/$APP_NAME:$VERSION"
+    - docker push "ghcr.io/$GITHUB_OWNER_LOWER/$APP_NAME:latest"
   rules:
     - if: $CI_COMMIT_BRANCH == "github"
       changes:
