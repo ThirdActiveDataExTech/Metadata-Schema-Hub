@@ -40,11 +40,11 @@ USER $APP_USER
 
 # Copy necessary files and directory
 COPY --from=builder-base $VIRTUAL_ENV $VIRTUAL_ENV
-COPY pyproject.toml .env ./
+COPY pyproject.toml version_info.py .env ./
 COPY ./static ./static/
 COPY ./app ./app/
 
 # Expose the port
-EXPOSE 8084
+EXPOSE 8085
 
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8085"]
