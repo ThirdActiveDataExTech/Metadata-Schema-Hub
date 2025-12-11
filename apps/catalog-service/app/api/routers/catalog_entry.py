@@ -10,6 +10,7 @@ from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
 from app.src.catalog_entry.dependencies import CatalogEntryServiceDep
 from app.src.catalog_entry.schemas import CatalogEntryResponse
+from app.src.catalog_entry.model import CatalogEntrySummary
 from app.src.workflow.dependencies import CatalogEntryTransformServiceDep
 
 router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=ExceptionHandlingRoute)
@@ -174,7 +175,7 @@ async def download_rdf_representation(
 @router.get(
     "/entries",
     summary="카탈로그 엔트리 검색 및 목록 조회",
-    response_model=APIResponseModel[List[Dict[str, Any]] | List[CatalogEntryResponse]],
+    response_model=APIResponseModel[List[CatalogEntrySummary]],
 )
 async def search_catalog_entries(
     session: SessionDep,
