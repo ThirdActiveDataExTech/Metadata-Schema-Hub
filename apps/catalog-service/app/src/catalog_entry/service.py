@@ -101,29 +101,9 @@ class CatalogEntryService:
 
     def search_catalog(
         self, db: Session, query: Optional[str] = None, keyword: Optional[str] = None
-    ) -> Sequence[Dict[str, Any]]:
+    ) -> List[CatalogEntrySummary]:
         """검색 조건에 따른 카탈로그 엔트리 검색."""
-        items = self.repository.search_catalog(db=db, query=query, keyword=keyword)
-
-        result_items = []
-        for item in items:
-            item_dict = item.model_dump()
-
-            # 날짜 필드 문자열 변환
-            if item_dict.get("issued"):
-                item_dict["issued"] = str(item_dict["issued"])
-            if item_dict.get("modified"):
-                item_dict["modified"] = str(item_dict["modified"])
-            if item_dict.get("ingested_at"):
-                item_dict["ingested_at"] = str(item_dict["ingested_at"])
-            if item_dict.get("updated_at"):
-                item_dict["updated_at"] = str(item_dict["updated_at"])
-
-            # raw_metadata 제거 (크기 최적화)
-            item_dict.pop("raw_metadata", None)
-            result_items.append(item_dict)
-
-        return result_items
+        return self.repository.search_catalog(db=db, query=query, keyword=keyword)
 
     def create_catalog_entry_bulk(self, db: Session, catalog_entries: List[Dict[str, Any]]) -> None:
         """CatalogEntry bulk 생성."""

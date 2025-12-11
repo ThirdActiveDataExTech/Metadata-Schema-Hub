@@ -175,9 +175,22 @@ class CatalogEntryRepository:
 
     def search_catalog(
         self, db: Session, query: Optional[str] = None, keyword: Optional[str] = None
-    ) -> Sequence[CatalogEntry]:
+    ) -> List[CatalogEntrySummary]:
         """검색 조건에 따른 카탈로그 엔트리 검색"""
-        statement = select(CatalogEntry)
+        statement = select(  # type: ignore
+            CatalogEntry.id,
+            CatalogEntry.title,
+            CatalogEntry.issued,
+            CatalogEntry.modified,
+            CatalogEntry.identifier,
+            CatalogEntry.publisher,
+            CatalogEntry.keyword,
+            CatalogEntry.landing_page,
+            CatalogEntry.theme,
+            CatalogEntry.access_url,
+            CatalogEntry.ingested_at,
+            CatalogEntry.updated_at,
+        )
         conditions = []
 
         # 텍스트 검색 (제목, 설명에서 ILIKE 검색)
@@ -199,9 +212,25 @@ class CatalogEntryRepository:
             statement = statement.where(where_condition)
 
         # 결과 조회
-        results = db.exec(statement).all()
+        rows = db.exec(statement).all()
 
-        return results
+        return [
+            CatalogEntrySummary(
+                id=row.id,
+                title=row.title,
+                issued=str(row.issued) if row.issued else None,
+                modified=str(row.modified) if row.modified else None,
+                identifier=row.identifier,
+                publisher=row.publisher,
+                keyword=row.keyword,
+                landing_page=row.landing_page,
+                theme=row.theme,
+                access_url=row.access_url,
+                ingested_at=str(row.ingested_at) if row.ingested_at else None,
+                updated_at=str(row.updated_at) if row.updated_at else None,
+            )
+            for row in rows
+        ]
 
     def create_bulk(self, db: Session, creates: List[Dict[str, Any]]) -> None:
         """Bulk create using SQLAlchemy Core for performance"""
