@@ -21,6 +21,9 @@ router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=ExceptionHan
     "/entries/{catalog_entry_id}",
     summary="카탈로그 엔트리 조회",
     response_model=APIResponseModel[CatalogEntryResponse],
+    responses={
+        404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}
+    },
 )
 async def get_catalog_entry(
     session: SessionDep,
@@ -34,15 +37,7 @@ async def get_catalog_entry(
 ):
     """특정 카탈로그 엔트리의 상세 정보를 조회합니다.
 
-    Args:
-        catalog_entry_id: 조회할 카탈로그 엔트리의 데이터베이스 ID
-
-    Returns:
-        DCAT 표준 기반의 카탈로그 엔트리 정보
-
-    Raises:
-        404: 해당 ID의 카탈로그 엔트리가 존재하지 않음
-    """
+    DCAT 표준 기반의 카탈로그 엔트리 정보를 반환합니다."""
     catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id)
     return APIResponseModel(result=catalog_entry, description="Entry Found.")
 
@@ -51,6 +46,9 @@ async def get_catalog_entry(
     "/entries/raw-metadata/{catalog_entry_id}",
     summary="원본 메타데이터 조회",
     response_model=APIResponseModel[str],
+    responses={
+        404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}
+    },
 )
 async def get_raw_metadata(
     session: SessionDep,
@@ -71,18 +69,7 @@ async def get_raw_metadata(
     """카탈로그 엔트리의 원본 메타데이터를 지정된 형식으로 조회합니다.
 
     수집 시점의 원본 메타데이터를 변환 없이 그대로 반환합니다.
-    JSON 또는 XML 형식으로 출력할 수 있습니다.
-
-    Args:
-        catalog_entry_id: 조회할 카탈로그 엔트리의 데이터베이스 ID
-        output_format: 출력 형식 (json 또는 xml)
-
-    Returns:
-        원본 메타데이터 (지정된 형식으로 변환됨)
-
-    Raises:
-        404: 해당 ID의 카탈로그 엔트리가 존재하지 않음
-    """
+    JSON 또는 XML 형식으로 출력할 수 있습니다."""
     catalog_entry = service.get_raw_metadata(db=session, catalog_entry_id=catalog_entry_id, data_format=output_format)
     return APIResponseModel(result=catalog_entry, description="Raw Metadata Found.")
 
@@ -91,6 +78,9 @@ async def get_raw_metadata(
     "/entries/{catalog_entry_id}/rdf",
     summary="RDF 표현 조회",
     response_model=APIResponseModel[Dict[str, Any]],
+    responses={
+        404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}
+    },
 )
 async def get_rdf_representation(
     session: SessionDep,
@@ -106,17 +96,7 @@ async def get_rdf_representation(
 
     DCAT(Data Catalog Vocabulary) 표준에 따라 정규화된 메타데이터를 제공합니다.
     반환된 JSON-LD는 Semantic Web 환경에서 직접 사용 가능하며,
-    외부 시스템과의 메타데이터 교환 시 표준 포맷으로 활용됩니다.
-
-    Args:
-        catalog_entry_id: 조회할 카탈로그 엔트리의 데이터베이스 ID
-
-    Returns:
-        DCAT 기반 RDF 메타데이터 (JSON-LD 형식)
-
-    Raises:
-        404: 해당 ID의 카탈로그 엔트리가 존재하지 않음
-    """
+    외부 시스템과의 메타데이터 교환 시 표준 포맷으로 활용됩니다."""
     catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id)
     rdf_representation = catalog_entry.get_rdf_dict()
     return APIResponseModel(result=rdf_representation, description="RDF Metadata Found.")
@@ -129,7 +109,8 @@ async def get_rdf_representation(
         200: {
             "description": "JSON-LD 파일 다운로드 성공",
             "content": {"application/ld+json": {"example": {}}},
-        }
+        },
+        404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"},
     },
 )
 async def download_rdf_representation(
@@ -146,17 +127,7 @@ async def download_rdf_representation(
 
     DCAT(Data Catalog Vocabulary) 표준에 따라 정규화된 메타데이터를 JSON-LD 파일로 제공합니다.
     다운로드된 파일은 Semantic Web 환경에서 직접 사용 가능하며,
-    외부 시스템과의 메타데이터 교환 시 표준 포맷으로 활용됩니다.
-
-    Args:
-        catalog_entry_id: 다운로드할 카탈로그 엔트리의 데이터베이스 ID
-
-    Returns:
-        StreamingResponse: DCAT 기반 RDF 메타데이터 JSON-LD 파일
-
-    Raises:
-        404: 해당 ID의 카탈로그 엔트리가 존재하지 않음
-    """
+    외부 시스템과의 메타데이터 교환 시 표준 포맷으로 활용됩니다."""
     catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id)
     rdf_dict = catalog_entry.get_rdf_dict()
 
@@ -305,9 +276,8 @@ async def search_catalog_entries(
     텍스트 검색, 키워드/주제 필터링, 날짜 범위 검색, 페이징, 정렬 기능을 지원합니다.
 
     검색 조건 결합 방식:
-    - 서로 다른 조건(query, keyword, theme, date_field 등)은 AND로 결합됩니다.
-    - 동일 조건 내 배열 값(keyword 배열, theme 배열)은 OR로 검색됩니다.
-    """
+    - 서로 다른 조건(`query`, `keyword`, `theme`, `date_field` 등)은 AND로 결합됩니다.
+    - 동일 조건 내 배열 값(`keyword` 배열, `theme` 배열)은 OR로 검색됩니다."""
     result = service.search_catalog(
         db=session,
         query=query,
@@ -359,14 +329,7 @@ async def export_catalog_entries_csv(
     """카탈로그 엔트리를 CSV 파일로 내보냅니다.
 
     지정된 개수만큼의 카탈로그 엔트리를 CSV 형식으로 변환하여
-    다운로드 가능한 파일로 제공합니다.
-
-    Args:
-        limit: 내보낼 카탈로그 엔트리 개수 제한
-
-    Returns:
-        StreamingResponse: CSV 형식의 카탈로그 엔트리 데이터
-    """
+    다운로드 가능한 파일로 제공합니다."""
     csv_stream = service.export_to_csv_stream(session, limit)
     return StreamingResponse(
         io.StringIO(csv_stream.getvalue()),
@@ -379,6 +342,9 @@ async def export_catalog_entries_csv(
     "/match/relations/{catalog_entry_id}",
     summary="컬럼 관계 기반 카탈로그 갱신",
     response_model=APIResponseModel[CatalogEntryResponse],
+    responses={
+        404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}
+    },
 )
 async def match_relations(
     session: SessionDep,
@@ -392,21 +358,9 @@ async def match_relations(
 ):
     """컬럼 관계 정보를 기반으로 카탈로그 엔트리를 갱신합니다.
 
-    메타데이터 엔트리와 컬럼 관계(column_relation) 테이블의 매핑 정보를 이용하여
+    메타데이터 엔트리와 `column_relation` 테이블의 매핑 정보를 이용하여
     카탈로그 엔트리의 DCAT 표준 필드들을 자동으로 갱신합니다.
-
-    Args:
-        catalog_entry_id: 갱신할 카탈로그 엔트리의 데이터베이스 ID
-
-    Returns:
-        갱신된 카탈로그 엔트리 정보
-
-    Raises:
-        404: 해당 ID의 카탈로그 엔트리가 존재하지 않음
-
-    Note:
-        이 API는 메타데이터 수집 후 자동으로 호출되며, 수동으로 재매핑이 필요한 경우에도 사용할 수 있습니다.
-    """
+    이 API는 메타데이터 수집 후 자동으로 호출되며, 수동으로 재매핑이 필요한 경우에도 사용할 수 있습니다."""
     updated_catalog_entry = catalog_transform_service.update_catalog_entry_from_metadata_and_relation(
         db=session, catalog_entry_id=catalog_entry_id
     )

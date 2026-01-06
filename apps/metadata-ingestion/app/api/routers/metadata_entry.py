@@ -94,22 +94,11 @@ async def search_metadata_entries(
 ):
     """메타데이터 엔트리를 검색하거나 전체 목록을 조회합니다.
 
-    검색 조건(query, schema, metadata_id)이 제공되면 해당 조건으로 검색하고,
+    검색 조건(`query`, `schema`, `metadata_id`)이 제공되면 해당 조건으로 검색하고,
     조건이 없으면 전체 목록을 반환합니다.
 
-    Args:
-        query: 값 또는 스키마명에서 텍스트 검색어
-        schema: 메타데이터 스키마명 정확 일치 필터
-        metadata_id: 메타데이터 ID(UUID) 정확 일치 필터
-        limit: 검색 결과 제한 개수
-
-    Returns:
-        메타데이터 엔트리 목록 (key-value 구조)
-
-    Note:
-        메타데이터는 원본 파일에서 추출된 key-value 쌍으로 저장되어 있습니다.
-        동일한 metadata_id를 가진 엔트리들은 하나의 원본 파일에서 추출된 것입니다.
-    """
+    메타데이터는 원본 파일에서 추출된 `key-value` 쌍으로 저장되어 있으며,
+    동일한 `metadata_id`를 가진 엔트리들은 하나의 원본 파일에서 추출된 것입니다."""
 
     # 검색 조건 존재 여부 확인
     has_search_params = bool(query or schema or metadata_id)
@@ -133,6 +122,10 @@ async def search_metadata_entries(
     "/convert/schema-org",
     summary="Schema.org JSON-LD 변환",
     response_model=APIResponseModel[List[MetadataBaseResponse]],
+    responses={
+        400: {"description": "지원하지 않는 파일 확장자"},
+        422: {"description": "JSON 파싱 실패"},
+    },
 )
 async def convert_schema_org_metadata(
     converter: JsonConverterDep,
@@ -145,22 +138,8 @@ async def convert_schema_org_metadata(
     """Schema.org JSON-LD 형식의 메타데이터를 테이블 구조로 변환합니다.
 
     JSON-LD 파일을 파싱하여 key-value 쌍의 메타데이터 베이스 목록으로 변환합니다.
-    실제 저장 없이 변환 결과만 확인하는 API입니다.
-
-    Args:
-        file: Schema.org JSON-LD 형식의 메타데이터 파일 (.json, .jsonld)
-
-    Returns:
-        변환된 메타데이터 베이스 목록 (key-value 구조)
-
-    Raises:
-        400: 지원하지 않는 파일 확장자
-        422: JSON 파싱 실패
-
-    Note:
-        이 API는 변환만 수행하며 데이터를 저장하지 않습니다.
-        실제 수집을 위해서는 /ingest/metadata 엔드포인트를 사용하세요.
-    """
+    이 API는 변환만 수행하며 데이터를 저장하지 않습니다.
+    실제 수집을 위해서는 `POST /metadata/ingest/metadata` 엔드포인트를 사용하세요."""
     # 파일 확장자 검증
     if not file.filename or not file.filename.endswith((".json", ".jsonld")):
         extension = pathlib.Path(file.filename).suffix.lower()
@@ -176,6 +155,10 @@ async def convert_schema_org_metadata(
     "/convert/dcat",
     summary="DCAT RDF/XML 변환",
     response_model=APIResponseModel[List[MetadataBaseResponse]],
+    responses={
+        400: {"description": "지원하지 않는 파일 확장자"},
+        422: {"description": "XML 파싱 실패"},
+    },
 )
 async def convert_dcat_metadata(
     converter: XmlConverterDep,
@@ -187,23 +170,9 @@ async def convert_dcat_metadata(
 ):
     """DCAT RDF/XML 형식의 메타데이터를 테이블 구조로 변환합니다.
 
-    RDF/XML 파일을 파싱하여 key-value 쌍의 메타데이터 베이스 목록으로 변환합니다.
-    실제 저장 없이 변환 결과만 확인하는 API입니다.
-
-    Args:
-        file: DCAT RDF/XML 형식의 메타데이터 파일 (.xml, .rdf)
-
-    Returns:
-        변환된 메타데이터 베이스 목록 (key-value 구조)
-
-    Raises:
-        400: 지원하지 않는 파일 확장자
-        422: XML 파싱 실패
-
-    Note:
-        이 API는 변환만 수행하며 데이터를 저장하지 않습니다.
-        실제 수집을 위해서는 /ingest/metadata 엔드포인트를 사용하세요.
-    """
+    RDF/XML 파일을 파싱하여 `key-value` 쌍의 메타데이터 베이스 목록으로 변환합니다.
+    이 API는 변환만 수행하며 데이터를 저장하지 않습니다.
+    실제 수집을 위해서는 `POST /metadata/ingest/metadata` 엔드포인트를 사용하세요."""
 
     # 파일 확장자 검증
     if not file.filename or not file.filename.endswith((".xml", ".rdf")):
@@ -223,6 +192,10 @@ async def convert_dcat_metadata(
     "/ingest/metadata",
     summary="메타데이터 단일 수집",
     response_model=APIResponseModel[IngestResponse],
+    responses={
+        400: {"description": "지원하지 않는 파일 형식"},
+        422: {"description": "파일 파싱 실패"},
+    },
 )
 async def ingest_metadata(
     session: SessionDep,
@@ -238,23 +211,11 @@ async def ingest_metadata(
 
     업로드된 메타데이터 파일을 다음 단계로 처리합니다:
     1. 파일 형식 자동 감지 및 파싱
-    2. key-value 구조로 분해하여 metadata_entry 테이블에 저장
-    3. 원본 메타데이터를 포함한 catalog_entry 초안 생성
-    4. 컬럼 관계 기반 자동 매핑을 통한 catalog_entry 갱신
+    2. `key-value` 구조로 분해하여 `metadata_entry` 테이블에 저장
+    3. 원본 메타데이터를 포함한 `catalog_entry` 초안 생성
+    4. 컬럼 관계 기반 자동 매핑을 통한 `catalog_entry` 갱신
 
-    Args:
-        file: 메타데이터 파일 (.json, .jsonld, .xml, .rdf)
-
-    Returns:
-        생성된 카탈로그 엔트리 및 메타데이터 엔트리 정보
-
-    Raises:
-        400: 지원하지 않는 파일 형식
-        422: 파일 파싱 실패
-
-    Note:
-        지원 형식: Schema.org JSON-LD (.json, .jsonld), DCAT RDF/XML (.xml, .rdf)
-    """
+    지원 형식: Schema.org JSON-LD (`.json`, `.jsonld`), DCAT RDF/XML (`.xml`, `.rdf`)"""
     metadata_file = MetadataFile(filename=file.filename, content=await file.read())
     try:
         serialized_content, metadata_bases = process_metadata_file(metadata_file)
@@ -286,6 +247,9 @@ async def ingest_metadata(
     "/ingest/metadata/bulk",
     summary="메타데이터 대량 수집",
     response_model=APIResponseModel[IngestBulkResponse],
+    responses={
+        400: {"description": "파일이 없거나 개수 제한 초과"},
+    },
 )
 async def ingest_metadata_bulk(
     session: SessionDep,
@@ -304,24 +268,12 @@ async def ingest_metadata_bulk(
 
     처리 과정:
     1. 각 파일의 형식을 자동 감지하고 파싱
-    2. 성공한 파일들을 일괄 처리하여 metadata_entry 저장
-    3. catalog_entry 초안 일괄 생성
+    2. 성공한 파일들을 일괄 처리하여 `metadata_entry` 저장
+    3. `catalog_entry` 초안 일괄 생성
     4. 컬럼 관계 기반 자동 매핑 일괄 수행
 
-    Args:
-        files: 메타데이터 파일 목록 (1-100개)
-
-    Returns:
-        처리 결과 (성공 개수, 생성된 엔트리 목록, 에러 목록)
-
-    Raises:
-        400: 파일이 없거나 개수 제한 초과
-
-    Note:
-        - 최대 100개 파일까지 동시 처리 가능
-        - 일부 파일 실패 시에도 성공한 파일들은 정상 처리됨
-        - 에러 정보는 result.errors에 포함됨
-    """
+    최대 100개 파일까지 동시 처리 가능하며, 일부 파일 실패 시에도 성공한 파일들은 정상 처리됩니다.
+    에러 정보는 `result.errors`에 포함됩니다."""
     if not files:
         raise MetadataEntryFileNotFoundError(message="최소 1개 이상의 파일이 필요")
     if len(files) > settings.MAXIMUM_INGESTION_LIMIT:
@@ -384,6 +336,10 @@ async def ingest_metadata_bulk(
     "/{metadata_id}",
     summary="메타데이터 ID로 조회",
     response_model=APIResponseModel[List[MetadataEntryResponse]],
+    responses={
+        404: {"description": "해당 UUID의 메타데이터가 존재하지 않음"},
+        422: {"description": "UUID 형식이 올바르지 않음"},
+    },
 )
 async def get_metadata_entry(
     session: SessionDep,
@@ -395,21 +351,10 @@ async def get_metadata_entry(
         pattern=r"^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$",
     ),
 ):
-    """UUID를 사용하여 특정 메타데이터 엔트리의 모든 key-value 쌍을 조회합니다.
+    """UUID를 사용하여 특정 메타데이터 엔트리의 모든 `key-value` 쌍을 조회합니다.
 
-    동일한 metadata_id를 가진 모든 메타데이터 엔트리를 반환합니다.
-    하나의 원본 파일에서 추출된 모든 메타데이터 항목을 확인할 수 있습니다.
-
-    Args:
-        metadata_id: 메타데이터의 고유 식별자 (UUID 형식)
-
-    Returns:
-        해당 metadata_id를 가진 모든 메타데이터 엔트리 목록
-
-    Raises:
-        404: 해당 UUID의 메타데이터가 존재하지 않음
-        422: UUID 형식이 올바르지 않음
-    """
+    동일한 `metadata_id`를 가진 모든 메타데이터 엔트리를 반환합니다.
+    하나의 원본 파일에서 추출된 모든 메타데이터 항목을 확인할 수 있습니다."""
     result = service.select_metadata(session, metadata_id=metadata_id)
 
     return APIResponseModel(result=result, description="Metadata Found.")
@@ -419,6 +364,10 @@ async def get_metadata_entry(
     "/preview",
     summary="메타데이터 미리보기",
     response_model=APIResponseModel[PreviewResponse],
+    responses={
+        400: {"description": "지원하지 않는 파일 형식"},
+        422: {"description": "파일 파싱 실패"},
+    },
 )
 async def preview_metadata(
     session: SessionDep,
@@ -431,26 +380,17 @@ async def preview_metadata(
     """메타데이터 파일의 구조와 매핑 후보를 수집 전에 미리 확인합니다.
 
     파일을 실제로 저장하지 않고, 다음 정보를 확인할 수 있습니다:
-    1. 파싱된 메타데이터 구조 (key-value 쌍)
+    1. 파싱된 메타데이터 구조 (`key-value` 쌍)
     2. 컬럼 관계 기반 자동 매핑 결과
     3. 각 메타데이터 스키마에 대한 매핑 후보 목록
     4. 매핑되지 않은 필드 목록
 
-    Args:
-        file: 미리보기할 메타데이터 파일
+    이 API는 데이터를 저장하지 않습니다. 실제 수집을 위해서는 `POST /metadata/ingest/metadata`를 사용하세요.
 
-    Returns:
-        - metadata: 자동 매핑된 카탈로그 컬럼과 값
-        - metadata_candidates: 각 메타데이터 스키마의 매핑 후보 목록 (연관성 점수 포함)
-        - untyped: 매핑 후보가 없는 메타데이터 스키마와 값
-
-    Raises:
-        400: 지원하지 않는 파일 형식
-        422: 파일 파싱 실패
-
-    Note:
-        이 API는 데이터를 저장하지 않습니다. 실제 수집을 위해서는 /ingest/metadata를 사용하세요.
-    """
+    반환 정보:
+    - `metadata`: 자동 매핑된 카탈로그 컬럼과 값
+    - `metadata_candidates`: 각 메타데이터 스키마의 매핑 후보 목록 (연관성 점수 포함)
+    - `untyped`: 매핑 후보가 없는 메타데이터 스키마와 값"""
     metadata_file = MetadataFile(filename=file.filename, content=await file.read())
 
     try:
@@ -498,6 +438,9 @@ async def preview_metadata(
     "/form",
     summary="JSON 폼 데이터 수집",
     response_model=APIResponseModel[IngestResponse],
+    responses={
+        400: {"description": "JSON 형식이 올바르지 않음"},
+    },
 )
 async def ingest_form(
     session: SessionDep,
@@ -522,22 +465,11 @@ async def ingest_form(
 
     처리 과정:
     1. JSON 객체 검증 및 변환
-    2. key-value 구조로 분해하여 metadata_entry 저장
-    3. catalog_entry 초안 생성
+    2. `key-value` 구조로 분해하여 `metadata_entry` 저장
+    3. `catalog_entry` 초안 생성
     4. 컬럼 관계 기반 자동 매핑 수행
 
-    Args:
-        metadata_form: JSON 형식의 메타데이터 객체
-
-    Returns:
-        생성된 카탈로그 엔트리 및 메타데이터 엔트리 정보
-
-    Raises:
-        400: JSON 형식이 올바르지 않음
-
-    Note:
-        파일 업로드와 동일한 처리 과정을 거치며, 결과도 동일합니다.
-    """
+    파일 업로드와 동일한 처리 과정을 거치며, 결과도 동일합니다."""
     serialized_content = metadata_form
 
     metadata_bases = json_converter.convert_to_metadata_bases(metadata_form)
