@@ -11,6 +11,7 @@ from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
 from app.src.catalog_entry.dependencies import CatalogEntryServiceDep
 from app.src.catalog_entry.model import CatalogEntry
+from app.src.catalog_entry.schemas import MetadataCreateSummary
 from app.src.column_relation.dependencies import ColumnRelationServiceDep
 from app.src.file_converter.dependencies import JsonConverterDep, XmlConverterDep
 from app.src.file_converter.file_handler import MetadataFile, process_metadata_file, process_metadata_files
@@ -353,11 +354,26 @@ async def ingest_metadata_bulk(
         db=session, catalog_entry_identifiers=[entry.identifier for entry, _ in iterables]
     )
 
+    # DB에서 생성된 catalog entries 다시 조회 (id 포함)
+    catalog_results = catalog_service.get_catalog_entries_by_identifier(
+        db=session, catalog_entry_identifiers=[entry.identifier for entry, _ in iterables]
+    )
+
+    # MetadataCreateSummary 생성
+    metadata_results = [
+        MetadataCreateSummary(
+            metadata_id=metadata_create.metadata_id,
+            total_entries=len(metadata_create.metadata_bases),
+            ingested_at=metadata_create.ingested_at,
+        )
+        for _, metadata_create in iterables
+    ]
+
     return APIResponseModel(
         result={
             "processed_count": len(iterables),
-            "catalog_result": [entry for entry, _ in iterables],
-            "metadata_result": [metadata_create for _, metadata_create in iterables],
+            "catalog_result": catalog_results,
+            "metadata_result": metadata_results,
             "errors": errors,
         },
         description="메타데이터 벌크 수집 완료",

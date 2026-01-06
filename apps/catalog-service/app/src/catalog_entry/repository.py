@@ -1,5 +1,6 @@
 import json
-from typing import Any, Dict, List, Optional, Sequence
+from datetime import date, datetime
+from typing import Any, Dict, List, Literal, Optional
 
 from sqlalchemy import and_, or_
 from sqlmodel import Session, select
@@ -9,7 +10,22 @@ from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary
 
 
 class CatalogEntryRepository:
-    """CatalogEntryRepository."""
+    """카탈로그 엔트리 저장소 클래스."""
+
+    ALLOWED_SORT_FIELDS = {
+        "title": CatalogEntry.title,
+        "issued": CatalogEntry.issued,
+        "modified": CatalogEntry.modified,
+        "ingested_at": CatalogEntry.ingested_at,
+        "updated_at": CatalogEntry.updated_at,
+    }
+
+    DATE_FIELD_MAP = {
+        "issued": CatalogEntry.issued,
+        "modified": CatalogEntry.modified,
+        "ingested_at": CatalogEntry.ingested_at,
+        "updated_at": CatalogEntry.updated_at,
+    }
 
     def save(self, db: Session, catalog_entry: CatalogEntry) -> CatalogEntry:
         """Save catalog_entry."""
@@ -150,6 +166,9 @@ class CatalogEntryRepository:
             CatalogEntry.updated_at,
         )
 
+        # Default sorting: most recently updated first
+        statement = statement.order_by(CatalogEntry.id.desc())  # type: ignore
+
         if limit is not None:
             statement = statement.limit(limit)
 
@@ -174,9 +193,37 @@ class CatalogEntryRepository:
         ]
 
     def search_catalog(
-        self, db: Session, query: Optional[str] = None, keyword: Optional[str] = None
+        self,
+        db: Session,
+        query: Optional[str] = None,
+        keyword: List[str] = [],
+        theme: List[str] = [],
+        date_field: Optional[str] = None,
+        date_from: Optional[date] = None,
+        date_to: Optional[date] = None,
+        offset: int = 0,
+        limit: int = 10,
+        sort_field: Optional[str] = None,
+        sort_order: Optional[Literal["asc", "desc"]] = None,
     ) -> List[CatalogEntrySummary]:
-        """검색 조건에 따른 카탈로그 엔트리 검색"""
+        """검색 조건에 따른 카탈로그 엔트리 검색.
+
+        Args:
+            db: 데이터베이스 세션
+            query: 제목, 설명 텍스트 검색어
+            keyword: 키워드 배열 (OR 조건)
+            theme: 주제 분류 배열 (OR 조건)
+            date_field: 날짜 필터링 대상 필드
+            date_from: 날짜 범위 시작일
+            date_to: 날짜 범위 종료일
+            offset: 검색 결과 시작 위치
+            limit: 검색 결과 최대 개수
+            sort_field: 정렬 필드
+            sort_order: 정렬 방향 (asc 또는 desc)
+
+        Returns:
+            카탈로그 엔트리 요약 목록
+        """
         statement = select(  # type: ignore
             CatalogEntry.id,
             CatalogEntry.title,
@@ -201,15 +248,62 @@ class CatalogEntryRepository:
             )
             conditions.append(text_condition)
 
-        # 키워드 필터 (PostgreSQL 배열 컬럼에서 ANY 검색)
+        # 키워드 필터 (PostgreSQL 배열 컬럼에서 ANY 검색, OR 조건)
         if keyword:
-            keyword_condition = CatalogEntry.keyword.any(keyword)  # type: ignore
-            conditions.append(keyword_condition)
+            keyword_conditions = [CatalogEntry.keyword.any(kw) for kw in keyword]  # type: ignore
+            conditions.append(or_(*keyword_conditions))
+
+        # 주제 필터 (PostgreSQL 배열 컬럼에서 ANY 검색, OR 조건)
+        if theme:
+            theme_conditions = [CatalogEntry.theme.any(t) for t in theme]  # type: ignore
+            conditions.append(or_(*theme_conditions))
+
+        # 날짜 범위 필터 (단일 필드 선택 방식)
+        if date_field and date_field in self.DATE_FIELD_MAP:
+            column = self.DATE_FIELD_MAP[date_field]
+
+            # datetime 필드의 경우 date를 datetime으로 변환
+            if date_field in ("ingested_at", "updated_at"):
+                if date_from:
+                    # date의 시작 시간 (00:00:00)으로 변환
+                    datetime_from = datetime.combine(date_from, datetime.min.time())
+                    conditions.append(column >= datetime_from)  # type: ignore
+                if date_to:
+                    # date의 종료 시간 (23:59:59.999999)으로 변환
+                    datetime_to = datetime.combine(date_to, datetime.max.time())
+                    conditions.append(column <= datetime_to)  # type: ignore
+            else:
+                # date 필드는 그대로 사용
+                if date_from:
+                    conditions.append(column >= date_from)  # type: ignore
+                if date_to:
+                    conditions.append(column <= date_to)  # type: ignore
 
         # 조건 적용
         if conditions:
             where_condition = and_(*conditions)
             statement = statement.where(where_condition)
+
+        # 정렬 조건 적용 (tie-breaker 포함)
+        order_columns = []
+
+        if sort_field and sort_field in self.ALLOWED_SORT_FIELDS:
+            column = self.ALLOWED_SORT_FIELDS[sort_field]
+            if sort_order == "asc":
+                order_columns.append(column.asc())
+            else:
+                order_columns.append(column.desc())
+        else:
+            # 기본 정렬: 최근 업데이트 순
+            order_columns.append(CatalogEntry.updated_at.desc())  # type: ignore
+
+        # 안정적 정렬을 위해 id를 tie-breaker로 추가 (최신순)
+        order_columns.append(CatalogEntry.id.desc())  # type: ignore
+
+        statement = statement.order_by(*order_columns)
+
+        # 페이지네이션 적용
+        statement = statement.offset(offset).limit(limit)
 
         # 결과 조회
         rows = db.exec(statement).all()
