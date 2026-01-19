@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict, Any, Iterable
+from typing import Any, Dict, Iterable, List
 
 from app.src.file_converter.converter import Converter
 from app.src.metadata_entry.model import MetadataBase
@@ -38,20 +38,24 @@ class JsonConverter(Converter):
 
     def _flatten_json(self, data: Dict[str, Any], parent_key: str = "", separator: str = ".") -> Dict[str, str]:
         """중첩된 JSON을 평면 구조로 변환"""
-        items = []
+        items = {}
 
         for key, value in data.items():
             new_key = f"{parent_key}{separator}{key}" if parent_key else key
 
             if isinstance(value, dict):
-                items.extend(self._flatten_json(value, new_key, separator).items())
+                items.update(self._flatten_json(value, new_key, separator).items())
             elif isinstance(value, list):
-                for i, item in enumerate(value):
+                primitive_list = []
+                for item in value:
                     if isinstance(item, dict):
-                        items.extend(self._flatten_json(item, f"{new_key}[{i}]", separator).items())
+                        items.update(self._flatten_json(item, new_key, separator).items())
                     else:
-                        items.append((f"{new_key}[{i}]", str(item)))
-            else:
-                items.append((new_key, str(value)))
+                        primitive_list.append(str(item))
+                if primitive_list:
+                    items[new_key] = ", ".join(primitive_list)
 
-        return dict(items)
+            else:
+                items[new_key] = str(value)
+
+        return items
