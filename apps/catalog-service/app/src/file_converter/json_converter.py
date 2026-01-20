@@ -47,9 +47,9 @@ class JsonConverter(Converter):
                 items.update(self._flatten_json(value, new_key, separator).items())
             elif isinstance(value, list):
                 primitive_list = []
-                for item in value:
+                for i, item in enumerate(value):
                     if isinstance(item, dict):
-                        items.update(self._flatten_json(item, new_key, separator).items())
+                        items.update(self._flatten_json(item, f"{new_key}[{i}]", separator).items())
                     else:
                         primitive_list.append(str(item))
                 if primitive_list:
