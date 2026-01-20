@@ -24,6 +24,7 @@ from app.src.metadata_entry.exceptions import (
 )
 from app.src.metadata_entry.model import MetadataCreate
 from app.src.metadata_entry.schemas import (
+    FilterKeyResponse,
     IngestBulkResponse,
     IngestResponse,
     MetadataBaseResponse,
@@ -33,6 +34,23 @@ from app.src.metadata_entry.schemas import (
 from app.src.workflow.dependencies import CatalogEntryTransformServiceDep
 
 router = APIRouter(prefix="/metadata", tags=["metadata"], route_class=ExceptionHandlingRoute)
+
+
+@router.get(
+    "/filters/schemas",
+    summary="메타데이터 필터 스키마 목록 조회",
+    response_model=APIResponseModel[FilterKeyResponse],
+)
+async def get_metadata_filter_keys(
+    session: SessionDep,
+    service: MetadataEntryServiceDep,
+):
+    """메타데이터 검색 시 사용 가능한 필터 스키마 목록을 조회합니다.
+
+    DB에 저장된 모든 고유한 `metadata_schema` 값을 반환합니다.
+    이 목록은 메타데이터 필터 UI 구성이나 검색 옵션 제공에 활용됩니다."""
+    filters = service.get_all_metadata_schemas(db=session)
+    return APIResponseModel(result={"filters": filters}, description=f"필터 스키마 목록 조회 완료. 총 {len(filters)}개")
 
 
 @router.get(
@@ -98,7 +116,12 @@ async def search_metadata_entries(
     조건이 없으면 전체 목록을 반환합니다.
 
     메타데이터는 원본 파일에서 추출된 `key-value` 쌍으로 저장되어 있으며,
-    동일한 `metadata_id`를 가진 엔트리들은 하나의 원본 파일에서 추출된 것입니다."""
+    동일한 `metadata_id`를 가진 엔트리들은 하나의 원본 파일에서 추출된 것입니다.
+
+    **사용 사례:**
+    1. 전체 목록 조회: 조건 없이 호출
+    2. 메타데이터 검색: `query`, `schema`, `metadata_id` 조건 제공
+    3. 필터 value 조회: `schema`만 지정하여 특정 key의 value 목록 조회"""
 
     # 검색 조건 존재 여부 확인
     has_search_params = bool(query or schema or metadata_id)
