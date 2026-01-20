@@ -106,7 +106,11 @@ class MetadataEntryRepository:
             .distinct()
         )
 
-        # db.exec(statement).all()은 [(id1,), (id2,), ...] 와 같이 튜플의 리스트를 반환함
-        # 각 튜플에서 첫 번째 요소를 추출하여 문자열 리스트로 반환
-        results = db.exec(statement).all()
-        return [result[0] for result in results]
+        results = db.exec(statement)
+        return list(results)
+
+    def get_all_distinct_metadata_schemas(self, db: Session) -> List[str]:
+        """전체 DB에서 고유한 metadata_schema 목록 조회."""
+        statement = select(MetadataEntry.metadata_schema).distinct()
+        results = db.exec(statement)
+        return list(results)

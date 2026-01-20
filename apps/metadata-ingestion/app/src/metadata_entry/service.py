@@ -55,3 +55,7 @@ class MetadataEntryService:
             result_items.append(item_dict)
 
         return result_items
+
+    def get_all_metadata_schemas(self, db: Session) -> List[str]:
+        """전체 DB에서 고유한 metadata_schema 목록 조회"""
+        return self.repository.get_all_distinct_metadata_schemas(db)
