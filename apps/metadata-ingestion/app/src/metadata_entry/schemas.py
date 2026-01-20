@@ -66,3 +66,9 @@ class PreviewResponse(BaseModel):
         description="매핑 후보 목록 (메타데이터 스키마별 카탈로그 컬럼 후보 및 연관성 점수)"
     )
     untyped: Dict[str, str] = Field(description="매핑되지 않은 메타데이터 (스키마명 -> 값)")
+
+
+class FilterKeyResponse(BaseModel):
+    """필터 key 목록 응답"""
+
+    filters: List[str] = Field(description="메타데이터 필터 key 목록", examples=[["publisher", "theme", "tags", "created_at"]])
