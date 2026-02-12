@@ -45,10 +45,8 @@ async def get_catalog_entry(
 @router.get(
     "/entries/raw-metadata/{catalog_entry_id}",
     summary="원본 메타데이터 조회",
-    response_model=APIResponseModel[str],
-    responses={
-        404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}
-    },
+    response_model=APIResponseModel[str | dict],
+    responses={404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}},
 )
 async def get_raw_metadata(
     session: SessionDep,
