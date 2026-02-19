@@ -1,0 +1,19 @@
+[project]
+name = "active-metadata"
+version = "0.1.0"
+description = "Shared DB schema models and transform logic"
+requires-python = ">=3.9"
+dependencies = [
+    "sqlmodel>=0.0.24",
+    "pandas>=2.2.3",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+dev-dependencies = [
+    "pytest>=8.3.3",
+    "pytest-cov>=5.0.0",
+]
