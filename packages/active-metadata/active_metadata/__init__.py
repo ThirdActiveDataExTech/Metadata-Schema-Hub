@@ -1,7 +1,8 @@
-"""Active Metadata Management - Shared Package
+"""Active Metadata Management - Shared Package.
 
 Provides shared database models and utilities for metadata management apps.
 """
+
 __version__ = "0.1.0"
 
 from active_metadata.models import CatalogEntryBase, ColumnRelationBase, MetadataBase

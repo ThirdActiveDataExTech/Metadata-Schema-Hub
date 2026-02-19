@@ -1,14 +1,14 @@
-"""Utility functions for data transformation"""
+"""Utility functions for data transformation."""
 import logging
-from typing import Any, List
+from typing import Any
 
 import pandas as pd
 
 __all__ = ["to_str_list"]
 
 
-def to_str_list(data: Any) -> List[str]:
-    """Convert various data types to string list
+def to_str_list(data: Any) -> list[str]:
+    """Convert various data types to string list.
 
     Handles: strings with separators, lists, pd.Series, etc.
 
