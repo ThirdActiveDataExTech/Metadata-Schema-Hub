@@ -5,12 +5,7 @@ from typing import List, Optional
 from sqlalchemy import TIMESTAMP, func
 from sqlmodel import SQLModel, Field, Column
 
-
-class MetadataBase(SQLModel):
-    """공통 필드를 정의한 베이스 모델"""
-
-    metadata_schema: str = Field(nullable=False)
-    value: Optional[str] = None
+from active_metadata.models import MetadataBase
 
 
 class MetadataEntry(MetadataBase, table=True):  # type: ignore

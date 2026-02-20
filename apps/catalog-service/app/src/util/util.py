@@ -1,8 +1,6 @@
 import json
-import logging
 from datetime import date, datetime
 from pathlib import Path
-from typing import Any, List
 
 import pandas as pd
 
@@ -38,7 +36,7 @@ def parse_date(date_str) -> date | None:
 
     try:
         # 다양한 날짜 형식 처리
-        for fmt in ['%Y-%m-%d', '%Y%m%d', '%d/%m/%Y', '%Y-%m-%dT%H:%M:%S', '%Y-%m-%dT%H:%M:%SZ']:
+        for fmt in ["%Y-%m-%d", "%Y%m%d", "%d/%m/%Y", "%Y-%m-%dT%H:%M:%S", "%Y-%m-%dT%H:%M:%SZ"]:
             try:
                 date_obj = datetime.strptime(str(date_str)[:19], fmt)
                 return date_obj.date()
@@ -48,58 +46,6 @@ def parse_date(date_str) -> date | None:
         print(f"날짜 파싱 오류: {date_str}, {e}")
 
     return None
-
-
-def to_str_list(data: Any) -> List[str]:
-    """다양한 타입의 데이터를 문자열 리스트로 변환
-
-    Args:
-        data: 변환할 데이터 (문자열, 리스트, pd.Series 등)
-
-    Returns:
-        List[str]: 변환된 문자열 리스트
-    """
-    # 빈 값 처리
-    if not data:
-        return []
-
-    # Series 처리 (순환 참조 없이 직접 처리)
-    if isinstance(data, pd.Series):
-        # 단일 값 또는 여러 값 처리
-        if len(data) == 1:
-            return to_str_list(data.iloc[0])
-
-        # Series 값을 리스트로 변환하여 처리
-        data = [v for v in data.values if not pd.isna(v)]
-        # 빈 리스트인 경우 조기 반환
-        if not data:
-            return []
-
-    # 리스트 처리
-    if isinstance(data, list):
-        return [str(item).strip() for item in data if str(item).strip()]
-
-    # 문자열 처리
-    if isinstance(data, str):
-        data = data.strip()
-        if not data:
-            return []
-
-        # 구분자 처리
-        separators = [",", ";", "/", "|"]
-        for sep in separators:
-            if sep in data:
-                return [item.strip() for item in data.split(sep) if item.strip()]
-
-        return [data]
-
-    # 기타 타입 처리
-    try:
-        str_value = str(data).strip()
-        return [str_value] if str_value else []
-    except Exception as e:
-        logging.error(f"문자열 리스트 변환 오류: {e}")
-        return []
 
 
 def sample_data(df_path: str, output_dir: str | Path, sample_size: int = 5) -> str:

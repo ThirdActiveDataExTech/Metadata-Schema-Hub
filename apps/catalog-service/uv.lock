@@ -28,6 +28,10 @@ dev = [
     { name = "pytest", specifier = ">=8.3.3" },
     { name = "pytest-cov", specifier = ">=5.0.0" },
 ]
+lint = [
+    { name = "pyright", specifier = ">=1.1.397" },
+    { name = "ruff", specifier = ">=0.6.4,<1.0.0" },
+]
 
 [[package]]
 name = "annotated-types"
