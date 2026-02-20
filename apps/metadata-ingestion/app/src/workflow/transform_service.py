@@ -1,13 +1,12 @@
 import logging
-from typing import List
+from typing import Any, Dict, List
 
-from sqlmodel import Session
-
+from app.dependencies import SessionDep
 from app.src.catalog_entry.model import CatalogEntry, CatalogEntryUpdate
 from app.src.catalog_entry.service import CatalogEntryService
 from app.src.column_relation.model import ColumnRelation
 from app.src.column_relation.service import ColumnRelationService
-from app.src.metadata_entry.model import MetadataBase
+from app.src.metadata_entry.model import MetadataEntry
 from app.src.metadata_entry.service import MetadataEntryService
 
 
@@ -25,67 +24,64 @@ class CatalogEntryTransformService:
         self.column_relation_service = column_relation_service
         self.metadata_entry_service = metadata_entry_service
 
-    def _set_catalog_entry_fields(
+    def _apply_metadata_to_update(
         self,
-        catalog_entry: CatalogEntry,
-        metadata_bases: List[MetadataBase],
-        related_relations: List[ColumnRelation],
-        preserve_existing: bool = False,
-    ) -> CatalogEntry:
-        catalog_entry_update = CatalogEntryUpdate()
+        catalog_entry_update: CatalogEntryUpdate,
+        metadata_entries: List[MetadataEntry],
+        relations: List[ColumnRelation],
+    ) -> None:
+        """메타데이터를 catalog entry update에 직접 적용."""
+        # Dict 변환 (O(1) 조회를 위해)
+        metadata_dict: Dict[str, Any] = {entry.metadata_schema: entry.value for entry in metadata_entries}
+
         processed_columns = set()
 
-        if preserve_existing:
-            for field in catalog_entry.model_fields:
-                catalog_entry_update.set_field(field, getattr(catalog_entry, field))
-                processed_columns.add(field)
+        # Sort by correlation (highest first)
+        sorted_relations = sorted(relations, key=lambda r: r.correlation if r.correlation else 0, reverse=True)
 
-        metadata_schema_dict = {item.metadata_schema: item.value for item in metadata_bases}
-
-        for relation in related_relations:
-            # 이미 처리된 catalog_column은 스킵 (highest correlation 유지)
+        for relation in sorted_relations:
+            # Skip already processed columns (maintain highest correlation)
             if relation.catalog_column in processed_columns:
                 continue
 
-            metadata_value = metadata_schema_dict.get(relation.metadata_column)
-            if metadata_value and relation.catalog_column in catalog_entry_update.model_fields:
-                catalog_entry_update.set_field(relation.catalog_column, metadata_value)
-                processed_columns.add(relation.catalog_column)
-
-        return catalog_entry_update.apply_to_catalog_entry(catalog_entry=catalog_entry)
-
-    def update_catalog_entry_from_metadata_and_relation(
-        self,
-        db: Session,
-        catalog_entry_id: int,
-    ) -> CatalogEntry:
-        """CatalogEntry 를 메타데이터와 컬럼 관계 기반으로 매핑함."""
-        catalog_entry = self.catalog_entry_service.get_catalog_entry(db, catalog_entry_id)
-
-        metadata_entries = self.metadata_entry_service.select_metadata(db, catalog_entry.identifier)
-        metadata_dict = {item.metadata_schema: item.value for item in metadata_entries}
-
-        all_relations = self.column_relation_service.get_relations_by_metadata_columns(db, list(metadata_dict.keys()))
-
-        catalog_entry_update = CatalogEntryUpdate()
-        processed_columns = set()  # 이미 처리된 catalog_column 추적
-
-        for relation in all_relations:
-            # 이미 처리된 catalog_column은 스킵 (highest correlation 유지)
-            if relation.catalog_column in processed_columns:
+            # Skip invalid fields
+            if relation.catalog_column not in CatalogEntryUpdate.model_fields:
                 continue
 
             metadata_value = metadata_dict.get(relation.metadata_column)
-            if metadata_value and relation.catalog_column in catalog_entry_update.model_fields:
+            if metadata_value is not None:
                 catalog_entry_update.set_field(relation.catalog_column, metadata_value)
                 processed_columns.add(relation.catalog_column)
 
-        return self.catalog_entry_service.update_catalog_entry(db, catalog_entry.id, catalog_entry_update)
+    def transform_catalog_entry(
+        self,
+        db: SessionDep,
+        catalog_entry_id: int,
+    ) -> CatalogEntry:
+        """CatalogEntry를 메타데이터와 컬럼 관계 기반으로 변환."""
+        catalog_entry = self.catalog_entry_service.get_catalog_entry(db, catalog_entry_id)
+        metadata_entries = self.metadata_entry_service.select_metadata(db, catalog_entry.identifier)
 
-    def update_catalog_entry_from_metadata_and_relation_bulk(
-        self, db: Session, catalog_entry_identifiers: List[str]
-    ) -> None:
-        """CatalogEntry 를 메타데이터와 컬럼 관계 기반으로 매핑함."""
+        if not metadata_entries:
+            logging.warning(f"No metadata found for catalog_entry_id={catalog_entry_id}")
+            return catalog_entry
+
+        # Get relations for all metadata schemas
+        metadata_schemas = [entry.metadata_schema for entry in metadata_entries]
+        all_relations = self.column_relation_service.get_relations_by_metadata_columns(db, metadata_schemas)
+
+        # Apply transformation
+        catalog_entry_update = CatalogEntryUpdate()
+        self._apply_metadata_to_update(catalog_entry_update, metadata_entries, all_relations)
+
+        # Update if any fields were set
+        if any(getattr(catalog_entry_update, field) is not None for field in CatalogEntryUpdate.model_fields):
+            return self.catalog_entry_service.update_catalog_entry(db, catalog_entry.id, catalog_entry_update)
+
+        return catalog_entry
+
+    def transform_catalog_entries_bulk(self, db: SessionDep, catalog_entry_identifiers: List[str]) -> None:
+        """CatalogEntry들을 메타데이터와 컬럼 관계 기반으로 벌크 변환."""
         if not catalog_entry_identifiers:
             logging.warning("Empty catalog_entry_identifiers in bulk transform.")
             return
@@ -100,25 +96,17 @@ class CatalogEntryTransformService:
         catalog_entry_updates = []
 
         for catalog_entry in catalog_entries:
-            current_schema = [e for e in metadata_entries if e.metadata_id == catalog_entry.identifier]
-            metadata_dict = {item.metadata_schema: item.value for item in current_schema}
-            current_relations = [r for r in all_relations if r.metadata_column in metadata_dict.keys()]
+            current_metadata = [e for e in metadata_entries if e.metadata_id == catalog_entry.identifier]
 
+            # Apply transformation
             catalog_entry_update = CatalogEntryUpdate()
-            processed_columns = set()
-            for relation in current_relations:
-                # 이미 처리된 catalog_column은 스킵 (highest correlation 유지)
-                if relation.catalog_column in processed_columns:
-                    continue
+            self._apply_metadata_to_update(catalog_entry_update, current_metadata, all_relations)
 
-                metadata_value = metadata_dict.get(relation.metadata_column)
-                if metadata_value and relation.catalog_column in catalog_entry_update.model_fields:
-                    catalog_entry_update.set_field(relation.catalog_column, metadata_value)
-                    processed_columns.add(relation.catalog_column)
+            # Prepare update dict if any fields were set
+            if any(getattr(catalog_entry_update, field) is not None for field in CatalogEntryUpdate.model_fields):
+                update_dict = catalog_entry_update.model_dump(exclude_none=True)
+                update_dict["id"] = catalog_entry.id
+                catalog_entry_updates.append(update_dict)
 
-            update_mapping = catalog_entry_update.model_dump_for_update()
-            if update_mapping:
-                update_mapping["id"] = catalog_entry.id
-                catalog_entry_updates.append(update_mapping)
-
-        self.catalog_entry_service.update_catalog_entry_bulk(db, catalog_entry_updates)
+        if catalog_entry_updates:
+            self.catalog_entry_service.update_catalog_entry_bulk(db, catalog_entry_updates)

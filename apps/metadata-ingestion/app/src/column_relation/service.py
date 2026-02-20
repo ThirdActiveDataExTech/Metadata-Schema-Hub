@@ -2,7 +2,9 @@ from typing import List, Tuple
 
 from sqlmodel import Session
 
-from app.src.column_relation.model import ColumnRelation, ColumnRelationBase
+from active_metadata.models import ColumnRelationBase
+
+from app.src.column_relation.model import ColumnRelation
 from app.src.column_relation.repository import ColumnRelationRepository
 
 
@@ -15,7 +17,7 @@ class ColumnRelationService:
 
     def create_single_relation(self, db: Session, relation: ColumnRelationBase) -> ColumnRelation:
         """Create single column relation."""
-        return self.repository.save(db, relation.to_table_model())
+        return self.repository.save(db, ColumnRelation.model_validate(relation))
 
     def create_relations(self, db: Session, relations: List[ColumnRelationBase]) -> List[ColumnRelation]:
         """Create ColumnRelation from ML prediction results.
@@ -24,7 +26,7 @@ class ColumnRelationService:
             db: Database session
             relations: List of ColumnRelations (catalog_column, metadata_column, correlation)
         """
-        return self.repository.save_bulk(db, [relation.to_table_model() for relation in relations])
+        return self.repository.save_bulk(db, [ColumnRelation.model_validate(relation) for relation in relations])
 
     def get_relations_by_catalog_column(self, db: Session, catalog_column: str) -> List[ColumnRelation]:
         """Get relations by catalog column."""

@@ -256,7 +256,7 @@ async def ingest_metadata(
         ),
     )
 
-    catalog_result = transform_service.update_catalog_entry_from_metadata_and_relation(
+    catalog_result = transform_service.transform_catalog_entry(
         db=session, catalog_entry_id=catalog_draft.id
     )
 
@@ -325,7 +325,7 @@ async def ingest_metadata_bulk(
     catalog_service.create_catalog_entry_bulk(db=session, catalog_entries=[entry.model_dump() for entry, _ in iterables])
     metadata_service.create_bulk(db=session, metadata_create_list=[metadata_create for _, metadata_create in iterables])
 
-    transform_service.update_catalog_entry_from_metadata_and_relation_bulk(
+    transform_service.transform_catalog_entries_bulk(
         db=session, catalog_entry_identifiers=[entry.identifier for entry, _ in iterables]
     )
 
@@ -508,7 +508,7 @@ async def ingest_form(
         ),
     )
 
-    catalog_result = transform_service.update_catalog_entry_from_metadata_and_relation(
+    catalog_result = transform_service.transform_catalog_entry(
         db=session, catalog_entry_id=catalog_draft.id
     )
 
