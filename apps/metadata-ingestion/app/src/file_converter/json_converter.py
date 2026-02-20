@@ -2,7 +2,7 @@ import json
 from typing import Any, Dict, Iterable, List
 
 from app.src.file_converter.converter import Converter
-from app.src.metadata_entry.model import MetadataBase
+from app.src.metadata_entry.model import MetadataSchema
 
 
 class JsonConverter(Converter):
@@ -16,13 +16,12 @@ class JsonConverter(Converter):
         """JSON 콘텐츠를 딕셔너리로 변환"""
         return json.loads(content)
 
-    def convert_to_metadata_bases(self, json_content: str | bytes | dict) -> List[MetadataBase]:
-        """JSON을 MetadataBase로 변환"""
-        if not isinstance(json_content, dict):
-            try:
-                json_content = json.loads(json_content)
-            except json.JSONDecodeError as e:
-                raise ValueError(f"JSON 파싱 오류: {e}")
+    def convert_to_metadata_schemas(self, content: bytes) -> List[MetadataSchema]:
+        """JSON을 MetadataSchema로 변환"""
+        try:
+            json_content = json.loads(content)
+        except json.JSONDecodeError as e:
+            raise ValueError(f"JSON 파싱 오류: {e}")
 
         # JSON 평면화
         flattened_data = self._flatten_json(json_content)
@@ -33,7 +32,7 @@ class JsonConverter(Converter):
             if not value or value.strip() == "":
                 continue  # 빈 값 제외
 
-            result.append(MetadataBase(metadata_schema=schema, value=value.strip()))
+            result.append(MetadataSchema(metadata_schema=schema, value=value.strip()))
 
         return result
 

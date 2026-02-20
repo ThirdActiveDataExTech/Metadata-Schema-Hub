@@ -6,43 +6,15 @@ from typing import Any, Dict, List, Optional
 from active_metadata.models import CatalogEntryBase
 from active_metadata.utils import to_str_list
 from pydantic import BaseModel
-from sqlalchemy import func
-from sqlalchemy.dialects.postgresql import TIMESTAMP
-from sqlmodel import Column, Field
+from sqlmodel import Field
 
 KST = timezone(timedelta(hours=9))
 
 
 class CatalogEntry(CatalogEntryBase, table=True):  # pyright: ignore
-    """CatalogEntry table model with timestamps and RDF export."""
+    """CatalogEntry table model."""
 
     __tablename__: str = "catalog_entry"  # pyright: ignore
-
-    id: Optional[int] = Field(default=None, primary_key=True)
-    ingested_at: Optional[datetime] = Field(
-        default=None,
-        sa_column=Column(
-            TIMESTAMP(timezone=True),
-            server_default=func.now(),
-            nullable=False,
-        ),
-    )
-    updated_at: Optional[datetime] = Field(
-        default=None,
-        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False),
-    )
-
-    @classmethod
-    def get_list_fields(cls) -> List[str]:
-        """List[str] 타입인 필드명들을 반환
-
-        Returns:
-            List[str]: List[str] 타입으로 정의된 필드명 목록
-
-        Note:
-            컬럼 변경시 직접 변경 필요
-        """
-        return ["keyword", "theme"]
 
     def get_rdf_dict(self) -> dict[str, Any]:
         """catalog_entry 를 DCAT 기반의 json-ld 로 변환하여 반환"""

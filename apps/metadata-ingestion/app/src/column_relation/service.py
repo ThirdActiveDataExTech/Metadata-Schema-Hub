@@ -1,8 +1,7 @@
 from typing import List, Tuple
 
-from sqlmodel import Session
-
 from active_metadata.models import ColumnRelationBase
+from sqlmodel import Session
 
 from app.src.column_relation.model import ColumnRelation
 from app.src.column_relation.repository import ColumnRelationRepository

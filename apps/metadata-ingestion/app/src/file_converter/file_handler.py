@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Tuple
 
 from app.src.file_converter.json_converter import JsonConverter
 from app.src.file_converter.xml_converter import LxmlConverter
-from app.src.metadata_entry.model import MetadataBase
+from app.src.metadata_entry.model import MetadataSchema
 
 json_converter = JsonConverter()
 xml_converter = LxmlConverter()
@@ -52,13 +52,13 @@ def extract_zip(zip_file: MetadataFile) -> List[MetadataFile]:
         raise ValueError("Invalid ZIP file format.") from e
 
 
-def process_metadata_file(file: MetadataFile) -> Tuple[Dict[str, Any], List[MetadataBase]]:
+def process_metadata_file(file: MetadataFile) -> Tuple[Dict[str, Any], List[MetadataSchema]]:
     """Process a metadata file based on its extension."""
     try:
         if file.get_extension() in json_converter.get_supported_extensions():
-            return json_converter.convert_to_dict(file.content), json_converter.convert_to_metadata_bases(file.content)
+            return json_converter.convert_to_dict(file.content), json_converter.convert_to_metadata_schemas(file.content)
         elif file.get_extension() in xml_converter.get_supported_extensions():
-            return xml_converter.convert_to_dict(file.content), xml_converter.convert_to_metadata_bases(file.content)
+            return xml_converter.convert_to_dict(file.content), xml_converter.convert_to_metadata_schemas(file.content)
         else:
             raise ValueError(f"Unsupported file type: {file.get_extension}")
     except Exception as e:
@@ -67,7 +67,7 @@ def process_metadata_file(file: MetadataFile) -> Tuple[Dict[str, Any], List[Meta
 
 def process_metadata_files(
     files: List[MetadataFile],
-) -> Tuple[List[Tuple[Dict[str, Any], List[MetadataBase]]], List[Dict[str, str]]]:
+) -> Tuple[List[Tuple[Dict[str, Any], List[MetadataSchema]]], List[Dict[str, str]]]:
     """Process multiple metadata files and return their contents and errors if any."""
     metadata_files: List[MetadataFile] = []
     errors = []
