@@ -1,4 +1,5 @@
 """Unit tests for utility functions."""
+
 import pandas as pd
 
 from active_metadata.utils import to_str_list
@@ -12,6 +13,7 @@ def test_to_str_list_with_string():
 def test_to_str_list_with_comma_separated():
     """Test with comma-separated string."""
     assert to_str_list("a, b, c") == ["a", "b", "c"]
+    assert to_str_list("a,b,c") == ["a", "b", "c"]
 
 
 def test_to_str_list_with_list():

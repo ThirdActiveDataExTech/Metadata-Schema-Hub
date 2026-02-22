@@ -49,6 +49,12 @@ def test_metadata_base_optional_ingested_at():
     assert m_with_timestamp.ingested_at == now
 
 
+def test_metadata_base_empty_string():
+    """Test MetadataBase with empty string value."""
+    m = MetadataBase(metadata_schema="dc.title", value="", metadata_id="test-uuid")
+    assert m.value == ""
+
+
 def test_catalog_entry_base_minimal():
     """Test CatalogEntryBase with minimal required fields."""
     e = CatalogEntryBase(identifier="test-id")
@@ -74,7 +80,14 @@ def test_catalog_entry_base_with_all_fields():
     )
     assert e.identifier == "test-id"
     assert e.title == "Test Dataset"
+    assert e.description == "Test Description"
+    assert e.issued == date(2024, 1, 1)
+    assert e.modified == date(2024, 1, 15)
+    assert e.publisher == "Test Publisher"
     assert e.keyword == ["data", "science"]
+    assert e.landing_page == "https://example.com"
+    assert e.theme == ["education", "research"]
+    assert e.access_url == "https://data.example.com"
     assert e.raw_metadata["source"] == "test"
 
 
