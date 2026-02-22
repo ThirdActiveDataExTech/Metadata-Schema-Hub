@@ -19,6 +19,7 @@ def test_to_str_list_with_comma_separated():
 def test_to_str_list_with_list():
     """Test with list input."""
     assert to_str_list(["x", "y", "z"]) == ["x", "y", "z"]
+    assert to_str_list([1, "y", "z"]) == ["1", "y", "z"]
 
 
 def test_to_str_list_with_empty():
@@ -39,4 +40,12 @@ def test_to_str_list_with_pandas_series_multiple():
     series = pd.Series(["a", "b", "c"])
     result = to_str_list(series)
     assert len(result) == 3
-    assert "a" in result
+    assert result == ["a", "b", "c"]
+
+
+def test_to_str_list_with_mixed_types():
+    """Test with mixed data types in pandas Series."""
+    series = pd.Series([1, "text", 3.14])
+    result = to_str_list(series)
+    assert len(result) == 3
+    assert result == ["1", "text", "3.14"]
