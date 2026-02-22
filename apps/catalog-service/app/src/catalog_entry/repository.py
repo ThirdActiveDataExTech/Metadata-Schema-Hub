@@ -1,6 +1,6 @@
 import json
 from datetime import date, datetime
-from typing import Any, Dict, List, Literal, Optional
+from typing import List, Literal, Optional
 
 from sqlalchemy import and_, or_
 from sqlmodel import Session, select
@@ -26,11 +26,6 @@ class CatalogEntryRepository:
         "ingested_at": CatalogEntry.ingested_at,
         "updated_at": CatalogEntry.updated_at,
     }
-
-    def save(self, db: Session, catalog_entry: CatalogEntry) -> CatalogEntry:
-        """Save catalog_entry."""
-        db.add(catalog_entry)
-        return catalog_entry
 
     def select(self, db: Session, catalog_entry_id: int) -> CatalogEntry:
         """Select catalog_entry."""
@@ -325,17 +320,3 @@ class CatalogEntryRepository:
             )
             for row in rows
         ]
-
-    def create_bulk(self, db: Session, creates: List[Dict[str, Any]]) -> None:
-        """Bulk create using SQLAlchemy Core for performance"""
-        if not creates:
-            return
-
-        db.bulk_insert_mappings(CatalogEntry, creates)
-
-    def update_bulk(self, db: Session, updates: List[Dict[str, Any]]) -> None:
-        """Bulk update using SQLAlchemy Core for performance"""
-        if not updates:
-            return
-
-        db.bulk_update_mappings(CatalogEntry, updates)

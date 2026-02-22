@@ -1,6 +1,5 @@
 from typing import List
 
-from sqlalchemy import insert
 from sqlmodel import Session, select
 
 from app.src.column_relation.model import ColumnRelation
@@ -8,46 +7,6 @@ from app.src.column_relation.model import ColumnRelation
 
 class ColumnRelationRepository:
     """ColumnRelationRepository."""
-
-    def save(self, db: Session, column_relation: ColumnRelation) -> ColumnRelation:
-        """Save column_relation."""
-        db.add(column_relation)
-        db.commit()
-        db.refresh(column_relation)
-        return column_relation
-
-    def save_bulk(self, db: Session, column_relations: List[ColumnRelation]) -> List[ColumnRelation]:
-        """Save column_relations."""
-        values = [
-            {
-                "catalog_column": relation.catalog_column,
-                "correlation": relation.correlation,
-                "metadata_column": relation.metadata_column,
-            }
-            for relation in column_relations
-        ]
-
-        # 특정 컬럼만 returning
-        stmt = (
-            insert(ColumnRelation)
-            .values(values)
-            .returning(  # pyright: ignore
-                ColumnRelation.id, ColumnRelation.catalog_column, ColumnRelation.correlation, ColumnRelation.metadata_column
-            )
-        )
-        rows = db.exec(stmt).all()
-        db.commit()
-
-        # Row를 ColumnRelation으로 변환
-        return [
-            ColumnRelation(
-                id=row.id,
-                catalog_column=row.catalog_column,
-                correlation=row.correlation,
-                metadata_column=row.metadata_column,
-            )
-            for row in rows
-        ]
 
     def select_relations_by_catalog_column(self, db: Session, catalog_column: str) -> List[ColumnRelation]:
         """Select relations by catalog column."""
@@ -84,17 +43,6 @@ class ColumnRelationRepository:
         statement = select(ColumnRelation)
         results = db.exec(statement).all()
         return list(results)
-
-    def delete_relations_by_catalog_column(self, db: Session, catalog_column: str) -> int:
-        """Delete relations by catalog column. Returns deleted count."""
-        statement = select(ColumnRelation).where(ColumnRelation.catalog_column == catalog_column)
-        relations = db.exec(statement).all()
-        count = len(relations)
-
-        for relation in relations:
-            db.delete(relation)
-        db.commit()
-        return count
 
     def select_relations_by_metadata_columns(self, db: Session, metadata_columns: List[str]) -> List[ColumnRelation]:
         """Select relations by metadata columns."""

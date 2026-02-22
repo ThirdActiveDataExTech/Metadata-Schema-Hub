@@ -6,7 +6,7 @@ import pandas as pd
 import xmltodict
 from sqlmodel import Session
 
-from app.src.catalog_entry.model import CatalogEntry, CatalogEntryCreate, CatalogEntrySummary
+from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary
 from app.src.catalog_entry.repository import CatalogEntryRepository
 
 
@@ -16,16 +16,6 @@ class CatalogEntryService:
     def __init__(self, repository: CatalogEntryRepository):
         """Connect Repository."""
         self.repository = repository
-
-    def create_catalog_entry_draft(self, db: Session, catalog_entry_create: CatalogEntryCreate) -> CatalogEntry:
-        """CatalogEntry 초안 생성."""
-        catalog_entry = CatalogEntry(
-            identifier=catalog_entry_create.identifier,
-            raw_metadata=catalog_entry_create.raw_metadata,
-            ingested_at=catalog_entry_create.ingested_at,
-        )
-        catalog_entry = self.repository.save(db, catalog_entry)
-        return catalog_entry
 
     def get_catalog_entry(self, db: Session, catalog_entry_id: int) -> CatalogEntry:
         """Get Catalog Entry."""
