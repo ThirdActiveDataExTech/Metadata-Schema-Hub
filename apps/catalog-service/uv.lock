@@ -9,6 +9,31 @@ resolution-markers = [
 ]
 
 [[package]]
+name = "active-metadata"
+version = "0.1.0"
+source = { editable = "../../packages/active-metadata" }
+dependencies = [
+    { name = "pandas" },
+    { name = "sqlmodel" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pandas", specifier = ">=2.2.3" },
+    { name = "sqlmodel", specifier = ">=0.0.24" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.3.3" },
+    { name = "pytest-cov", specifier = ">=5.0.0" },
+]
+lint = [
+    { name = "pyright", specifier = ">=1.1.397" },
+    { name = "ruff", specifier = ">=0.6.4,<1.0.0" },
+]
+
+[[package]]
 name = "annotated-types"
 version = "0.7.0"
 source = { registry = "https://pypi.org/simple" }
@@ -37,6 +62,7 @@ name = "catalog-service"
 version = "1"
 source = { virtual = "." }
 dependencies = [
+    { name = "active-metadata" },
     { name = "fastapi", extra = ["standard"] },
     { name = "loguru" },
     { name = "lxml" },
@@ -71,6 +97,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
+    { name = "active-metadata", editable = "../../packages/active-metadata" },
     { name = "fastapi", extras = ["standard"], specifier = "<=0.115.0" },
     { name = "loguru", specifier = ">=0.7.2,<1.0.0" },
     { name = "lxml", specifier = ">=5.4.0" },

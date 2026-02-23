@@ -1,8 +1,8 @@
 services:
   catalog-service:
     build:
-      context: ./apps/catalog-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/catalog-service/Dockerfile
     image: catalog-service:dev
     restart: unless-stopped
     environment:
@@ -21,8 +21,8 @@ services:
 
   metadata-ingestion:
     build:
-      context: ./apps/metadata-ingestion
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/metadata-ingestion/Dockerfile
     image: metadata-ingestion:dev
     restart: unless-stopped
     environment:

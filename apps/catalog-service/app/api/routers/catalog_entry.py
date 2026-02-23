@@ -12,7 +12,6 @@ from app.schemas.response import APIResponseModel
 from app.src.catalog_entry.dependencies import CatalogEntryServiceDep
 from app.src.catalog_entry.model import CatalogEntrySummary
 from app.src.catalog_entry.schemas import CatalogEntryResponse
-from app.src.workflow.dependencies import CatalogEntryTransformServiceDep
 
 router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=ExceptionHandlingRoute)
 
@@ -336,30 +335,3 @@ async def export_catalog_entries_csv(
     )
 
 
-@router.put(
-    "/match/relations/{catalog_entry_id}",
-    summary="컬럼 관계 기반 카탈로그 갱신",
-    response_model=APIResponseModel[CatalogEntryResponse],
-    responses={
-        404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}
-    },
-)
-async def match_relations(
-    session: SessionDep,
-    catalog_transform_service: CatalogEntryTransformServiceDep,
-    catalog_entry_id: int = Path(
-        title="카탈로그 엔트리 ID",
-        description="갱신할 카탈로그 엔트리의 고유 식별 번호",
-        example=31,
-        ge=1,
-    ),
-):
-    """컬럼 관계 정보를 기반으로 카탈로그 엔트리를 갱신합니다.
-
-    메타데이터 엔트리와 `column_relation` 테이블의 매핑 정보를 이용하여
-    카탈로그 엔트리의 DCAT 표준 필드들을 자동으로 갱신합니다.
-    이 API는 메타데이터 수집 후 자동으로 호출되며, 수동으로 재매핑이 필요한 경우에도 사용할 수 있습니다."""
-    updated_catalog_entry = catalog_transform_service.update_catalog_entry_from_metadata_and_relation(
-        db=session, catalog_entry_id=catalog_entry_id
-    )
-    return APIResponseModel(result=updated_catalog_entry, description="카탈로그 엔트리 갱신됨")

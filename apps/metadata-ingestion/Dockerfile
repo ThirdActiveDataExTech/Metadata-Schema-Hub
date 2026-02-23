@@ -2,14 +2,17 @@ FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS builder-base
 
 ENV PYTHONUNBUFFERED=1 \
     # prevents python creating .pyc files
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    # prevent venv location mismatch
+    UV_PROJECT_ENVIRONMENT=/app/.venv
 
-WORKDIR /app
+WORKDIR /app/apps/metadata-ingestion
 
-COPY uv.lock pyproject.toml ./
+COPY packages/active-metadata /app/packages/active-metadata/
+COPY apps/metadata-ingestion/pyproject.toml apps/metadata-ingestion/uv.lock ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --link-mode=copy
+    uv sync --frozen --no-editable --link-mode=copy
 
 
 # `production` image used for runtime
@@ -28,7 +31,6 @@ WORKDIR $APP_HOME
 RUN chown -R $APP_USER:$GROUP_NAME $APP_HOME
 
 # Set environment variables
-ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Seoul \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
@@ -39,10 +41,10 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 USER $APP_USER
 
 # Copy necessary files and directory
-COPY --from=builder-base $VIRTUAL_ENV $VIRTUAL_ENV
-COPY pyproject.toml version_info.py .env ./
-COPY ./static ./static/
-COPY ./app ./app/
+COPY --from=builder-base /app/.venv $VIRTUAL_ENV
+COPY apps/metadata-ingestion/pyproject.toml apps/metadata-ingestion/version_info.py apps/metadata-ingestion/.env ./
+COPY apps/metadata-ingestion/static ./static/
+COPY apps/metadata-ingestion/app ./app/
 
 # Expose the port
 EXPOSE 8085

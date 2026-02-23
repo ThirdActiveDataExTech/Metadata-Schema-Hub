@@ -1,12 +1,12 @@
 import io
 from datetime import date
-from typing import Any, Dict, List, Literal, Optional
+from typing import Any, List, Literal, Optional
 
 import pandas as pd
 import xmltodict
 from sqlmodel import Session
 
-from app.src.catalog_entry.model import CatalogEntry, CatalogEntryCreate, CatalogEntrySummary, CatalogEntryUpdate
+from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary
 from app.src.catalog_entry.repository import CatalogEntryRepository
 
 
@@ -16,35 +16,6 @@ class CatalogEntryService:
     def __init__(self, repository: CatalogEntryRepository):
         """Connect Repository."""
         self.repository = repository
-
-    def create_catalog_entry(self, db: Session, catalog_entry: CatalogEntry) -> CatalogEntry:
-        """CatalogEntry 생성."""
-        return self.repository.save(db, catalog_entry)
-
-    def create_catalog_entry_draft(self, db: Session, catalog_entry_create: CatalogEntryCreate) -> CatalogEntry:
-        """CatalogEntry 초안 생성."""
-        catalog_entry = CatalogEntry(
-            identifier=catalog_entry_create.identifier,
-            raw_metadata=catalog_entry_create.raw_metadata,
-            ingested_at=catalog_entry_create.ingested_at,
-        )
-        catalog_entry = self.repository.save(db, catalog_entry)
-        return catalog_entry
-
-    def update_catalog_entry(
-        self, db: Session, catalog_entry_id: int, catalog_entry_update: CatalogEntryUpdate
-    ) -> CatalogEntry:
-        """CatalogEntry 업데이트."""
-        if not catalog_entry_update.has_changes():
-            return self.repository.select(db, catalog_entry_id)
-
-        catalog_entry = self.repository.select(db, catalog_entry_id)
-        update_data = catalog_entry_update.model_dump_for_update()
-
-        for field, value in update_data.items():
-            setattr(catalog_entry, field, value)
-
-        return self.repository.save(db, catalog_entry)
 
     def get_catalog_entry(self, db: Session, catalog_entry_id: int) -> CatalogEntry:
         """Get Catalog Entry."""
@@ -153,11 +124,3 @@ class CatalogEntryService:
             sort_field=sort_field,
             sort_order=sort_order,
         )
-
-    def create_catalog_entry_bulk(self, db: Session, catalog_entries: List[Dict[str, Any]]) -> None:
-        """CatalogEntry bulk 생성."""
-        self.repository.create_bulk(db, catalog_entries)
-
-    def update_catalog_entry_bulk(self, db: Session, catalog_entries: List[Dict[str, Any]]) -> None:
-        """CatalogEntry bulk 업데이트."""
-        self.repository.update_bulk(db, catalog_entries)

@@ -1,0 +1,90 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "active-metadata"
+version = "0.1.0"
+description = "Shared DB schema models and utilities for metadata management"
+requires-python = ">=3.9"
+dependencies = [
+    "sqlmodel>=0.0.24",
+    "pandas>=2.2.3",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.3",
+    "pytest-cov>=5.0.0",
+]
+lint = [
+    "ruff>=0.6.4,<1.0.0",
+    "pyright>=1.1.397",
+]
+
+[tool.ruff]
+line-length = 125
+exclude = [
+    '.git',
+    '__pycache__',
+    '.ruff_cache',
+    'build',
+    'dist',
+    '.venv',
+]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "D",   # pydocstyle (docstrings)
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+]
+ignore = [
+    "D203",  # one-blank-line-before-class (conflicts with D211)
+    "D213",  # multi-line-summary-second-line (conflicts with D212)
+]
+
+[tool.ruff.lint.pydocstyle]
+convention = "google"
+
+[tool.ruff.lint.mccabe]
+max-complexity = 8
+
+[tool.pyright]
+pythonVersion = "3.11"
+typeCheckingMode = "standard"
+reportMissingTypeStubs = false
+include = ["active_metadata", "tests"]
+exclude = [
+    '.git',
+    '__pycache__',
+    '.ruff_cache',
+    '.pytest_cache',
+    'build',
+    'dist',
+    '.venv',
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["active_metadata"]
+omit = ["tests/*"]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise AssertionError",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+]
