@@ -14,7 +14,6 @@
   before_script:
     - cd $APP_DIR
     - apk add --no-cache tzdata
-    - export TZ=Asia/Seoul # TODO: 아직까지도 UTC Timezone으로 설정됨
     - |
       set -o allexport
       source .env
@@ -31,7 +30,7 @@
       echo "build_date: str = '$BUILD_DATE'" >> version_info.py
     - cd $CI_PROJECT_DIR
   script: # docker image cache를 사용하여 이미지 빌드, 컨테이너 레지스트리 푸시 진행
-    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY || exit 1
     - docker pull $IMAGE_TAG_LATEST || true # 마지막 이미지 가져오기
     - docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $IMAGE_TAG_LATEST -f $APP_DIR/Dockerfile -t $IMAGE_TAG -t $IMAGE_TAG_LATEST . # 마지막 이미지를 캐시로 사용
     - docker push $IMAGE_TAG
