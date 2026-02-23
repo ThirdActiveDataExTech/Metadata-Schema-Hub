@@ -8,6 +8,7 @@ import uuid
 from datetime import date, datetime
 from typing import Any
 
+from pydantic import field_validator
 from sqlalchemy import String, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TIMESTAMP
 from sqlmodel import Column, Field, SQLModel
@@ -16,6 +17,7 @@ __all__ = [
     "MetadataBase",
     "CatalogEntryBase",
     "ColumnRelationBase",
+    "MetadataSnapshotBase",
 ]
 
 
@@ -80,3 +82,77 @@ class ColumnRelationBase(SQLModel):
     catalog_column: str = Field(nullable=False)
     correlation: float = Field(nullable=False, ge=0.0, le=1.0)
     metadata_column: str = Field(nullable=False)
+
+
+class MetadataSnapshotBase(SQLModel):
+    """Immutable metadata snapshot - base model."""
+
+    snapshot_id: str = Field(primary_key=True)
+    payload_sha256: str = Field(nullable=False, index=True)
+    ingested_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(
+            TIMESTAMP(timezone=True),
+            server_default=func.now(),
+            nullable=False,
+        ),
+    )
+    storage_key: str = Field(nullable=False)
+    original_filename: str | None = None
+
+    @field_validator("snapshot_id")
+    @classmethod
+    def validate_snapshot_id_format(cls, v: str) -> str:
+        """Validate snapshot_id format: urn:{namespace}:metadata:{timestamp}-{hash[:12]}."""
+        if not v.startswith("urn:"):
+            raise ValueError("snapshot_id must start with 'urn:'")
+
+        # Extract parts: urn:{namespace}:metadata:{timestamp}-{hash}
+        try:
+            parts = v.split(":", 3)
+            if len(parts) != 4:
+                raise ValueError("snapshot_id must have format 'urn:{namespace}:metadata:{timestamp}-{hash}'")
+
+            namespace, resource_type, timestamp_hash = parts[1], parts[2], parts[3]
+
+            # Validate namespace is alphanumeric with hyphens/underscores
+            if not namespace or not all(c.isalnum() or c in "-_" for c in namespace):
+                raise ValueError("Namespace must be alphanumeric (hyphens/underscores allowed)")
+
+            # Validate resource type is "metadata"
+            if resource_type != "metadata":
+                raise ValueError("Resource type must be 'metadata'")
+
+            timestamp_hash = parts[3]
+            if "-" not in timestamp_hash:
+                raise ValueError("snapshot_id must contain timestamp-hash format")
+
+            timestamp_part, hash_part = timestamp_hash.split("-", 1)
+
+            # Validate timestamp is numeric
+            if not timestamp_part.isdigit():
+                raise ValueError("Timestamp part must be numeric")
+
+            # Validate hash is exactly 12 characters (hexadecimal)
+            if len(hash_part) != 12:
+                raise ValueError("Hash part must be exactly 12 characters")
+
+            if not all(c in "0123456789abcdef" for c in hash_part.lower()):
+                raise ValueError("Hash part must be hexadecimal")
+
+        except (IndexError, AttributeError) as e:
+            raise ValueError(f"Invalid snapshot_id format: {e}") from None
+
+        return v
+
+    @field_validator("payload_sha256")
+    @classmethod
+    def validate_payload_sha256_format(cls, v: str) -> str:
+        """Validate payload_sha256 is valid SHA256 hash (64 hex characters)."""
+        if len(v) != 64:
+            raise ValueError("payload_sha256 must be exactly 64 characters (SHA256)")
+
+        if not all(c in "0123456789abcdef" for c in v.lower()):
+            raise ValueError("payload_sha256 must be hexadecimal")
+
+        return v

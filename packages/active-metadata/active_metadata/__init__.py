@@ -9,6 +9,12 @@ from active_metadata.models import (
     CatalogEntryBase,
     ColumnRelationBase,
     MetadataBase,
+    MetadataSnapshotBase,
+)
+from active_metadata.snapshot_utils import (
+    SnapshotIdentifier,
+    detect_extension,
+    generate_snapshot_identifier,
 )
 from active_metadata.utils import to_str_list
 
@@ -16,5 +22,9 @@ __all__ = [
     "MetadataBase",
     "CatalogEntryBase",
     "ColumnRelationBase",
+    "MetadataSnapshotBase",
     "to_str_list",
+    "SnapshotIdentifier",
+    "generate_snapshot_identifier",
+    "detect_extension",
 ]
