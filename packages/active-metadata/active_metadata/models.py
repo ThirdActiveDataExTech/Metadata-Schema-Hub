@@ -4,9 +4,14 @@ Provides base SQLModel classes for metadata, catalog entries, and column relatio
 These models define the core schema shared across metadata-ingestion and catalog-service.
 """
 
+import hashlib
+import re
+import time
 import uuid
-from datetime import date, datetime
-from typing import Any
+from dataclasses import dataclass
+from datetime import UTC, date, datetime
+from enum import StrEnum
+from typing import Any, ClassVar, Self
 
 from pydantic import field_validator
 from sqlalchemy import String, func
@@ -18,7 +23,51 @@ __all__ = [
     "CatalogEntryBase",
     "ColumnRelationBase",
     "MetadataSnapshotBase",
+    "IngestionRunState",
+    "IngestionRunBase",
+    "CatalogEntryDraftBase",
+    "SnapshotIdentifier",
 ]
+
+
+@dataclass
+class SnapshotIdentifier:
+    """Snapshot identifier components (generation result)."""
+
+    snapshot_id: str
+    timestamp: int
+    payload_sha256: str
+
+    def generate_storage_key(self, extension: str) -> str:
+        """Generate storage_key path from identifier.
+
+        Returns:
+            "{YYYY}/{MM}/{DD}/{timestamp}-{hash[:12]}.{ext}"
+        """
+        dt = datetime.fromtimestamp(self.timestamp, tz=UTC)
+        return f"{dt.year}/{dt.month:02d}/{dt.day:02d}/{self.timestamp}-{self.payload_sha256[:12]}.{extension}"
+
+    @classmethod
+    def generate(cls, payload: str | bytes, namespace: str = "wisenut") -> Self:
+        """Generate snapshot identifier from payload.
+
+        Args:
+            payload: Content to generate identifier for
+            namespace: URN namespace (default: "wisenut")
+
+        Returns:
+            SnapshotIdentifier with snapshot_id, timestamp, and payload_sha256
+        """
+        payload_bytes = payload.encode("utf-8") if isinstance(payload, str) else payload
+        timestamp = int(time.time())
+        payload_sha256 = hashlib.sha256(payload_bytes).hexdigest()
+        snapshot_id = f"urn:{namespace}:metadata:{timestamp}-{payload_sha256[:12]}"
+
+        return cls(
+            snapshot_id=snapshot_id,
+            timestamp=timestamp,
+            payload_sha256=payload_sha256,
+        )
 
 
 class MetadataBase(SQLModel):
@@ -61,18 +110,18 @@ class CatalogEntryBase(SQLModel):
     theme: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
     access_url: str | None = None
     raw_metadata: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
+    # Traceability field
+    latest_snapshot_id: str | None = None
 
     @classmethod
     def get_list_fields(cls) -> list[str]:
-        """Return field names that are list[str] type.
-
-        Returns:
-            List of field names with list[str] type
-
-        Note:
-            Must be manually updated when schema changes
-        """
+        """Return field names that are list[str] type."""
         return ["keyword", "theme"]
+
+    @classmethod
+    def get_date_fields(cls) -> list[str]:
+        """Return field names that are date type."""
+        return ["issued", "modified"]
 
 
 class ColumnRelationBase(SQLModel):
@@ -87,7 +136,11 @@ class ColumnRelationBase(SQLModel):
 class MetadataSnapshotBase(SQLModel):
     """Immutable metadata snapshot - base model."""
 
-    _SHA256_HEX_LENGTH: int = 64
+    _SHA256_HEX_LENGTH: ClassVar[int] = 64
+    _HEX_CHARS: ClassVar[frozenset[str]] = frozenset("0123456789abcdef")
+    _SNAPSHOT_ID_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
+        r"^urn:[a-zA-Z0-9_-]+:metadata:\d+-[0-9a-fA-F]{12}$"
+    )
 
     snapshot_id: str = Field(primary_key=True)
     payload_sha256: str = Field(nullable=False, index=True)
@@ -102,58 +155,104 @@ class MetadataSnapshotBase(SQLModel):
     storage_key: str = Field(nullable=False)
     original_filename: str | None = None
 
+    @classmethod
+    def _is_hex(cls, value: str, expected_length: int | None = None) -> bool:
+        """Check if string is hexadecimal with optional length validation."""
+        if expected_length is not None and len(value) != expected_length:
+            return False
+        return all(c in cls._HEX_CHARS for c in value.lower())
+
     @field_validator("snapshot_id")
     @classmethod
     def validate_snapshot_id_format(cls, v: str) -> str:
         """Validate snapshot_id format: urn:{namespace}:metadata:{timestamp}-{hash[:12]}."""
-        if not v.startswith("urn:"):
-            raise ValueError("snapshot_id must start with 'urn:'")
-
-        # Extract parts: urn:{namespace}:metadata:{timestamp}-{hash}
-        try:
-            parts = v.split(":", 3)
-            if len(parts) != 4:
-                raise ValueError("snapshot_id must have format 'urn:{namespace}:metadata:{timestamp}-{hash}'")
-
-            namespace, resource_type, timestamp_hash = parts[1], parts[2], parts[3]
-
-            # Validate namespace is alphanumeric with hyphens/underscores
-            if not namespace or not all(c.isalnum() or c in "-_" for c in namespace):
-                raise ValueError("Namespace must be alphanumeric (hyphens/underscores allowed)")
-
-            # Validate resource type is "metadata"
-            if resource_type != "metadata":
-                raise ValueError("Resource type must be 'metadata'")
-
-            if "-" not in timestamp_hash:
-                raise ValueError("snapshot_id must contain timestamp-hash format")
-
-            timestamp_part, hash_part = timestamp_hash.split("-", 1)
-
-            # Validate timestamp is numeric
-            if not timestamp_part.isdigit():
-                raise ValueError("Timestamp part must be numeric")
-
-            # Validate hash is exactly 12 characters (hexadecimal)
-            if len(hash_part) != 12:
-                raise ValueError("Hash part must be exactly 12 characters")
-
-            if not all(c in "0123456789abcdef" for c in hash_part.lower()):
-                raise ValueError("Hash part must be hexadecimal")
-
-        except (IndexError, AttributeError) as e:
-            raise ValueError(f"Invalid snapshot_id format: {e}") from None
-
+        if not cls._SNAPSHOT_ID_PATTERN.match(v):
+            raise ValueError(
+                "Invalid snapshot_id format. Expected: urn:{namespace}:metadata:{timestamp}-{hash12}"
+            )
         return v
 
     @field_validator("payload_sha256")
     @classmethod
     def validate_payload_sha256_format(cls, v: str) -> str:
         """Validate payload_sha256 is valid SHA256 hash (64 hex characters)."""
-        if len(v) != cls._SHA256_HEX_LENGTH:
-            raise ValueError(f"payload_sha256 must be exactly {cls._SHA256_HEX_LENGTH} characters (SHA256)")
-
-        if not all(c in "0123456789abcdef" for c in v.lower()):
-            raise ValueError("payload_sha256 must be hexadecimal")
-
+        if not cls._is_hex(v, expected_length=cls._SHA256_HEX_LENGTH):
+            raise ValueError(
+                f"payload_sha256 must be exactly {cls._SHA256_HEX_LENGTH} hexadecimal characters"
+            )
         return v
+
+
+class IngestionRunState(StrEnum):
+    """Ingestion run workflow states."""
+
+    STORED = "STORED"  # Store phase complete: payload stored
+    DRAFTED = "DRAFTED"  # Draft phase complete: draft created
+    FAILED = "FAILED"  # Processing failed
+
+
+class IngestionRunBase(SQLModel):
+    """Ingestion run job tracking - base model."""
+
+    run_id: int | None = Field(default=None, primary_key=True)
+    snapshot_id: str = Field(nullable=False, index=True)
+    state: IngestionRunState = Field(default=IngestionRunState.STORED, nullable=False)
+    mapping_version: str = Field(nullable=False)
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False),
+    )
+    error: str | None = None
+    draft_id: int | None = None
+
+
+class CatalogEntryDraftBase(SQLModel):
+    """Catalog entry draft with mapping evidence - base model."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    snapshot_id: str = Field(nullable=False, index=True)
+    mapping_version: str = Field(nullable=False, index=True)
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False),
+    )
+    # Draft fields (mirrors catalog_entry)
+    title: str | None = None
+    description: str | None = None
+    issued: date | None = None
+    modified: date | None = None
+    publisher: str | None = None
+    keyword: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
+    theme: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
+    landing_page: str | None = None
+    access_url: str | None = None
+    # Mapping evidence (top-k candidates with scores)
+    mapping_evidence: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
+
+    @classmethod
+    def get_list_fields(cls) -> list[str]:
+        """Return field names that are list[str] type."""
+        return ["keyword", "theme"]
+
+    @classmethod
+    def get_date_fields(cls) -> list[str]:
+        """Return field names that are date type."""
+        return ["issued", "modified"]
+
+    def to_api_dict(self) -> dict[str, Any]:
+        """Convert to API response dictionary with automatic date/datetime serialization."""
+        result = {}
+        for field_name, value in self:
+            if isinstance(value, (date, datetime)):
+                result[field_name] = value.isoformat()
+            else:
+                result[field_name] = value
+        return result
