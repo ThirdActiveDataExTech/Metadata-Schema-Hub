@@ -87,6 +87,8 @@ class ColumnRelationBase(SQLModel):
 class MetadataSnapshotBase(SQLModel):
     """Immutable metadata snapshot - base model."""
 
+    _SHA256_HEX_LENGTH: int = 64
+
     snapshot_id: str = Field(primary_key=True)
     payload_sha256: str = Field(nullable=False, index=True)
     ingested_at: datetime | None = Field(
@@ -123,7 +125,6 @@ class MetadataSnapshotBase(SQLModel):
             if resource_type != "metadata":
                 raise ValueError("Resource type must be 'metadata'")
 
-            timestamp_hash = parts[3]
             if "-" not in timestamp_hash:
                 raise ValueError("snapshot_id must contain timestamp-hash format")
 
@@ -149,8 +150,8 @@ class MetadataSnapshotBase(SQLModel):
     @classmethod
     def validate_payload_sha256_format(cls, v: str) -> str:
         """Validate payload_sha256 is valid SHA256 hash (64 hex characters)."""
-        if len(v) != 64:
-            raise ValueError("payload_sha256 must be exactly 64 characters (SHA256)")
+        if len(v) != cls._SHA256_HEX_LENGTH:
+            raise ValueError(f"payload_sha256 must be exactly {cls._SHA256_HEX_LENGTH} characters (SHA256)")
 
         if not all(c in "0123456789abcdef" for c in v.lower()):
             raise ValueError("payload_sha256 must be hexadecimal")
