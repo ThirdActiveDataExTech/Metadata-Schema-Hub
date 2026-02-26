@@ -25,6 +25,7 @@ __all__ = [
     "MetadataSnapshotBase",
     "IngestionRunState",
     "IngestionRunBase",
+    "DraftStatus",
     "CatalogEntryDraftBase",
     "SnapshotIdentifier",
 ]
@@ -191,6 +192,14 @@ class IngestionRunState(StrEnum):
     FAILED = "FAILED"  # Processing failed
 
 
+class DraftStatus(StrEnum):
+    """Draft workflow states."""
+
+    PENDING = "PENDING"  # Awaiting review
+    PUBLISHED = "PUBLISHED"  # Published to catalog
+    DISCARDED = "DISCARDED"  # Discarded by user
+
+
 class IngestionRunBase(SQLModel):
     """Ingestion run job tracking - base model."""
 
@@ -216,6 +225,7 @@ class CatalogEntryDraftBase(SQLModel):
     id: int | None = Field(default=None, primary_key=True)
     snapshot_id: str = Field(nullable=False, index=True)
     mapping_version: str = Field(nullable=False, index=True)
+    status: DraftStatus = Field(default=DraftStatus.PENDING, nullable=False)
     created_at: datetime | None = Field(
         default=None,
         sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),

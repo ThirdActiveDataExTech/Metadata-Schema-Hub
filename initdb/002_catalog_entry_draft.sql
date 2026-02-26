@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS catalog_entry_draft
     id                BIGSERIAL PRIMARY KEY,                                      -- 드래프트 고유 식별자
     snapshot_id       TEXT NOT NULL,                                              -- 원본 스냅샷 참조
     mapping_version   VARCHAR(100) NOT NULL,                                      -- 매핑 로직 버전
+    status            VARCHAR(20) NOT NULL DEFAULT 'PENDING',                     -- 드래프트 상태 (PENDING/PUBLISHED/DISCARDED)
     created_at        TIMESTAMPTZ DEFAULT now(),                                  -- 드래프트 생성 시각
     updated_at        TIMESTAMPTZ DEFAULT now(),                                  -- 마지막 수정 시각
 
@@ -35,4 +36,5 @@ COMMENT ON TABLE catalog_entry_draft IS '매핑 근거와 함께 저장된 카�
 COMMENT ON COLUMN catalog_entry_draft.id IS '자동 생성 드래프트 고유 식별자';
 COMMENT ON COLUMN catalog_entry_draft.snapshot_id IS '원본 메타데이터 스냅샷 참조';
 COMMENT ON COLUMN catalog_entry_draft.mapping_version IS '드래프트 생성에 사용된 매핑 로직 버전';
+COMMENT ON COLUMN catalog_entry_draft.status IS '드래프트 상태: PENDING(검토대기), PUBLISHED(발행완료), DISCARDED(폐기)';
 COMMENT ON COLUMN catalog_entry_draft.mapping_evidence IS '필드별 top-k 매핑 후보와 correlation 점수를 담은 JSONB';
