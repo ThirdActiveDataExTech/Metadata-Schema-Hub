@@ -3,6 +3,7 @@ import json
 from collections import defaultdict
 from datetime import datetime
 from typing import Annotated, Any, Dict, List, Optional, Tuple
+from uuid import uuid4
 
 from fastapi import APIRouter, Body, File, Path, Query, UploadFile
 
@@ -316,7 +317,8 @@ async def ingest_metadata_bulk(
 
     iterables: List[Tuple[CatalogEntry, MetadataCreate]] = []
     for serialized_content, metadata_schemas in processed_metadatas:
-        metadata_create = MetadataCreate(metadata_schemas=metadata_schemas, ingested_at=ingested_at)
+        metadata_id = str(uuid4())
+        metadata_create = MetadataCreate(metadata_id=metadata_id, metadata_schemas=metadata_schemas, ingested_at=ingested_at)
         catalog_entry = CatalogEntry(
             identifier=metadata_create.metadata_id,
             raw_metadata=serialized_content,
