@@ -105,6 +105,9 @@ class Settings(BaseSettings):
 
     MAXIMUM_INGESTION_LIMIT: int = 200
 
+    # Snapshot Storage
+    SNAPSHOT_STORAGE_PATH: str = "./snapshots"
+
 
 settings = Settings()  # type: ignore
 print(settings.model_dump_json())
