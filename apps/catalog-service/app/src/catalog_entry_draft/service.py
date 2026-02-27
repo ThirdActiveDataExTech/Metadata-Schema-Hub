@@ -19,9 +19,9 @@ class CatalogEntryDraftService:
         """Get draft by ID."""
         return self.repository.find_by_id(db, draft_id)
 
-    def get_drafts_by_snapshot(self, db: Session, snapshot_id: str) -> list[CatalogEntryDraft]:
+    def get_drafts_by_snapshot(self, db: Session, snapshot_id: str, limit: int = 100, offset: int = 0) -> list[CatalogEntryDraft]:
         """Get all drafts for a snapshot."""
-        return self.repository.find_by_snapshot_id(db, snapshot_id)
+        return self.repository.find_by_snapshot_id(db, snapshot_id, limit, offset)
 
     def get_all_drafts(self, db: Session, limit: int = 100, offset: int = 0) -> list[CatalogEntryDraft]:
         """Get all drafts with pagination."""

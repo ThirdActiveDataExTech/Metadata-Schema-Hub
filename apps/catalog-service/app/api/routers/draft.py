@@ -30,26 +30,16 @@ async def list_drafts(
 ) -> APIResponseModel:
     """List catalog entry drafts with optional filters."""
     if snapshot_id:
-        drafts = draft_service.get_drafts_by_snapshot(session, snapshot_id)
+        drafts = draft_service.get_drafts_by_snapshot(session, snapshot_id, limit, offset)
     else:
         drafts = draft_service.get_all_drafts(session, limit, offset)
 
     return APIResponseModel(
         result={
-            "drafts": [
-                {
-                    "id": d.id,
-                    "snapshot_id": d.snapshot_id,
-                    "mapping_version": d.mapping_version,
-                    "title": d.title,
-                    "description": d.description[:100] + "..."
-                    if d.description and len(d.description) > 100
-                    else d.description,
-                    "created_at": d.created_at.isoformat() if d.created_at else None,
-                }
-                for d in drafts
-            ],
+            "drafts": [d.to_summary_dict() for d in drafts],
             "count": len(drafts),
+            "limit": limit,
+            "offset": offset,
         },
         description=f"Found {len(drafts)} drafts",
     )
@@ -87,14 +77,14 @@ async def get_draft_evidence(
     draft_id: int,
 ) -> APIResponseModel:
     """Get only the mapping evidence for a draft."""
-    evidence = draft_service.get_mapping_evidence(session, draft_id)
-    if evidence is None:
+    draft = draft_service.get_draft(session, draft_id)
+    if not draft:
         raise HTTPException(status_code=404, detail=f"Draft {draft_id} not found")
 
     return APIResponseModel(
         result={
             "draft_id": draft_id,
-            "mapping_evidence": evidence,
+            "mapping_evidence": draft.mapping_evidence,
         },
         description=f"Mapping evidence for draft {draft_id}",
     )

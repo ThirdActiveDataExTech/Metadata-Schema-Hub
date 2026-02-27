@@ -15,12 +15,14 @@ class CatalogEntryDraftRepository:
         stmt = select(CatalogEntryDraft).where(CatalogEntryDraft.id == draft_id)
         return db.exec(stmt).first()
 
-    def find_by_snapshot_id(self, db: Session, snapshot_id: str) -> list[CatalogEntryDraft]:
+    def find_by_snapshot_id(self, db: Session, snapshot_id: str, limit: int = 100, offset: int = 0) -> list[CatalogEntryDraft]:
         """Find all drafts for a snapshot."""
         stmt = (
             select(CatalogEntryDraft)
             .where(CatalogEntryDraft.snapshot_id == snapshot_id)
             .order_by(CatalogEntryDraft.created_at.desc())  # type: ignore[union-attr]
+            .offset(offset)
+            .limit(limit)
         )
         return list(db.exec(stmt).all())
 

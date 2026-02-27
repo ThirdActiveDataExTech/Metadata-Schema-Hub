@@ -124,6 +124,41 @@ class CatalogEntryBase(SQLModel):
         """Return field names that are date type."""
         return ["issued", "modified"]
 
+    @classmethod
+    def get_long_text_fields(cls) -> list[str]:
+        """Return field names that should be truncated in summary views."""
+        return ["description"]
+
+    def to_api_dict(self) -> dict[str, Any]:
+        """Convert to API response dictionary with automatic date/datetime serialization."""
+        result = {}
+        for field_name, value in self:
+            if isinstance(value, (date, datetime)):
+                result[field_name] = value.isoformat()
+            else:
+                result[field_name] = value
+        return result
+
+    def to_summary_dict(self, max_text_length: int = 100) -> dict[str, Any]:
+        """Convert to summary dictionary with truncated long text fields.
+
+        Args:
+            max_text_length: Maximum length for long text fields before truncation
+
+        Returns:
+            Dict with all fields, long text fields truncated if needed
+        """
+        long_text_fields = self.get_long_text_fields()
+        result = {}
+        for field_name, value in self:
+            if field_name in long_text_fields and value and len(value) > max_text_length:
+                result[field_name] = value[:max_text_length] + "..."
+            elif isinstance(value, (date, datetime)):
+                result[field_name] = value.isoformat()
+            else:
+                result[field_name] = value
+        return result
+
 
 class ColumnRelationBase(SQLModel):
     """Column mapping with correlation weights - base for ColumnRelation table."""
@@ -257,11 +292,36 @@ class CatalogEntryDraftBase(SQLModel):
         """Return field names that are date type."""
         return ["issued", "modified"]
 
+    @classmethod
+    def get_long_text_fields(cls) -> list[str]:
+        """Return field names that should be truncated in summary views."""
+        return ["description"]
+
     def to_api_dict(self) -> dict[str, Any]:
         """Convert to API response dictionary with automatic date/datetime serialization."""
         result = {}
         for field_name, value in self:
             if isinstance(value, (date, datetime)):
+                result[field_name] = value.isoformat()
+            else:
+                result[field_name] = value
+        return result
+
+    def to_summary_dict(self, max_text_length: int = 100) -> dict[str, Any]:
+        """Convert to summary dictionary with truncated long text fields.
+
+        Args:
+            max_text_length: Maximum length for long text fields before truncation
+
+        Returns:
+            Dict with all fields, long text fields truncated if needed
+        """
+        long_text_fields = self.get_long_text_fields()
+        result = {}
+        for field_name, value in self:
+            if field_name in long_text_fields and value and len(value) > max_text_length:
+                result[field_name] = value[:max_text_length] + "..."
+            elif isinstance(value, (date, datetime)):
                 result[field_name] = value.isoformat()
             else:
                 result[field_name] = value
