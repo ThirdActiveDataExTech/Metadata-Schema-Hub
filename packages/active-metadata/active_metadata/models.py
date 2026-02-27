@@ -159,6 +159,77 @@ class CatalogEntryBase(SQLModel):
                 result[field_name] = value
         return result
 
+    def get_rdf_dict(self) -> dict[str, Any]:
+        """Convert catalog_entry to DCAT-based JSON-LD format.
+
+        Returns:
+            JSON-LD dictionary with @context and @graph containing Dataset and CatalogRecord.
+        """
+        # 1. Dataset (original data metadata)
+        dataset: dict[str, Any] = {
+            "@type": "dcat:Dataset",
+            "@id": f"urn:dataset:{self.identifier}",
+        }
+
+        if self.title:
+            dataset["dct:title"] = self.title
+        if self.description:
+            dataset["dct:description"] = self.description
+        if self.identifier:
+            dataset["dct:identifier"] = self.identifier
+        if self.publisher:
+            dataset["dct:publisher"] = {"@type": "foaf:Agent", "foaf:name": self.publisher}
+
+        if self.issued:
+            try:
+                dataset["dct:issued"] = {"@type": "xsd:date", "@value": self.issued.isoformat()}
+            except AttributeError:
+                dataset["dct:issued"] = str(self.issued)
+
+        if self.modified:
+            try:
+                dataset["dct:modified"] = {"@type": "xsd:date", "@value": self.modified.isoformat()}
+            except AttributeError:
+                dataset["dct:modified"] = str(self.modified)
+
+        if self.keyword:
+            dataset["dcat:keyword"] = self.keyword
+        if self.theme:
+            dataset["dcat:theme"] = self.theme
+        if self.landing_page:
+            dataset["dcat:landingPage"] = {"@type": "@id", "@id": self.landing_page}
+
+        # Distribution (if access_url exists)
+        if self.access_url:
+            dataset["dcat:distribution"] = {
+                "@type": "dcat:Distribution",
+                "@id": f"urn:distribution:{self.identifier}",
+                "dcat:accessURL": {"@type": "@id", "@id": self.access_url},
+            }
+
+        # 2. CatalogRecord (catalog system management info)
+        catalog_record: dict[str, Any] = {
+            "@type": "dcat:CatalogRecord",
+            "@id": f"urn:catalog-record:{self.identifier}",
+            "foaf:primaryTopic": {"@id": f"urn:dataset:{self.identifier}"},
+        }
+
+        if self.ingested_at:
+            catalog_record["dct:issued"] = {"@type": "xsd:dateTime", "@value": self.ingested_at.isoformat()}
+        if self.updated_at:
+            catalog_record["dct:modified"] = {"@type": "xsd:dateTime", "@value": self.updated_at.isoformat()}
+
+        # 3. Full structure (@graph pattern)
+        return {
+            "@context": {
+                "dcat": "http://www.w3.org/ns/dcat#",
+                "dct": "http://purl.org/dc/terms/",
+                "foaf": "http://xmlns.com/foaf/0.1/",
+                "xsd": "http://www.w3.org/2001/XMLSchema#",
+            },
+            "@graph": [dataset, catalog_record],
+        }
+
 
 class ColumnRelationBase(SQLModel):
     """Column mapping with correlation weights - base for ColumnRelation table."""
