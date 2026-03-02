@@ -12,9 +12,9 @@ from active_metadata.models import (
     DraftStatus,
     MetadataBase,
     MetadataSnapshotBase,
-    SnapshotIdentifier,
 )
 from active_metadata.parsing import convert_field_types, detect_extension, parse_date, to_str_list
+from active_metadata.types import SnapshotIdentifier
 
 __all__ = [
     "MetadataBase",

@@ -1,6 +1,5 @@
 """Unit tests for shared base models."""
 
-import time
 from datetime import date, datetime
 
 import pytest
@@ -8,7 +7,6 @@ from conftest import (
     INVALID_SNAPSHOT_IDS,
     METADATA_SCHEMAS,
     SAMPLE_CATALOG_ENTRY,
-    SAMPLE_CONTENT,
     VALID_SHA256_HASHES,
     VALID_SNAPSHOT_IDS,
 )
@@ -19,7 +17,6 @@ from active_metadata.models import (
     ColumnRelationBase,
     MetadataBase,
     MetadataSnapshotBase,
-    SnapshotIdentifier,
 )
 
 
@@ -206,20 +203,18 @@ class TestMetadataSnapshotBase:
         assert snapshot.snapshot_id == snapshot_id
 
     @pytest.mark.parametrize(
-        "invalid_id,error_key",
+        "invalid_id",
         [
-            pytest.param(INVALID_SNAPSHOT_IDS["missing_urn_prefix"], "missing_urn_prefix", id="missing_urn_prefix"),
-            pytest.param(INVALID_SNAPSHOT_IDS["missing_dash"], "missing_dash", id="missing_dash"),
-            pytest.param(INVALID_SNAPSHOT_IDS["non_numeric_timestamp"], "non_numeric_timestamp", id="non_numeric_timestamp"),
-            pytest.param(INVALID_SNAPSHOT_IDS["short_hash"], "short_hash", id="short_hash"),
-            pytest.param(INVALID_SNAPSHOT_IDS["non_hex_hash"], "non_hex_hash", id="non_hex_hash"),
-            pytest.param(
-                INVALID_SNAPSHOT_IDS["invalid_namespace_char"], "invalid_namespace_char", id="invalid_namespace_char"
-            ),
-            pytest.param(INVALID_SNAPSHOT_IDS["wrong_resource_type"], "wrong_resource_type", id="wrong_resource_type"),
+            pytest.param(INVALID_SNAPSHOT_IDS["missing_urn_prefix"], id="missing_urn_prefix"),
+            pytest.param(INVALID_SNAPSHOT_IDS["missing_dash"], id="missing_dash"),
+            pytest.param(INVALID_SNAPSHOT_IDS["non_numeric_timestamp"], id="non_numeric_timestamp"),
+            pytest.param(INVALID_SNAPSHOT_IDS["short_hash"], id="short_hash"),
+            pytest.param(INVALID_SNAPSHOT_IDS["non_hex_hash"], id="non_hex_hash"),
+            pytest.param(INVALID_SNAPSHOT_IDS["invalid_namespace_char"], id="invalid_namespace_char"),
+            pytest.param(INVALID_SNAPSHOT_IDS["wrong_resource_type"], id="wrong_resource_type"),
         ],
     )
-    def test_invalid_snapshot_id(self, invalid_id: str, error_key: str, valid_sha256):
+    def test_invalid_snapshot_id(self, invalid_id: str, valid_sha256):
         """Test invalid snapshot_id formats are rejected."""
         with pytest.raises(ValidationError) as exc_info:
             MetadataSnapshotBase(
@@ -265,117 +260,3 @@ class TestMetadataSnapshotBase:
                 storage_key="test.json",
             )
         assert "payload_sha256 must be exactly 64 hexadecimal characters" in str(exc_info.value)
-
-
-class TestSnapshotIdentifier:
-    """Tests for SnapshotIdentifier."""
-
-    def test_generate_structure(self):
-        """Test SnapshotIdentifier structure with realistic content."""
-        identifier = SnapshotIdentifier.generate(SAMPLE_CONTENT["json_object"])
-
-        assert isinstance(identifier, SnapshotIdentifier)
-        assert isinstance(identifier.snapshot_id, str)
-        assert isinstance(identifier.timestamp, int)
-        assert isinstance(identifier.payload_sha256, str)
-        assert len(identifier.payload_sha256) == 64
-
-    def test_generate_format(self):
-        """Test snapshot_id URN format."""
-        identifier = SnapshotIdentifier.generate(SAMPLE_CONTENT["xml"])
-
-        assert identifier.snapshot_id.startswith("urn:wisenut:metadata:")
-
-        parts = identifier.snapshot_id.split(":")
-        assert len(parts) == 4
-        assert parts[0] == "urn"
-        assert parts[1] == "wisenut"
-        assert parts[2] == "metadata"
-
-        timestamp_hash = parts[3]
-        timestamp_part, hash_part = timestamp_hash.split("-", 1)
-        assert timestamp_part.isdigit()
-        assert len(hash_part) == 12
-
-    def test_generate_with_string_payload(self):
-        """Test with string payload (JSON content)."""
-        identifier = SnapshotIdentifier.generate(SAMPLE_CONTENT["json_object"])
-        assert identifier.snapshot_id.startswith("urn:wisenut:metadata:")
-        assert len(identifier.payload_sha256) == 64
-
-    def test_generate_with_bytes_payload(self):
-        """Test with bytes payload (binary content)."""
-        identifier = SnapshotIdentifier.generate(SAMPLE_CONTENT["binary"])
-        assert identifier.snapshot_id.startswith("urn:wisenut:metadata:")
-        assert len(identifier.payload_sha256) == 64
-
-    def test_deterministic_hash(self):
-        """Test that same content produces same hash (content addressable)."""
-        content = SAMPLE_CONTENT["json_object"]
-
-        id1 = SnapshotIdentifier.generate(content)
-        time.sleep(1.1)
-        id2 = SnapshotIdentifier.generate(content)
-
-        # Different timestamps
-        assert id1.timestamp != id2.timestamp
-        assert id1.snapshot_id != id2.snapshot_id
-        # Same content hash
-        assert id1.payload_sha256 == id2.payload_sha256
-
-    def test_different_content_different_hash(self):
-        """Test that different content produces different hashes."""
-        id1 = SnapshotIdentifier.generate(SAMPLE_CONTENT["json_object"])
-        id2 = SnapshotIdentifier.generate(SAMPLE_CONTENT["xml"])
-
-        assert id1.payload_sha256 != id2.payload_sha256
-        assert id1.snapshot_id != id2.snapshot_id
-
-    @pytest.mark.parametrize(
-        "namespace,expected_prefix",
-        [
-            pytest.param("wisenut", "urn:wisenut:metadata:", id="default"),
-            pytest.param("datagoKr", "urn:datagoKr:metadata:", id="camelCase"),
-            pytest.param("data-go-kr", "urn:data-go-kr:metadata:", id="with_hyphen"),
-            pytest.param("data_go_kr", "urn:data_go_kr:metadata:", id="with_underscore"),
-        ],
-    )
-    def test_namespace_variants(self, namespace: str, expected_prefix: str):
-        """Test various namespace formats."""
-        identifier = SnapshotIdentifier.generate(SAMPLE_CONTENT["json_object"], namespace=namespace)
-        assert identifier.snapshot_id.startswith(expected_prefix)
-
-    def test_storage_key_format(self):
-        """Test storage_key generation format."""
-        identifier = SnapshotIdentifier.generate(SAMPLE_CONTENT["json_object"])
-        storage_key = identifier.generate_storage_key("json")
-
-        parts = storage_key.split("/")
-        assert len(parts) == 4
-
-        year, month, day, filename = parts
-        assert len(year) == 4 and year.isdigit()
-        assert len(month) == 2 and month.isdigit()
-        assert len(day) == 2 and day.isdigit()
-        assert filename.endswith(".json")
-
-    def test_storage_key_utc(self):
-        """Test that storage_key uses UTC timezone."""
-        # 2024-02-23 08:00:00 UTC
-        identifier = SnapshotIdentifier(
-            snapshot_id="urn:wisenut:metadata:1708675200-abcdef123456",
-            timestamp=1708675200,
-            payload_sha256="a" * 64,
-        )
-        storage_key = identifier.generate_storage_key("json")
-        assert storage_key.startswith("2024/02/23/")
-
-    @pytest.mark.parametrize("ext", ["json", "xml", "rdf", "bin", "parquet"])
-    def test_storage_key_extensions(self, ext: str):
-        """Test storage_key with various file extensions."""
-        identifier = SnapshotIdentifier(
-            snapshot_id="test",
-            timestamp=int(time.time()),
-            payload_sha256="a" * 64,
-        )
-        assert identifier.generate_storage_key(ext).endswith(f".{ext}")

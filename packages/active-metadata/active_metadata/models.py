@@ -4,19 +4,17 @@ Provides base SQLModel classes for metadata, catalog entries, and column relatio
 These models define the core schema shared across metadata-ingestion and catalog-service.
 """
 
-import hashlib
-import re
-import time
 import uuid
-from dataclasses import dataclass
-from datetime import UTC, date, datetime
+from datetime import date, datetime
 from enum import StrEnum
-from typing import Any, ClassVar, Self
+from typing import Any, ClassVar
 
 from pydantic import field_validator
 from sqlalchemy import String, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TIMESTAMP
 from sqlmodel import Column, Field, SQLModel
+
+from active_metadata.types import SnapshotIdentifier
 
 __all__ = [
     "MetadataBase",
@@ -27,48 +25,7 @@ __all__ = [
     "IngestionRunBase",
     "DraftStatus",
     "CatalogEntryDraftBase",
-    "SnapshotIdentifier",
 ]
-
-
-@dataclass
-class SnapshotIdentifier:
-    """Snapshot identifier components (generation result)."""
-
-    snapshot_id: str
-    timestamp: int
-    payload_sha256: str
-
-    def generate_storage_key(self, extension: str) -> str:
-        """Generate storage_key path from identifier.
-
-        Returns:
-            "{YYYY}/{MM}/{DD}/{timestamp}-{hash[:12]}.{ext}"
-        """
-        dt = datetime.fromtimestamp(self.timestamp, tz=UTC)
-        return f"{dt.year}/{dt.month:02d}/{dt.day:02d}/{self.timestamp}-{self.payload_sha256[:12]}.{extension}"
-
-    @classmethod
-    def generate(cls, payload: str | bytes, namespace: str = "wisenut") -> Self:
-        """Generate snapshot identifier from payload.
-
-        Args:
-            payload: Content to generate identifier for
-            namespace: URN namespace (default: "wisenut")
-
-        Returns:
-            SnapshotIdentifier with snapshot_id, timestamp, and payload_sha256
-        """
-        payload_bytes = payload.encode("utf-8") if isinstance(payload, str) else payload
-        timestamp = int(time.time())
-        payload_sha256 = hashlib.sha256(payload_bytes).hexdigest()
-        snapshot_id = f"urn:{namespace}:metadata:{timestamp}-{payload_sha256[:12]}"
-
-        return cls(
-            snapshot_id=snapshot_id,
-            timestamp=timestamp,
-            payload_sha256=payload_sha256,
-        )
 
 
 class MetadataBase(SQLModel):
@@ -243,13 +200,9 @@ class ColumnRelationBase(SQLModel):
 class MetadataSnapshotBase(SQLModel):
     """Immutable metadata snapshot - base model."""
 
-    _SHA256_HEX_LENGTH: ClassVar[int] = 64
     _HEX_CHARS: ClassVar[frozenset[str]] = frozenset("0123456789abcdef")
-    _SNAPSHOT_ID_PATTERN: ClassVar[re.Pattern[str]] = re.compile(
-        r"^urn:[a-zA-Z0-9_-]+:metadata:\d+-[0-9a-fA-F]{12}$"
-    )
 
-    snapshot_id: str = Field(primary_key=True)
+    snapshot_id: SnapshotIdentifier = Field(primary_key=True)
     payload_sha256: str = Field(nullable=False, index=True)
     ingested_at: datetime | None = Field(
         default=None,
@@ -269,24 +222,12 @@ class MetadataSnapshotBase(SQLModel):
             return False
         return all(c in cls._HEX_CHARS for c in value.lower())
 
-    @field_validator("snapshot_id")
-    @classmethod
-    def validate_snapshot_id_format(cls, v: str) -> str:
-        """Validate snapshot_id format: urn:{namespace}:metadata:{timestamp}-{hash[:12]}."""
-        if not cls._SNAPSHOT_ID_PATTERN.match(v):
-            raise ValueError(
-                "Invalid snapshot_id format. Expected: urn:{namespace}:metadata:{timestamp}-{hash12}"
-            )
-        return v
-
     @field_validator("payload_sha256")
     @classmethod
     def validate_payload_sha256_format(cls, v: str) -> str:
         """Validate payload_sha256 is valid SHA256 hash (64 hex characters)."""
-        if not cls._is_hex(v, expected_length=cls._SHA256_HEX_LENGTH):
-            raise ValueError(
-                f"payload_sha256 must be exactly {cls._SHA256_HEX_LENGTH} hexadecimal characters"
-            )
+        if not cls._is_hex(v, expected_length=SnapshotIdentifier.SHA256_HEX_LENGTH):
+            raise ValueError(f"payload_sha256 must be exactly {SnapshotIdentifier.SHA256_HEX_LENGTH} hexadecimal characters")
         return v
 
 
