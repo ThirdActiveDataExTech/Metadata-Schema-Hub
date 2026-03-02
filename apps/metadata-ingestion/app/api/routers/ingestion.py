@@ -2,9 +2,9 @@
 
 from typing import Optional
 
+from active_metadata.models import IngestionRunState
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 
-from active_metadata.models import IngestionRunState
 from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
@@ -32,7 +32,11 @@ async def store_metadata(
 
     Does NOT create draft - call POST /ingestion/draft/{run_id} for Draft Phase.
     """
-    content = await file.read()
+    try:
+        content = await file.read()
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read file: {str(e)}") from e
+
     result = workflow_service.execute_store_phase(session, content, file.filename)
 
     return APIResponseModel(
@@ -40,7 +44,7 @@ async def store_metadata(
             "snapshot_id": result.snapshot_id,
             "run_id": result.run_id,
             "metadata_count": result.metadata_count,
-            "state": "STORED",
+            "state": IngestionRunState.STORED,
         },
         description="Store phase complete: Metadata stored successfully",
     )
@@ -67,7 +71,7 @@ async def create_draft(
             "draft": result.draft.to_api_dict(),
             "run_id": result.run_id,
             "mapping_version": result.mapping_version,
-            "state": "DRAFTED",
+            "state": IngestionRunState.DRAFTED,
         },
         description="Draft phase complete: Draft created successfully",
     )
