@@ -31,6 +31,9 @@ class IngestionRunService:
         if not run:
             raise ValueError(f"IngestionRun with id {run_id} not found")
 
+        if run.state != IngestionRunState.STORED:
+            raise ValueError(f"Cannot mark run as DRAFTED. Current state: {run.state}")
+
         run.state = IngestionRunState.DRAFTED
         run.draft_id = draft_id
         return self.repository.save(db, run)
