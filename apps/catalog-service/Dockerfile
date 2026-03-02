@@ -18,17 +18,21 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 # `production` image used for runtime
 FROM python:3.11-slim AS production
 
-# Setting home directory and user name
+# Setting home directory, user name, and snapshot path
 ENV APP_HOME=/home/wisenut/app \
+    SNAPSHOT_STORAGE_PATH=/data/snapshots \
     GROUP_NAME=wisenut \
     APP_USER=wisenut
 
-# Create a non-root user and group
-RUN groupadd -r $GROUP_NAME && useradd -r -g $GROUP_NAME -d $APP_HOME $APP_USER
-
 # Set the working directory
 WORKDIR $APP_HOME
-RUN chown -R $APP_USER:$GROUP_NAME $APP_HOME
+
+# Create user, set permissions, and create snapshot directory (single layer)
+RUN groupadd -r $GROUP_NAME && \
+    useradd -r -g $GROUP_NAME -d $APP_HOME $APP_USER && \
+    chown -R $APP_USER:$GROUP_NAME $APP_HOME && \
+    mkdir -p $SNAPSHOT_STORAGE_PATH && \
+    chown -R $APP_USER:$GROUP_NAME $SNAPSHOT_STORAGE_PATH
 
 # Set environment variables
 ENV TZ=Asia/Seoul \
