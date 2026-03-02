@@ -28,20 +28,22 @@ class IngestionRunService:
     def mark_drafted(self, db: Session, run_id: int, draft_id: int) -> Optional[IngestionRun]:
         """Mark run as DRAFTED after TX2 completion."""
         run = self.repository.find_by_run_id(db, run_id)
-        if run:
-            run.state = IngestionRunState.DRAFTED
-            run.draft_id = draft_id
-            return self.repository.save(db, run)
-        return None
+        if not run:
+            raise ValueError(f"IngestionRun with id {run_id} not found")
+
+        run.state = IngestionRunState.DRAFTED
+        run.draft_id = draft_id
+        return self.repository.save(db, run)
 
     def mark_failed(self, db: Session, run_id: int, error: str) -> Optional[IngestionRun]:
         """Mark run as FAILED with error message."""
         run = self.repository.find_by_run_id(db, run_id)
-        if run:
-            run.state = IngestionRunState.FAILED
-            run.error = error
-            return self.repository.save(db, run)
-        return None
+        if not run:
+            raise ValueError(f"IngestionRun with id {run_id} not found")
+
+        run.state = IngestionRunState.FAILED
+        run.error = error
+        return self.repository.save(db, run)
 
     def get_pending_runs(self, db: Session, limit: int = 100) -> list[IngestionRun]:
         """Get runs awaiting TX2 processing (STORED state)."""
