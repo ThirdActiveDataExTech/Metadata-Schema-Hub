@@ -51,16 +51,20 @@ class IngestionWorkflowService:
     ) -> StorePhaseResult:
         """Store Phase: Persist metadata payload.
 
-        1. Compute payload_sha256, Generate snapshot_id
-        2. Persist payload to storage (outside TX)
-        3. Parse payload -> key/value pairs
+        1. Parse payload -> key/value pairs (fail fast)
+        2. Compute payload_sha256, Generate snapshot_id
+        3. Persist payload to storage (outside TX)
         4. INSERT metadata_snapshot (TX1)
         5. Bulk INSERT metadata_entry (TX1)
         6. INSERT ingestion_run (TX1, state=STORED)
         """
         mapping_version = self.get_mapping_version()
 
-        # Step 1-2: Generate identifier and save file (outside TX)
+        # Step 1: Parse payload first (fail fast, nothing saved yet)
+        metadata_file = MetadataFile(filename=filename, content=payload)
+        _, metadata_schemas = process_metadata_file(metadata_file)
+
+        # Step 2-3: Generate identifier and save file (outside TX)
         identifier = SnapshotIdentifier.generate(payload)
         extension = detect_extension(payload, filename)
         storage_key = identifier.generate_storage_key(extension)
@@ -71,22 +75,7 @@ class IngestionWorkflowService:
             db, identifier=identifier, storage_key=storage_key, original_filename=filename
         )
 
-        # Step 3: Parse payload
-        metadata_file = MetadataFile(filename=filename, content=payload)
-        try:
-            _, metadata_schemas = process_metadata_file(metadata_file)
-        except ValueError as e:
-            # Create failed run
-            run = self.ingestion_run_service.create_run(
-                db,
-                IngestionRunCreate(
-                    snapshot_id=snapshot.snapshot_id, mapping_version=mapping_version
-                ),
-            )
-            self.ingestion_run_service.mark_failed(db, run.run_id, str(e))  # type: ignore[arg-type]
-            raise
-
-        # Step 6: Bulk insert metadata entries (metadata_id = snapshot_id)
+        # Step 5: Bulk insert metadata entries (metadata_id = snapshot_id)
         metadata_create = MetadataCreate(
             metadata_id=snapshot.snapshot_id,
             metadata_schemas=metadata_schemas,
