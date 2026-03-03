@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from app.src.metadata_entry.model import MetadataEntry
 from app.src.metadata_entry.repository import MetadataEntryRepository
-from tests.constants import METADATA_ID_1, METADATA_ID_2
+from tests.constants import METADATA_ID_1, METADATA_ID_2, NONEXISTENT_IDENTIFIER
 
 
 class TestSelectMetadataEntry:
@@ -19,10 +19,11 @@ class TestSelectMetadataEntry:
     ) -> None:
         """Should return all entries for given metadata_id."""
         result = metadata_entry_repository.select_metadata_entry(db, METADATA_ID_1)
-
-        assert len(result) == 2
+        expected_entries = [e for e in sample_metadata_entries if e.metadata_id == METADATA_ID_1]
+        assert len(result) == len(expected_entries)
         schemas = {e.metadata_schema for e in result}
-        assert schemas == {"dct:title", "dct:description"}
+        expected_schemas = {e.metadata_schema for e in expected_entries}
+        assert schemas == expected_schemas
 
     def test_select_nonexistent_metadata_id(
         self,
@@ -30,7 +31,7 @@ class TestSelectMetadataEntry:
         metadata_entry_repository: MetadataEntryRepository,
     ) -> None:
         """Should return empty list for non-existent metadata_id."""
-        result = metadata_entry_repository.select_metadata_entry(db, "nonexistent")
+        result = metadata_entry_repository.select_metadata_entry(db, NONEXISTENT_IDENTIFIER)
         assert result == []
 
 
@@ -44,11 +45,12 @@ class TestSelectMetadataEntriesByMetadataIds:
         sample_metadata_entries: list[MetadataEntry],
     ) -> None:
         """Should return entries for multiple metadata IDs."""
+        target_ids = [METADATA_ID_1, METADATA_ID_2]
         result = metadata_entry_repository.select_metadata_entries_by_metadata_ids(
-            db, [METADATA_ID_1, METADATA_ID_2]
+            db, target_ids
         )
-
-        assert len(result) == 4  # 2 + 2 entries
+        # All sample entries belong to target_ids
+        assert len(result) == len(sample_metadata_entries)
 
     def test_select_empty_list(
         self,
@@ -72,10 +74,12 @@ class TestSearchMetadata:
         sample_metadata_entries: list[MetadataEntry],
     ) -> None:
         """Should search by value text (ILIKE on value and metadata_schema)."""
-        result = metadata_entry_repository.search_metadata(db, query="Sample")
-
-        # Matches: "Sample Title", "Sample Description", "test,sample"
-        assert len(result) == 3
+        search_term = "Sample"
+        result = metadata_entry_repository.search_metadata(db, query=search_term)
+        expected_count = sum(
+            1 for e in sample_metadata_entries if search_term.lower() in e.value.lower()
+        )
+        assert len(result) == expected_count
 
     def test_search_with_schema_filter(
         self,
@@ -84,10 +88,13 @@ class TestSearchMetadata:
         sample_metadata_entries: list[MetadataEntry],
     ) -> None:
         """Should filter by schema."""
-        result = metadata_entry_repository.search_metadata(db, schema="dct:title")
-
-        assert len(result) == 2
-        assert all(e.metadata_schema == "dct:title" for e in result)
+        target_schema = "dct:title"
+        result = metadata_entry_repository.search_metadata(db, schema=target_schema)
+        expected_count = sum(
+            1 for e in sample_metadata_entries if e.metadata_schema == target_schema
+        )
+        assert len(result) == expected_count
+        assert all(e.metadata_schema == target_schema for e in result)
 
     def test_search_with_metadata_id_filter(
         self,
@@ -97,8 +104,10 @@ class TestSearchMetadata:
     ) -> None:
         """Should filter by metadata_id."""
         result = metadata_entry_repository.search_metadata(db, metadata_id=METADATA_ID_1)
-
-        assert len(result) == 2
+        expected_count = sum(
+            1 for e in sample_metadata_entries if e.metadata_id == METADATA_ID_1
+        )
+        assert len(result) == expected_count
         assert all(e.metadata_id == METADATA_ID_1 for e in result)
 
     def test_search_with_multiple_filters(
@@ -124,7 +133,7 @@ class TestSearchMetadata:
     ) -> None:
         """Should return all entries when no filters."""
         result = metadata_entry_repository.search_metadata(db)
-        assert len(result) == 4
+        assert len(result) == len(sample_metadata_entries)
 
 
 class TestListMetadataSummary:
@@ -138,7 +147,7 @@ class TestListMetadataSummary:
     ) -> None:
         """Should return all entries."""
         result = metadata_entry_repository.list_metadata_summary(db)
-        assert len(result) == 4
+        assert len(result) == len(sample_metadata_entries)
 
     def test_list_with_limit(
         self,
@@ -147,8 +156,9 @@ class TestListMetadataSummary:
         sample_metadata_entries: list[MetadataEntry],
     ) -> None:
         """Should respect limit parameter."""
-        result = metadata_entry_repository.list_metadata_summary(db, limit=2)
-        assert len(result) == 2
+        limit = 2
+        result = metadata_entry_repository.list_metadata_summary(db, limit=limit)
+        assert len(result) == limit
 
     def test_list_empty_table(
         self,
@@ -170,11 +180,12 @@ class TestSelectDistinctMetadataSchemas:
         sample_metadata_entries: list[MetadataEntry],
     ) -> None:
         """Should return distinct schemas for given metadata IDs."""
-        result = metadata_entry_repository.select_distinct_metadata_schemas(
-            db, [METADATA_ID_1]
-        )
-
-        assert set(result) == {"dct:title", "dct:description"}
+        target_ids = [METADATA_ID_1]
+        result = metadata_entry_repository.select_distinct_metadata_schemas(db, target_ids)
+        expected_schemas = {
+            e.metadata_schema for e in sample_metadata_entries if e.metadata_id in target_ids
+        }
+        assert set(result) == expected_schemas
 
     def test_select_distinct_across_ids(
         self,
@@ -183,11 +194,12 @@ class TestSelectDistinctMetadataSchemas:
         sample_metadata_entries: list[MetadataEntry],
     ) -> None:
         """Should return distinct schemas across multiple metadata IDs."""
-        result = metadata_entry_repository.select_distinct_metadata_schemas(
-            db, [METADATA_ID_1, METADATA_ID_2]
-        )
-
-        assert set(result) == {"dct:title", "dct:description", "dcat:keyword"}
+        target_ids = [METADATA_ID_1, METADATA_ID_2]
+        result = metadata_entry_repository.select_distinct_metadata_schemas(db, target_ids)
+        expected_schemas = {
+            e.metadata_schema for e in sample_metadata_entries if e.metadata_id in target_ids
+        }
+        assert set(result) == expected_schemas
 
     def test_select_distinct_empty_list(
         self,

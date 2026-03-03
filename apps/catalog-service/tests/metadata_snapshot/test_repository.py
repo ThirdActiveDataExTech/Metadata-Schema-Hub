@@ -1,10 +1,10 @@
 """Integration tests for MetadataSnapshotRepository."""
 
-import pytest
 from sqlmodel import Session
 
 from app.src.metadata_snapshot.model import MetadataSnapshot
 from app.src.metadata_snapshot.repository import MetadataSnapshotRepository
+from tests.constants import NONEXISTENT_SNAPSHOT_ID
 
 
 class TestFindBySnapshotId:
@@ -33,7 +33,7 @@ class TestFindBySnapshotId:
     ) -> None:
         """Should return None for non-existent snapshot_id."""
         result = metadata_snapshot_repository.find_by_snapshot_id(
-            db, "urn:wisenut:metadata:1234567890-nonexistent"
+            db, NONEXISTENT_SNAPSHOT_ID
         )
         assert result is None
 

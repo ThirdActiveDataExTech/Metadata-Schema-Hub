@@ -6,7 +6,7 @@ from sqlmodel import Session
 from app.src.catalog_entry.exceptions import CatalogEntryNotFoundError
 from app.src.catalog_entry.model import CatalogEntry
 from app.src.catalog_entry.repository import CatalogEntryRepository
-from tests.constants import ENTRY_ID_1, ENTRY_ID_3
+from tests.constants import ENTRY_ID_1, ENTRY_ID_3, NONEXISTENT_ID, NONEXISTENT_IDENTIFIER
 
 
 class TestSelect:
@@ -33,7 +33,7 @@ class TestSelect:
     ) -> None:
         """Should raise CatalogEntryNotFoundError for non-existent ID."""
         with pytest.raises(CatalogEntryNotFoundError):
-            catalog_entry_repository.select(db, 99999)
+            catalog_entry_repository.select(db, NONEXISTENT_ID)
 
 
 class TestSelectByIdentifier:
@@ -59,7 +59,7 @@ class TestSelectByIdentifier:
     ) -> None:
         """Should raise CatalogEntryNotFoundError for non-existent identifier."""
         with pytest.raises(CatalogEntryNotFoundError):
-            catalog_entry_repository.select_by_identifier(db, "nonexistent-id")
+            catalog_entry_repository.select_by_identifier(db, NONEXISTENT_IDENTIFIER)
 
 
 class TestSelectByIds:
@@ -72,14 +72,14 @@ class TestSelectByIds:
         sample_catalog_entries: list[CatalogEntry],
     ) -> None:
         """Should return multiple entries by IDs."""
-        entry0 = sample_catalog_entries[0]
-        entry2 = sample_catalog_entries[2]
-        ids = [entry0.id, entry2.id]
+        target_entries = [sample_catalog_entries[0], sample_catalog_entries[2]]
+        ids = [e.id for e in target_entries]
         result = catalog_entry_repository.select_by_ids(db, ids)
 
-        assert len(result) == 2
+        assert len(result) == len(target_entries)
         identifiers = {e.identifier for e in result}
-        assert identifiers == {entry0.identifier, entry2.identifier}
+        expected_identifiers = {e.identifier for e in target_entries}
+        assert identifiers == expected_identifiers
 
     def test_select_by_ids_empty_list(
         self,
@@ -97,12 +97,12 @@ class TestSelectByIds:
         sample_catalog_entries: list[CatalogEntry],
     ) -> None:
         """Should return only existing entries when some IDs don't exist."""
-        entry = sample_catalog_entries[0]
-        ids = [entry.id, 99999]
+        existing_entry = sample_catalog_entries[0]
+        ids = [existing_entry.id, NONEXISTENT_ID]
         result = catalog_entry_repository.select_by_ids(db, ids)
 
         assert len(result) == 1
-        assert result[0].identifier == entry.identifier
+        assert result[0].identifier == existing_entry.identifier
 
 
 class TestSelectByIdentifiers:
@@ -115,11 +115,10 @@ class TestSelectByIdentifiers:
         sample_catalog_entries: list[CatalogEntry],
     ) -> None:
         """Should return entries by identifiers."""
-        result = catalog_entry_repository.select_by_identifiers(
-            db, [ENTRY_ID_1, ENTRY_ID_3]
-        )
+        target_identifiers = [ENTRY_ID_1, ENTRY_ID_3]
+        result = catalog_entry_repository.select_by_identifiers(db, target_identifiers)
 
-        assert len(result) == 2
+        assert len(result) == len(target_identifiers)
 
     def test_select_by_identifiers_empty(
         self,
@@ -164,7 +163,7 @@ class TestListCatalogSummary:
     ) -> None:
         """Should return all entries when no limit."""
         result = catalog_entry_repository.list_catalog_summary(db)
-        assert len(result) == 3
+        assert len(result) == len(sample_catalog_entries)
 
     def test_list_with_limit(
         self,
@@ -173,8 +172,9 @@ class TestListCatalogSummary:
         sample_catalog_entries: list[CatalogEntry],
     ) -> None:
         """Should respect limit parameter."""
-        result = catalog_entry_repository.list_catalog_summary(db, limit=2)
-        assert len(result) == 2
+        limit = 2
+        result = catalog_entry_repository.list_catalog_summary(db, limit=limit)
+        assert len(result) == limit
 
     def test_list_ordered_by_id_desc(
         self,
@@ -211,7 +211,7 @@ class TestExportDataList:
         """Should export all entries as dicts."""
         result = catalog_entry_repository.export_data_list(db)
 
-        assert len(result) == 3
+        assert len(result) == len(sample_catalog_entries)
         assert all(isinstance(item, dict) for item in result)
 
     def test_export_with_limit(
@@ -259,11 +259,12 @@ class TestSearchCatalog:
         sample_catalog_entries: list[CatalogEntry],
     ) -> None:
         """Should search by title/description text."""
-        entry = sample_catalog_entries[0]
-        result = catalog_entry_repository.search_catalog(db, query="First")
+        target_entry = sample_catalog_entries[0]
+        search_term = target_entry.title.split()[0]  # "First" from "First Dataset"
+        result = catalog_entry_repository.search_catalog(db, query=search_term)
 
         assert len(result) == 1
-        assert result[0].title == entry.title
+        assert result[0].title == target_entry.title
 
     def test_search_with_pagination(
         self,
@@ -328,7 +329,7 @@ class TestSearchCatalog:
     ) -> None:
         """Should use default pagination (offset=0, limit=10)."""
         result = catalog_entry_repository.search_catalog(db)
-        assert len(result) == 3  # All entries, default limit=10
+        assert len(result) == len(sample_catalog_entries)  # All entries, default limit=10
 
     def test_search_with_keyword_filter(
         self,
@@ -337,8 +338,13 @@ class TestSearchCatalog:
         sample_catalog_entries: list[CatalogEntry],
     ) -> None:
         """Should filter by keyword (PostgreSQL ARRAY feature)."""
-        result = catalog_entry_repository.search_catalog(db, keyword=["science"])
-        assert len(result) == 2
+        target_keyword = "science"
+        result = catalog_entry_repository.search_catalog(db, keyword=[target_keyword])
+        expected_count = sum(
+            1 for e in sample_catalog_entries
+            if e.keyword and target_keyword in e.keyword
+        )
+        assert len(result) == expected_count
 
     def test_search_with_theme_filter(
         self,
@@ -347,5 +353,10 @@ class TestSearchCatalog:
         sample_catalog_entries: list[CatalogEntry],
     ) -> None:
         """Should filter by theme (PostgreSQL ARRAY feature)."""
-        result = catalog_entry_repository.search_catalog(db, theme=["research"])
-        assert len(result) == 2
+        target_theme = "research"
+        result = catalog_entry_repository.search_catalog(db, theme=[target_theme])
+        expected_count = sum(
+            1 for e in sample_catalog_entries
+            if e.theme and target_theme in e.theme
+        )
+        assert len(result) == expected_count

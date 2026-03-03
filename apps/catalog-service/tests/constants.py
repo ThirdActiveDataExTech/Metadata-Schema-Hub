@@ -48,3 +48,11 @@ TEST_MAPPING_VERSION = "v1.0"
 TEST_MAPPING_VERSION_ALT = "v1.1"
 TEST_SHA256 = "a" * 64
 TEST_SHA256_ALT = "b" * 64
+
+# =============================================================================
+# Nonexistent IDs (for error handling tests)
+# =============================================================================
+
+NONEXISTENT_ID = 99999
+NONEXISTENT_IDENTIFIER = "nonexistent"
+NONEXISTENT_SNAPSHOT_ID = "urn:wisenut:metadata:9999999999-nonexistent"

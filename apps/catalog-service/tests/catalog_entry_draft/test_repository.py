@@ -5,7 +5,7 @@ from sqlmodel import Session
 
 from app.src.catalog_entry_draft.model import CatalogEntryDraft
 from app.src.catalog_entry_draft.repository import CatalogEntryDraftRepository
-from tests.constants import SNAPSHOT_ID_VALID
+from tests.constants import NONEXISTENT_ID, NONEXISTENT_IDENTIFIER, SNAPSHOT_ID_VALID
 
 
 class TestFindById:
@@ -18,12 +18,12 @@ class TestFindById:
         sample_catalog_entry_drafts: list[CatalogEntryDraft],
     ) -> None:
         """Should return draft when found."""
-        draft = sample_catalog_entry_drafts[0]
-        result = catalog_entry_draft_repository.find_by_id(db, draft.id)
+        target_draft = sample_catalog_entry_drafts[0]
+        result = catalog_entry_draft_repository.find_by_id(db, target_draft.id)
 
         assert result is not None
-        assert result.id == draft.id
-        assert result.title == "Draft Title 1"
+        assert result.id == target_draft.id
+        assert result.title == target_draft.title
 
     def test_find_nonexistent_returns_none(
         self,
@@ -31,7 +31,7 @@ class TestFindById:
         catalog_entry_draft_repository: CatalogEntryDraftRepository,
     ) -> None:
         """Should return None for non-existent ID."""
-        result = catalog_entry_draft_repository.find_by_id(db, 99999)
+        result = catalog_entry_draft_repository.find_by_id(db, NONEXISTENT_ID)
         assert result is None
 
 
@@ -46,10 +46,11 @@ class TestFindBySnapshotId:
     ) -> None:
         """Should return drafts for given snapshot_id."""
         result = catalog_entry_draft_repository.find_by_snapshot_id(db, SNAPSHOT_ID_VALID)
-
-        assert len(result) == 2
+        expected = [d for d in sample_catalog_entry_drafts if d.snapshot_id == SNAPSHOT_ID_VALID]
+        assert len(result) == len(expected)
         titles = {d.title for d in result}
-        assert titles == {"Draft Title 1", "Draft Title 2"}
+        expected_titles = {d.title for d in expected}
+        assert titles == expected_titles
 
     def test_find_by_snapshot_id_with_pagination(
         self,
@@ -69,7 +70,7 @@ class TestFindBySnapshotId:
         catalog_entry_draft_repository: CatalogEntryDraftRepository,
     ) -> None:
         """Should return empty list for non-existent snapshot."""
-        result = catalog_entry_draft_repository.find_by_snapshot_id(db, "nonexistent")
+        result = catalog_entry_draft_repository.find_by_snapshot_id(db, NONEXISTENT_IDENTIFIER)
         assert result == []
 
     def test_find_ordered_by_created_at_desc(
@@ -96,7 +97,7 @@ class TestFindAll:
     ) -> None:
         """Should return all drafts."""
         result = catalog_entry_draft_repository.find_all(db)
-        assert len(result) == 3
+        assert len(result) == len(sample_catalog_entry_drafts)
 
     def test_find_all_with_limit(
         self,
@@ -105,8 +106,9 @@ class TestFindAll:
         sample_catalog_entry_drafts: list[CatalogEntryDraft],
     ) -> None:
         """Should respect limit parameter."""
-        result = catalog_entry_draft_repository.find_all(db, limit=2)
-        assert len(result) == 2
+        limit = 2
+        result = catalog_entry_draft_repository.find_all(db, limit=limit)
+        assert len(result) == limit
 
     def test_find_all_with_offset(
         self,
@@ -116,9 +118,10 @@ class TestFindAll:
     ) -> None:
         """Should respect offset parameter."""
         all_drafts = catalog_entry_draft_repository.find_all(db)
-        offset_result = catalog_entry_draft_repository.find_all(db, offset=1)
+        offset = 1
+        offset_result = catalog_entry_draft_repository.find_all(db, offset=offset)
 
-        assert len(offset_result) == 2
+        assert len(offset_result) == len(sample_catalog_entry_drafts) - offset
         assert offset_result[0].id != all_drafts[0].id
 
     def test_find_all_empty(
