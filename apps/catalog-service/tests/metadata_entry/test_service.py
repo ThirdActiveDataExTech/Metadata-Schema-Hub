@@ -160,6 +160,9 @@ class TestSearchMetadata:
 
         result = metadata_entry_service.search_metadata(mock_db, schema=search_schema)
 
+        assert len(result) == len(mock_metadata_entry_repository.search_metadata.return_value)
+        assert result[0]["metadata_schema"] == search_schema
+
         mock_metadata_entry_repository.search_metadata.assert_called_once_with(
             db=mock_db, query=None, schema=search_schema, metadata_id=None
         )
@@ -175,6 +178,9 @@ class TestSearchMetadata:
         mock_metadata_entry_repository.search_metadata.return_value = [sample_metadata_entry]
 
         result = metadata_entry_service.search_metadata(mock_db, metadata_id=METADATA_ID_1)
+
+        assert len(result) == len(mock_metadata_entry_repository.search_metadata.return_value)
+        assert result[0]["metadata_id"] == METADATA_ID_1
 
         mock_metadata_entry_repository.search_metadata.assert_called_once_with(
             db=mock_db, query=None, schema=None, metadata_id=METADATA_ID_1
