@@ -1,7 +1,6 @@
 """Filesystem storage for metadata snapshots."""
 
 from pathlib import Path
-from typing import Union
 
 
 class FilesystemStorage:
@@ -11,7 +10,7 @@ class FilesystemStorage:
         """Initialize with base storage path."""
         self.base_path = Path(base_path)
 
-    def save(self, storage_key: str, payload: Union[str, bytes]) -> None:
+    def save(self, storage_key: str, payload: str | bytes) -> None:
         """Save payload to storage_key path."""
         path = self.base_path / storage_key
         path.parent.mkdir(parents=True, exist_ok=True)
