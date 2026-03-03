@@ -32,7 +32,7 @@ class MetadataSnapshotService:
         )
         return self.repository.save(db, snapshot)
 
-    def get_snapshot(self, db: Session, snapshot_id: str) -> Optional[MetadataSnapshot]:
+    def get_snapshot(self, db: Session, snapshot_id: SnapshotIdentifier) -> Optional[MetadataSnapshot]:
         """Retrieve snapshot metadata by ID."""
         return self.repository.find_by_snapshot_id(db, snapshot_id)
 
