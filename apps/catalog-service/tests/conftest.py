@@ -11,6 +11,19 @@ from sqlmodel import Session, SQLModel
 from testcontainers.postgres import PostgresContainer
 
 from active_metadata.models import DraftStatus
+from tests.constants import (
+    ENTRY_ID_1,
+    ENTRY_ID_2,
+    ENTRY_ID_3,
+    METADATA_ID_1,
+    METADATA_ID_2,
+    SNAPSHOT_ID_VALID,
+    SNAPSHOT_ID_VALID_ALT,
+    TEST_MAPPING_VERSION,
+    TEST_MAPPING_VERSION_ALT,
+    TEST_SHA256,
+    TEST_SHA256_ALT,
+)
 from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary
 from app.src.catalog_entry.service import CatalogEntryService
 from app.src.catalog_entry_draft.model import CatalogEntryDraft
@@ -120,7 +133,7 @@ def sample_catalog_entry() -> CatalogEntry:
         id=1,
         title="Sample Dataset",
         description="A sample dataset for testing",
-        identifier="sample-123",
+        identifier=ENTRY_ID_1,
         publisher="Test Publisher",
         keyword=["test", "sample"],
         theme=["science", "data"],
@@ -140,7 +153,7 @@ def sample_catalog_entry_summary() -> CatalogEntrySummary:
     return CatalogEntrySummary(
         id=1,
         title="Sample Dataset",
-        identifier="sample-123",
+        identifier=ENTRY_ID_1,
         publisher="Test Publisher",
         keyword=["test", "sample"],
         theme=["science"],
@@ -173,7 +186,7 @@ def sample_metadata_entry() -> MetadataEntry:
         id=1,
         metadata_schema="dct:title",
         value="Sample Title",
-        metadata_id="meta-123",
+        metadata_id=METADATA_ID_1,
         ingested_at=datetime(2024, 1, 15, 10, 0, 0),
     )
 
@@ -228,8 +241,8 @@ def sample_catalog_entry_draft() -> CatalogEntryDraft:
     """Create sample CatalogEntryDraft."""
     return CatalogEntryDraft(
         id=1,
-        snapshot_id="abc123def456",
-        mapping_version="v1.0",
+        snapshot_id=SNAPSHOT_ID_VALID,
+        mapping_version=TEST_MAPPING_VERSION,
         title="Draft Dataset",
         description="Draft description",
         keyword=["draft", "test"],
@@ -275,10 +288,10 @@ def sample_metadata_snapshot() -> MetadataSnapshot:
     """Create sample MetadataSnapshot."""
     from active_metadata.types import SnapshotIdentifier
 
-    snapshot_id = SnapshotIdentifier("urn:wisenut:metadata:1705312800-abc123def456")
+    snapshot_id = SnapshotIdentifier(SNAPSHOT_ID_VALID)
     return MetadataSnapshot(
         snapshot_id=snapshot_id,
-        payload_sha256="abc123def456abc123def456abc123def456abc123def456abc123def456abcd",
+        payload_sha256=TEST_SHA256,
         storage_key="snapshots/2024/01/abc123.json",
         original_filename="metadata.json",
         ingested_at=datetime(2024, 1, 15, 10, 0, 0),
@@ -340,7 +353,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
     """Create and persist sample catalog entries."""
     entries = [
         CatalogEntry(
-            identifier="entry-001",
+            identifier=ENTRY_ID_1,
             title="First Dataset",
             description="Description for first dataset",
             publisher="Publisher A",
@@ -351,7 +364,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
             raw_metadata={"source": "test"},
         ),
         CatalogEntry(
-            identifier="entry-002",
+            identifier=ENTRY_ID_2,
             title="Second Dataset",
             description="Description for second dataset",
             publisher="Publisher B",
@@ -362,7 +375,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
             raw_metadata={"source": "test"},
         ),
         CatalogEntry(
-            identifier="entry-003",
+            identifier=ENTRY_ID_3,
             title="Third Dataset",
             description="Another description",
             publisher="Publisher A",
@@ -388,22 +401,22 @@ def sample_metadata_entries(db: Session) -> list[MetadataEntry]:
         MetadataEntry(
             metadata_schema="dct:title",
             value="Sample Title",
-            metadata_id="meta-001",
+            metadata_id=METADATA_ID_1,
         ),
         MetadataEntry(
             metadata_schema="dct:description",
             value="Sample Description",
-            metadata_id="meta-001",
+            metadata_id=METADATA_ID_1,
         ),
         MetadataEntry(
             metadata_schema="dct:title",
             value="Another Title",
-            metadata_id="meta-002",
+            metadata_id=METADATA_ID_2,
         ),
         MetadataEntry(
             metadata_schema="dcat:keyword",
             value="test,sample",
-            metadata_id="meta-002",
+            metadata_id=METADATA_ID_2,
         ),
     ]
     for entry in entries:
@@ -436,8 +449,8 @@ def sample_catalog_entry_drafts(db: Session) -> list[CatalogEntryDraft]:
     """Create and persist sample catalog entry drafts."""
     drafts = [
         CatalogEntryDraft(
-            snapshot_id="snapshot-001",
-            mapping_version="v1.0",
+            snapshot_id=SNAPSHOT_ID_VALID,
+            mapping_version=TEST_MAPPING_VERSION,
             status=DraftStatus.PENDING,
             title="Draft Title 1",
             description="Draft Description 1",
@@ -445,8 +458,8 @@ def sample_catalog_entry_drafts(db: Session) -> list[CatalogEntryDraft]:
             mapping_evidence={"title": [{"schema": "dct:title", "score": 0.9}]},
         ),
         CatalogEntryDraft(
-            snapshot_id="snapshot-001",
-            mapping_version="v1.0",
+            snapshot_id=SNAPSHOT_ID_VALID,
+            mapping_version=TEST_MAPPING_VERSION,
             status=DraftStatus.PUBLISHED,
             title="Draft Title 2",
             description="Draft Description 2",
@@ -454,8 +467,8 @@ def sample_catalog_entry_drafts(db: Session) -> list[CatalogEntryDraft]:
             mapping_evidence={"title": [{"schema": "dct:title", "score": 0.85}]},
         ),
         CatalogEntryDraft(
-            snapshot_id="snapshot-002",
-            mapping_version="v1.1",
+            snapshot_id=SNAPSHOT_ID_VALID_ALT,
+            mapping_version=TEST_MAPPING_VERSION_ALT,
             status=DraftStatus.PENDING,
             title="Draft Title 3",
             description="Draft Description 3",
@@ -478,14 +491,14 @@ def sample_metadata_snapshots(db: Session) -> list[MetadataSnapshot]:
 
     snapshots = [
         MetadataSnapshot(
-            snapshot_id=SnapshotIdentifier("urn:wisenut:metadata:1705312800-abc123def456"),
-            payload_sha256="a" * 64,
+            snapshot_id=SnapshotIdentifier(SNAPSHOT_ID_VALID),
+            payload_sha256=TEST_SHA256,
             storage_key="2024/01/snapshot1.json",
             original_filename="data1.json",
         ),
         MetadataSnapshot(
-            snapshot_id=SnapshotIdentifier("urn:wisenut:metadata:1705399200-def456abc789"),
-            payload_sha256="b" * 64,
+            snapshot_id=SnapshotIdentifier(SNAPSHOT_ID_VALID_ALT),
+            payload_sha256=TEST_SHA256_ALT,
             storage_key="2024/01/snapshot2.json",
             original_filename="data2.json",
         ),

@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from app.src.catalog_entry_draft.model import CatalogEntryDraft
 from app.src.catalog_entry_draft.repository import CatalogEntryDraftRepository
+from tests.constants import SNAPSHOT_ID_VALID
 
 
 class TestFindById:
@@ -44,7 +45,7 @@ class TestFindBySnapshotId:
         sample_catalog_entry_drafts: list[CatalogEntryDraft],
     ) -> None:
         """Should return drafts for given snapshot_id."""
-        result = catalog_entry_draft_repository.find_by_snapshot_id(db, "snapshot-001")
+        result = catalog_entry_draft_repository.find_by_snapshot_id(db, SNAPSHOT_ID_VALID)
 
         assert len(result) == 2
         titles = {d.title for d in result}
@@ -58,7 +59,7 @@ class TestFindBySnapshotId:
     ) -> None:
         """Should apply limit and offset."""
         result = catalog_entry_draft_repository.find_by_snapshot_id(
-            db, "snapshot-001", limit=1, offset=0
+            db, SNAPSHOT_ID_VALID, limit=1, offset=0
         )
         assert len(result) == 1
 
@@ -78,7 +79,7 @@ class TestFindBySnapshotId:
         sample_catalog_entry_drafts: list[CatalogEntryDraft],
     ) -> None:
         """Should return drafts ordered by created_at descending."""
-        result = catalog_entry_draft_repository.find_by_snapshot_id(db, "snapshot-001")
+        result = catalog_entry_draft_repository.find_by_snapshot_id(db, SNAPSHOT_ID_VALID)
 
         # Most recently created first
         assert result[0].created_at >= result[1].created_at

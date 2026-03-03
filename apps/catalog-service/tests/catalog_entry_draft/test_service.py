@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 from app.src.catalog_entry_draft.model import CatalogEntryDraft
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
+from tests.constants import SNAPSHOT_ID_VALID, TEST_MAPPING_VERSION
 
 
 class TestGetDraft:
@@ -36,6 +37,7 @@ class TestGetDraft:
         result = catalog_entry_draft_service.get_draft(mock_db, 999)
 
         assert result is None
+        mock_catalog_entry_draft_repository.find_by_id.assert_called_once_with(mock_db, 999)
 
 
 class TestGetDraftsBySnapshot:
@@ -52,11 +54,11 @@ class TestGetDraftsBySnapshot:
         drafts = [sample_catalog_entry_draft]
         mock_catalog_entry_draft_repository.find_by_snapshot_id.return_value = drafts
 
-        result = catalog_entry_draft_service.get_drafts_by_snapshot(mock_db, "abc123def456")
+        result = catalog_entry_draft_service.get_drafts_by_snapshot(mock_db, SNAPSHOT_ID_VALID)
 
         assert result == drafts
         mock_catalog_entry_draft_repository.find_by_snapshot_id.assert_called_once_with(
-            mock_db, "abc123def456", 100, 0
+            mock_db, SNAPSHOT_ID_VALID, 100, 0
         )
 
     def test_with_pagination_parameters(
@@ -68,10 +70,10 @@ class TestGetDraftsBySnapshot:
         """Should pass pagination parameters to repository."""
         mock_catalog_entry_draft_repository.find_by_snapshot_id.return_value = []
 
-        catalog_entry_draft_service.get_drafts_by_snapshot(mock_db, "abc123", limit=50, offset=10)
+        catalog_entry_draft_service.get_drafts_by_snapshot(mock_db, SNAPSHOT_ID_VALID, limit=50, offset=10)
 
         mock_catalog_entry_draft_repository.find_by_snapshot_id.assert_called_once_with(
-            mock_db, "abc123", 50, 10
+            mock_db, SNAPSHOT_ID_VALID, 50, 10
         )
 
 
@@ -143,16 +145,20 @@ class TestGetMappingEvidence:
         catalog_entry_draft_service: CatalogEntryDraftService,
         mock_catalog_entry_draft_repository: MagicMock,
         mock_db: MagicMock,
-        sample_catalog_entry_draft: CatalogEntryDraft,
     ) -> None:
         """Should return mapping evidence for draft."""
-        mock_catalog_entry_draft_repository.find_by_id.return_value = sample_catalog_entry_draft
+        test_evidence = {"title": [{"schema": "dct:title", "value": "Test", "score": 0.95}]}
+        draft = CatalogEntryDraft(
+            id=1,
+            snapshot_id=SNAPSHOT_ID_VALID,
+            mapping_version=TEST_MAPPING_VERSION,
+            mapping_evidence=test_evidence,
+        )
+        mock_catalog_entry_draft_repository.find_by_id.return_value = draft
 
         result = catalog_entry_draft_service.get_mapping_evidence(mock_db, 1)
 
-        assert result is not None
-        assert "title" in result
-        assert result["title"][0]["score"] == 0.95
+        assert result == test_evidence
 
     def test_returns_none_when_draft_not_found(
         self,
@@ -166,6 +172,7 @@ class TestGetMappingEvidence:
         result = catalog_entry_draft_service.get_mapping_evidence(mock_db, 999)
 
         assert result is None
+        mock_catalog_entry_draft_repository.find_by_id.assert_called_once_with(mock_db, 999)
 
     def test_returns_empty_dict_when_no_evidence(
         self,
@@ -176,8 +183,8 @@ class TestGetMappingEvidence:
         """Should return empty dict when draft has no mapping evidence."""
         draft = CatalogEntryDraft(
             id=1,
-            snapshot_id="abc123",
-            mapping_version="v1.0",
+            snapshot_id=SNAPSHOT_ID_VALID,
+            mapping_version=TEST_MAPPING_VERSION,
             mapping_evidence={},
         )
         mock_catalog_entry_draft_repository.find_by_id.return_value = draft

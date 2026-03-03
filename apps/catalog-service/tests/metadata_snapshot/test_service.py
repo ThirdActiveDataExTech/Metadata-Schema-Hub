@@ -39,17 +39,4 @@ class TestGetSnapshot:
         result = metadata_snapshot_service.get_snapshot(mock_db, snapshot_id)
 
         assert result is None
-
-    def test_passes_snapshot_id_to_repository(
-        self,
-        metadata_snapshot_service: MetadataSnapshotService,
-        mock_metadata_snapshot_repository: MagicMock,
-        mock_db: MagicMock,
-    ) -> None:
-        """Should pass snapshot_id directly to repository."""
-        mock_metadata_snapshot_repository.find_by_snapshot_id.return_value = None
-        snapshot_id = SnapshotIdentifier("urn:wisenut:metadata:1234567890-abcdef123456")
-
-        metadata_snapshot_service.get_snapshot(mock_db, snapshot_id)
-
         mock_metadata_snapshot_repository.find_by_snapshot_id.assert_called_once_with(mock_db, snapshot_id)

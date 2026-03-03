@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from app.src.metadata_entry.model import MetadataEntry
 from app.src.metadata_entry.repository import MetadataEntryRepository
+from tests.constants import METADATA_ID_1, METADATA_ID_2
 
 
 class TestSelectMetadataEntry:
@@ -17,7 +18,7 @@ class TestSelectMetadataEntry:
         sample_metadata_entries: list[MetadataEntry],
     ) -> None:
         """Should return all entries for given metadata_id."""
-        result = metadata_entry_repository.select_metadata_entry(db, "meta-001")
+        result = metadata_entry_repository.select_metadata_entry(db, METADATA_ID_1)
 
         assert len(result) == 2
         schemas = {e.metadata_schema for e in result}
@@ -44,7 +45,7 @@ class TestSelectMetadataEntriesByMetadataIds:
     ) -> None:
         """Should return entries for multiple metadata IDs."""
         result = metadata_entry_repository.select_metadata_entries_by_metadata_ids(
-            db, ["meta-001", "meta-002"]
+            db, [METADATA_ID_1, METADATA_ID_2]
         )
 
         assert len(result) == 4  # 2 + 2 entries
@@ -95,10 +96,10 @@ class TestSearchMetadata:
         sample_metadata_entries: list[MetadataEntry],
     ) -> None:
         """Should filter by metadata_id."""
-        result = metadata_entry_repository.search_metadata(db, metadata_id="meta-001")
+        result = metadata_entry_repository.search_metadata(db, metadata_id=METADATA_ID_1)
 
         assert len(result) == 2
-        assert all(e.metadata_id == "meta-001" for e in result)
+        assert all(e.metadata_id == METADATA_ID_1 for e in result)
 
     def test_search_with_multiple_filters(
         self,
@@ -107,7 +108,7 @@ class TestSearchMetadata:
         sample_metadata_entries: list[MetadataEntry],
     ) -> None:
         """Should apply multiple filters (AND condition)."""
-        entry = sample_metadata_entries[0]  # dct:title with meta-001
+        entry = sample_metadata_entries[0]  # dct:title with METADATA_ID_1
         result = metadata_entry_repository.search_metadata(
             db, schema=entry.metadata_schema, metadata_id=entry.metadata_id
         )
@@ -170,7 +171,7 @@ class TestSelectDistinctMetadataSchemas:
     ) -> None:
         """Should return distinct schemas for given metadata IDs."""
         result = metadata_entry_repository.select_distinct_metadata_schemas(
-            db, ["meta-001"]
+            db, [METADATA_ID_1]
         )
 
         assert set(result) == {"dct:title", "dct:description"}
@@ -183,7 +184,7 @@ class TestSelectDistinctMetadataSchemas:
     ) -> None:
         """Should return distinct schemas across multiple metadata IDs."""
         result = metadata_entry_repository.select_distinct_metadata_schemas(
-            db, ["meta-001", "meta-002"]
+            db, [METADATA_ID_1, METADATA_ID_2]
         )
 
         assert set(result) == {"dct:title", "dct:description", "dcat:keyword"}

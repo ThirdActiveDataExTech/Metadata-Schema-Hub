@@ -1,10 +1,11 @@
 """Tests for MetadataEntryService."""
 
+from datetime import datetime
 from unittest.mock import MagicMock
-
 
 from app.src.metadata_entry.model import MetadataEntry
 from app.src.metadata_entry.service import MetadataEntryService
+from tests.constants import METADATA_ID_1, METADATA_ID_2
 
 
 class TestSelectMetadata:
@@ -21,10 +22,10 @@ class TestSelectMetadata:
         entries = [sample_metadata_entry]
         mock_metadata_entry_repository.select_metadata_entry.return_value = entries
 
-        result = metadata_entry_service.select_metadata(mock_db, "meta-123")
+        result = metadata_entry_service.select_metadata(mock_db, METADATA_ID_1)
 
         assert result == entries
-        mock_metadata_entry_repository.select_metadata_entry.assert_called_once_with(mock_db, "meta-123")
+        mock_metadata_entry_repository.select_metadata_entry.assert_called_once_with(mock_db, METADATA_ID_1)
 
 
 class TestSelectMetadataSchemasDistinct:
@@ -40,11 +41,11 @@ class TestSelectMetadataSchemasDistinct:
         schemas = ["dct:title", "dct:description", "dcat:keyword"]
         mock_metadata_entry_repository.select_distinct_metadata_schemas.return_value = schemas
 
-        result = metadata_entry_service.select_metadata_schemas_distinct(mock_db, ["meta-1", "meta-2"])
+        result = metadata_entry_service.select_metadata_schemas_distinct(mock_db, [METADATA_ID_1, METADATA_ID_2])
 
         assert result == schemas
         mock_metadata_entry_repository.select_distinct_metadata_schemas.assert_called_once_with(
-            mock_db, ["meta-1", "meta-2"]
+            mock_db, [METADATA_ID_1, METADATA_ID_2]
         )
 
 
@@ -62,11 +63,11 @@ class TestSelectMetadataBulk:
         entries = [sample_metadata_entry]
         mock_metadata_entry_repository.select_metadata_entries_by_metadata_ids.return_value = entries
 
-        result = metadata_entry_service.select_metadata_bulk(mock_db, ["meta-1", "meta-2"])
+        result = metadata_entry_service.select_metadata_bulk(mock_db, [METADATA_ID_1, METADATA_ID_2])
 
         assert result == entries
         mock_metadata_entry_repository.select_metadata_entries_by_metadata_ids.assert_called_once_with(
-            mock_db, ["meta-1", "meta-2"]
+            mock_db, [METADATA_ID_1, METADATA_ID_2]
         )
 
 
@@ -125,15 +126,22 @@ class TestSearchMetadata:
         metadata_entry_service: MetadataEntryService,
         mock_metadata_entry_repository: MagicMock,
         mock_db: MagicMock,
-        sample_metadata_entry: MetadataEntry,
     ) -> None:
         """Should search with text query."""
-        mock_metadata_entry_repository.search_metadata.return_value = [sample_metadata_entry]
+
+        entry = MetadataEntry(
+            id=1,
+            metadata_schema="dct:title",
+            value="Test Value",
+            metadata_id=METADATA_ID_1,
+            ingested_at=datetime(2024, 1, 1),
+        )
+        mock_metadata_entry_repository.search_metadata.return_value = [entry]
 
         result = metadata_entry_service.search_metadata(mock_db, query="sample")
 
         assert len(result) == 1
-        assert result[0]["metadata_schema"] == "dct:title"
+        assert result[0]["metadata_schema"] == entry.metadata_schema
         mock_metadata_entry_repository.search_metadata.assert_called_once_with(
             db=mock_db, query="sample", schema=None, metadata_id=None
         )
@@ -148,10 +156,12 @@ class TestSearchMetadata:
         """Should search with schema filter."""
         mock_metadata_entry_repository.search_metadata.return_value = [sample_metadata_entry]
 
-        result = metadata_entry_service.search_metadata(mock_db, schema="dct:title")
+        search_schema = "dct:title"
+
+        result = metadata_entry_service.search_metadata(mock_db, schema=search_schema)
 
         mock_metadata_entry_repository.search_metadata.assert_called_once_with(
-            db=mock_db, query=None, schema="dct:title", metadata_id=None
+            db=mock_db, query=None, schema=search_schema, metadata_id=None
         )
 
     def test_search_with_metadata_id_filter(
@@ -164,10 +174,10 @@ class TestSearchMetadata:
         """Should search with metadata_id filter."""
         mock_metadata_entry_repository.search_metadata.return_value = [sample_metadata_entry]
 
-        result = metadata_entry_service.search_metadata(mock_db, metadata_id="meta-123")
+        result = metadata_entry_service.search_metadata(mock_db, metadata_id=METADATA_ID_1)
 
         mock_metadata_entry_repository.search_metadata.assert_called_once_with(
-            db=mock_db, query=None, schema=None, metadata_id="meta-123"
+            db=mock_db, query=None, schema=None, metadata_id=METADATA_ID_1
         )
 
     def test_converts_ingested_at_to_string(
