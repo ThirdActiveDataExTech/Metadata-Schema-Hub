@@ -6,6 +6,7 @@ from sqlmodel import Session
 from app.src.catalog_entry.exceptions import CatalogEntryNotFoundError
 from app.src.catalog_entry.model import CatalogEntry
 from app.src.catalog_entry.repository import CatalogEntryRepository
+from tests.constants import ENTRY_ID_1, ENTRY_ID_3
 
 
 class TestSelect:
@@ -115,7 +116,7 @@ class TestSelectByIdentifiers:
     ) -> None:
         """Should return entries by identifiers."""
         result = catalog_entry_repository.select_by_identifiers(
-            db, ["entry-001", "entry-003"]
+            db, [ENTRY_ID_1, ENTRY_ID_3]
         )
 
         assert len(result) == 2

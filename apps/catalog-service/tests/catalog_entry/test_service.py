@@ -6,6 +6,7 @@ from unittest.mock import MagicMock
 
 from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary
 from app.src.catalog_entry.service import CatalogEntryService
+from tests.constants import ENTRY_ID_1, ENTRY_ID_2
 
 
 class TestGetCatalogEntry:
@@ -40,10 +41,10 @@ class TestGetCatalogEntryByIdentifier:
         """Should return catalog entry when found by identifier."""
         mock_catalog_entry_repository.select_by_identifier.return_value = sample_catalog_entry
 
-        result = catalog_entry_service.get_catalog_entry_by_identifier(mock_db, "sample-123")
+        result = catalog_entry_service.get_catalog_entry_by_identifier(mock_db, ENTRY_ID_1)
 
         assert result == sample_catalog_entry
-        mock_catalog_entry_repository.select_by_identifier.assert_called_once_with(mock_db, "sample-123")
+        mock_catalog_entry_repository.select_by_identifier.assert_called_once_with(mock_db, ENTRY_ID_1)
 
 
 class TestGetCatalogEntries:
@@ -94,10 +95,10 @@ class TestGetCatalogEntriesByIdentifier:
         entries = [sample_catalog_entry]
         mock_catalog_entry_repository.select_by_identifiers.return_value = entries
 
-        result = catalog_entry_service.get_catalog_entries_by_identifier(mock_db, ["sample-123"])
+        result = catalog_entry_service.get_catalog_entries_by_identifier(mock_db, [ENTRY_ID_1])
 
         assert result == entries
-        mock_catalog_entry_repository.select_by_identifiers.assert_called_once_with(mock_db, ["sample-123"])
+        mock_catalog_entry_repository.select_by_identifiers.assert_called_once_with(mock_db, [ENTRY_ID_1])
 
 
 class TestGetCatalogEntrySummaryByIdentifier:
@@ -114,11 +115,11 @@ class TestGetCatalogEntrySummaryByIdentifier:
         summaries = [sample_catalog_entry_summary]
         mock_catalog_entry_repository.select_summaries_by_identifiers.return_value = summaries
 
-        result = catalog_entry_service.get_catalog_entry_summary_by_identifier(mock_db, ["sample-123"])
+        result = catalog_entry_service.get_catalog_entry_summary_by_identifier(mock_db, [ENTRY_ID_1])
 
         assert result == summaries
         mock_catalog_entry_repository.select_summaries_by_identifiers.assert_called_once_with(
-            mock_db, ["sample-123"]
+            mock_db, [ENTRY_ID_1]
         )
 
 
@@ -130,15 +131,15 @@ class TestGetRawMetadata:
         catalog_entry_service: CatalogEntryService,
         mock_catalog_entry_repository: MagicMock,
         mock_db: MagicMock,
-        sample_catalog_entry: CatalogEntry,
     ) -> None:
         """Should return raw metadata as JSON by default."""
-        mock_catalog_entry_repository.select.return_value = sample_catalog_entry
+        test_raw_metadata = {"title": "Test Dataset", "nested": {"key": "value"}}
+        entry = CatalogEntry(id=1, identifier=ENTRY_ID_1, raw_metadata=test_raw_metadata)
+        mock_catalog_entry_repository.select.return_value = entry
 
         result = catalog_entry_service.get_raw_metadata(mock_db, 1)
 
-        assert result == sample_catalog_entry.raw_metadata
-        assert result == {"title": "Sample Dataset", "nested": {"key": "value"}}
+        assert result == test_raw_metadata
 
     def test_returns_xml_format_when_specified(
         self,
@@ -193,8 +194,8 @@ class TestExportToCsvStream:
     ) -> None:
         """Should return CSV stream from export data."""
         export_data = [
-            {"id": 1, "title": "Dataset 1", "identifier": "ds-1"},
-            {"id": 2, "title": "Dataset 2", "identifier": "ds-2"},
+            {"id": 1, "title": "Dataset 1", "identifier": ENTRY_ID_1},
+            {"id": 2, "title": "Dataset 2", "identifier": ENTRY_ID_2},
         ]
         mock_catalog_entry_repository.export_data_list.return_value = export_data
 
