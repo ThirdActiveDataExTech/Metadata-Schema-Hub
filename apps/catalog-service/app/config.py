@@ -103,6 +103,9 @@ class Settings(BaseSettings):
 
     POSTGRES_VERBOSE: bool = False
 
+    # Snapshot Storage
+    SNAPSHOT_STORAGE_PATH: str = "./snapshots"
+
 
 settings = Settings()  # type: ignore
 print(settings.model_dump_json())

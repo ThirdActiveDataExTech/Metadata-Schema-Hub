@@ -1,0 +1,1 @@
+"""Catalog entry draft module."""

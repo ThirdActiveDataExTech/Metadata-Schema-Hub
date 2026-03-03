@@ -1,10 +1,9 @@
-import uuid
 from datetime import datetime
 from typing import List, Optional
 
 from active_metadata.models import MetadataBase
 from pydantic import BaseModel
-from sqlmodel import Field, SQLModel
+from sqlmodel import SQLModel
 
 
 class MetadataSchema(BaseModel):
@@ -23,7 +22,7 @@ class MetadataEntry(MetadataBase, table=True):  # type: ignore
 class MetadataCreate(SQLModel):
     """메타데이터 생성용 모델 - Converter 출력을 DB Entry로 변환."""
 
-    metadata_id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    metadata_id: str
     metadata_schemas: List[MetadataSchema]
     ingested_at: Optional[datetime] = None
 

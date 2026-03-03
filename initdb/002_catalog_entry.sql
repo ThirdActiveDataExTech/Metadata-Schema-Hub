@@ -24,10 +24,16 @@ CREATE TABLE IF NOT EXISTS catalog_entry
     -- 원본 메타데이터 저장용
     raw_metadata   JSONB NOT NULL,            -- 원본 메타데이터 전체(JSON-LD, schema.org, openapi 등)
 
+    -- 추적 컬럼 (스냅샷 연결)
+    latest_snapshot_id TEXT,                  -- 최신 스냅샷 참조
+
     -- 수집/입력 메타 정보
     ingested_at    TIMESTAMPTZ DEFAULT now(), -- 시스템 수집 일시
     updated_at     TIMESTAMPTZ DEFAULT now()  -- 시스템 후처리 시 갱신 시각
 );
+
+-- 추적 컬럼 인덱스
+CREATE INDEX IF NOT EXISTS idx_catalog_entry_latest_snapshot_id ON catalog_entry(latest_snapshot_id);
 
 -- 필드별 COMMENT
 COMMENT
@@ -61,3 +67,5 @@ COMMENT
 ON COLUMN catalog_entry.ingested_at IS '데이터가 수집되어 저장된 시간.';
 COMMENT
 ON COLUMN catalog_entry.updated_at IS '후처리, 재매핑 등으로 갱신된 시각.';
+COMMENT
+ON COLUMN catalog_entry.latest_snapshot_id IS '이 엔트리를 갱신하는 데 사용된 최신 메타데이터 스냅샷 참조';

@@ -12,8 +12,7 @@ class ColumnRelationRepository:
     def save(self, db: Session, column_relation: ColumnRelation) -> ColumnRelation:
         """Save column_relation."""
         db.add(column_relation)
-        db.commit()
-        db.refresh(column_relation)
+        db.flush()
         return column_relation
 
     def save_bulk(self, db: Session, column_relations: List[ColumnRelation]) -> List[ColumnRelation]:
@@ -35,7 +34,6 @@ class ColumnRelationRepository:
             ColumnRelation.metadata_column
         )
         rows = db.exec(stmt).all()
-        db.commit()
 
         # Row를 ColumnRelation으로 변환
         return [
@@ -92,7 +90,7 @@ class ColumnRelationRepository:
 
         for relation in relations:
             db.delete(relation)
-        db.commit()
+        db.flush()
         return count
 
     def select_relations_by_metadata_columns(self, db: Session, metadata_columns: List[str]) -> List[ColumnRelation]:

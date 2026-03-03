@@ -34,8 +34,11 @@ services:
       POSTGRES_HOST: postgres-174
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-datagokr}
+      SNAPSHOT_STORAGE_PATH: /data/snapshots
     ports:
       - 8085:8085
+    volumes:
+      - snapshot-data:/data/snapshots
     depends_on:
       - postgres-174
 
@@ -74,3 +77,4 @@ services:
 
 volumes:
   pgdata-postgres17:
+  snapshot-data:

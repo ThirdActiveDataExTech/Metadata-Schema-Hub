@@ -1,14 +1,10 @@
-import logging
 import uuid
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
-from active_metadata.models import CatalogEntryBase
-from active_metadata.utils import to_str_list
+from active_metadata import CatalogEntryBase, parse_date, to_str_list
 from pydantic import BaseModel
 from sqlmodel import Field
-
-KST = timezone(timedelta(hours=9))
 
 
 class CatalogEntry(CatalogEntryBase, table=True):  # pyright: ignore
@@ -57,19 +53,11 @@ class CatalogEntryUpdate(BaseModel):
     raw_metadata: Optional[Dict[str, Any]] = None
 
     def set_field(self, field_name: str, value: Any):
-        """Set field with type coercion"""
-        list_fields = ["keyword", "theme"]
-        date_fields = ["issued", "modified"]
-
-        if field_name in list_fields:
+        """Set field with type coercion."""
+        if field_name in CatalogEntryBase.get_list_fields():
             value = to_str_list(value)
-        elif field_name in date_fields and isinstance(value, str):
-            try:
-                value = datetime.fromisoformat(value).date()
-            except ValueError as e:
-                logging.error(f"Parsing date failed. {str(e)}")
-                value = None
-
+        elif field_name in CatalogEntryBase.get_date_fields():
+            value = parse_date(value)
         setattr(self, field_name, value)
 
     def model_dump_for_update(self) -> Dict[str, Any]:
