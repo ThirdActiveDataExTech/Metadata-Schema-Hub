@@ -28,6 +28,6 @@ class CatalogEntryResponse(BaseModel):
 class MetadataCreateSummary(BaseModel):
     """메타데이터 생성 요약 (bulk 수집 응답용)"""
 
-    metadata_id: str = Field(description="메타데이터 UUID", examples=["18e6f7bc-5791-488a-bc7b-d78b18e51dcd"])
+    metadata_id: str = Field(description="메타데이터 식별자 (URN)", examples=["urn:wisenut:metadata:1708675200-094fdfd8f7f8"])
     total_entries: int = Field(description="생성된 엔트리 개수", examples=[15])
     ingested_at: datetime = Field(description="수집 시각")
