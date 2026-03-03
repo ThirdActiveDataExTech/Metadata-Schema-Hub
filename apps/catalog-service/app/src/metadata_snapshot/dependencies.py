@@ -27,4 +27,5 @@ def get_metadata_snapshot_service(
     return MetadataSnapshotService(repository=repository, storage=storage)
 
 
+FilesystemStorageDep = Annotated[FilesystemStorage, Depends(get_filesystem_storage)]
 MetadataSnapshotServiceDep = Annotated[MetadataSnapshotService, Depends(get_metadata_snapshot_service)]
