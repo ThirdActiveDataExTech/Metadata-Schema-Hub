@@ -19,6 +19,7 @@ class CatalogEntryRepository:
         """Select catalog_entry."""
         catalog_entry = db.get(CatalogEntry, catalog_entry_id)
         if not catalog_entry:
+            # TODO: raise CatalogEntryNotFoundError instead of ValueError
             raise ValueError(f"{catalog_entry_id=} not found.")
 
         return catalog_entry
@@ -28,6 +29,7 @@ class CatalogEntryRepository:
         stmt = select(CatalogEntry).where(CatalogEntry.identifier == catalog_entry_identifier)
         catalog_entry = db.exec(stmt).first()
         if not catalog_entry:
+            # TODO: raise CatalogEntryNotFoundError instead of ValueError
             raise ValueError(f"Catalog entry with identifier '{catalog_entry_identifier}' not found.")
         return catalog_entry
 
