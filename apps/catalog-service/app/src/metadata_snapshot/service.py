@@ -2,6 +2,7 @@
 
 from typing import Optional
 
+from active_metadata.types import SnapshotIdentifier
 from sqlmodel import Session
 
 from app.src.metadata_snapshot.filesystem_storage import FilesystemStorage
@@ -17,6 +18,6 @@ class MetadataSnapshotService:
         self.repository = repository
         self.storage = storage
 
-    def get_snapshot(self, db: Session, snapshot_id: str) -> Optional[MetadataSnapshot]:
+    def get_snapshot(self, db: Session, snapshot_id: SnapshotIdentifier) -> Optional[MetadataSnapshot]:
         """Retrieve snapshot metadata by ID."""
         return self.repository.find_by_snapshot_id(db, snapshot_id)
