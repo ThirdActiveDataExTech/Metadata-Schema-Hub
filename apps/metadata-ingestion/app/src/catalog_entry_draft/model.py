@@ -4,7 +4,7 @@ from datetime import date
 from typing import Any
 
 from active_metadata.models import CatalogEntryDraftBase
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class CatalogEntryDraft(CatalogEntryDraftBase, table=True):  # type: ignore[call-arg]
@@ -16,8 +16,8 @@ class CatalogEntryDraft(CatalogEntryDraftBase, table=True):  # type: ignore[call
 class MappingCandidate(BaseModel):
     """Single mapping candidate with evidence."""
 
-    metadata_column: str
-    correlation: float
+    metadata_column: str = Field(..., min_length=1)
+    correlation: float = Field(..., ge=0.0, le=1.0)
     value: Any
 
 
