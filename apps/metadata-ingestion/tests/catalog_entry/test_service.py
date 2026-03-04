@@ -39,7 +39,7 @@ class TestCatalogEntryService:
         create_dto = CatalogEntryCreate(
             identifier="draft-identifier",
             ingested_at=datetime(2024, 1, 1),
-            raw_metadata={},
+            latest_snapshot_id="urn:wisenut:metadata:1234567890-abcdef123456",
         )
 
         catalog_entry_service.repository.save.side_effect = lambda db, e: e
