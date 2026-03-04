@@ -197,7 +197,7 @@ class TestMetadataSnapshotBase:
     def test_valid_snapshot_id_variants(self, snapshot_id: str, valid_sha256):
         """Test various valid snapshot_id formats."""
         snapshot = MetadataSnapshotBase(
-            snapshot_id=snapshot_id,
+            snapshot_id=snapshot_id,  # type: ignore[arg-type]
             payload_sha256=valid_sha256,
             storage_key="test.json",
         )
@@ -219,7 +219,7 @@ class TestMetadataSnapshotBase:
         """Test invalid snapshot_id formats are rejected."""
         with pytest.raises(ValidationError) as exc_info:
             MetadataSnapshotBase(
-                snapshot_id=invalid_id,
+                snapshot_id=invalid_id,  # type: ignore[arg-type]
                 payload_sha256=valid_sha256,
                 storage_key="test.json",
             )

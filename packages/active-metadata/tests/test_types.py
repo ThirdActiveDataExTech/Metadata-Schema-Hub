@@ -230,7 +230,7 @@ class TestSnapshotIdentifierPydanticIntegration:
         class TestModel(BaseModel):
             snapshot_id: SnapshotIdentifier
 
-        model = TestModel(snapshot_id="urn:wisenut:metadata:1708675200-abcdef123456")
+        model = TestModel(snapshot_id="urn:wisenut:metadata:1708675200-abcdef123456")  # type: ignore[arg-type]
         assert isinstance(model.snapshot_id, SnapshotIdentifier)
         assert model.snapshot_id.namespace == "wisenut"
 
@@ -241,7 +241,7 @@ class TestSnapshotIdentifierPydanticIntegration:
             snapshot_id: SnapshotIdentifier
 
         with pytest.raises(ValidationError):
-            TestModel(snapshot_id="invalid-id")
+            TestModel(snapshot_id="invalid-id")  # type: ignore[arg-type]
 
     def test_pydantic_serialization(self):
         """Test SnapshotIdentifier serializes to string."""
@@ -249,7 +249,7 @@ class TestSnapshotIdentifierPydanticIntegration:
         class TestModel(BaseModel):
             snapshot_id: SnapshotIdentifier
 
-        model = TestModel(snapshot_id="urn:wisenut:metadata:1708675200-abcdef123456")
+        model = TestModel(snapshot_id="urn:wisenut:metadata:1708675200-abcdef123456")  # type: ignore[arg-type]
         data = model.model_dump()
         assert data["snapshot_id"] == "urn:wisenut:metadata:1708675200-abcdef123456"
 
@@ -259,7 +259,7 @@ class TestSnapshotIdentifierPydanticIntegration:
         class TestModel(BaseModel):
             snapshot_id: SnapshotIdentifier
 
-        model = TestModel(snapshot_id="urn:wisenut:metadata:1708675200-abcdef123456")
+        model = TestModel(snapshot_id="urn:wisenut:metadata:1708675200-abcdef123456")  # type: ignore[arg-type]
         json_str = model.model_dump_json()
         assert '"urn:wisenut:metadata:1708675200-abcdef123456"' in json_str
 
