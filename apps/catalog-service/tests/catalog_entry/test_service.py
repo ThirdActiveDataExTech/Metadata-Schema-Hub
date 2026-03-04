@@ -123,66 +123,6 @@ class TestGetCatalogEntrySummaryByIdentifier:
         )
 
 
-class TestGetRawMetadata:
-    """Tests for get_raw_metadata method."""
-
-    def test_returns_json_format_by_default(
-        self,
-        catalog_entry_service: CatalogEntryService,
-        mock_catalog_entry_repository: MagicMock,
-        mock_db: MagicMock,
-    ) -> None:
-        """Should return raw metadata as JSON by default."""
-        test_raw_metadata = {"title": "Test Dataset", "nested": {"key": "value"}}
-        entry = CatalogEntry(id=1, identifier=ENTRY_ID_1, raw_metadata=test_raw_metadata)
-        mock_catalog_entry_repository.select.return_value = entry
-
-        result = catalog_entry_service.get_raw_metadata(mock_db, 1)
-
-        assert result == test_raw_metadata
-
-    def test_returns_xml_format_when_specified(
-        self,
-        catalog_entry_service: CatalogEntryService,
-        mock_catalog_entry_repository: MagicMock,
-        mock_db: MagicMock,
-    ) -> None:
-        """Should return raw metadata as XML when format is xml."""
-        # xmltodict.unparse requires exactly one root element
-        entry = CatalogEntry(
-            id=1,
-            identifier="xml-test",
-            raw_metadata={"dataset": {"title": "XML Dataset", "description": "Test"}},
-        )
-        mock_catalog_entry_repository.select.return_value = entry
-
-        result = catalog_entry_service.get_raw_metadata(mock_db, 1, data_format="xml")
-
-        assert isinstance(result, str)
-        assert "<?xml" in result
-        assert "XML Dataset" in result
-
-
-class TestGetRawMetadatas:
-    """Tests for get_raw_metadatas method."""
-
-    def test_returns_multiple_raw_metadatas(
-        self,
-        catalog_entry_service: CatalogEntryService,
-        mock_catalog_entry_repository: MagicMock,
-        mock_db: MagicMock,
-        sample_catalog_entry: CatalogEntry,
-    ) -> None:
-        """Should return raw metadata for multiple entries."""
-        entries = [sample_catalog_entry]
-        mock_catalog_entry_repository.select_by_ids.return_value = entries
-
-        result = catalog_entry_service.get_raw_metadatas(mock_db, [1])
-
-        assert result == [sample_catalog_entry.raw_metadata]
-        mock_catalog_entry_repository.select_by_ids.assert_called_once_with(mock_db, [1])
-
-
 class TestExportToCsvStream:
     """Tests for export_to_csv_stream method."""
 

@@ -21,3 +21,22 @@ class MetadataSnapshotService:
     def get_snapshot(self, db: Session, snapshot_id: SnapshotIdentifier) -> Optional[MetadataSnapshot]:
         """Retrieve snapshot metadata by ID."""
         return self.repository.find_by_snapshot_id(db, snapshot_id)
+
+    def load_raw_content(self, db: Session, snapshot_id: str) -> bytes | None:
+        """Load raw content from storage.
+
+        Args:
+            db: Database session
+            snapshot_id: Snapshot identifier string
+
+        Returns:
+            Raw bytes or None if not found
+        """
+        snapshot = self.repository.find_by_snapshot_id(db, snapshot_id)
+        if not snapshot:
+            return None
+
+        try:
+            return self.storage.load(snapshot.storage_key)
+        except FileNotFoundError:
+            return None
