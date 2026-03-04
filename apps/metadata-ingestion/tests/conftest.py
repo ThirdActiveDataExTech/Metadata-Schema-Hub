@@ -428,7 +428,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
             theme=["research"],
             issued=date(2024, 1, 1),
             modified=date(2024, 6, 1),
-            raw_metadata={"source": "test"},
+            latest_snapshot_id=SNAPSHOT_ID_VALID,
         ),
         CatalogEntry(
             identifier=ENTRY_ID_2,
@@ -439,7 +439,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
             theme=["innovation"],
             issued=date(2024, 2, 1),
             modified=date(2024, 7, 1),
-            raw_metadata={"source": "test"},
+            latest_snapshot_id=SNAPSHOT_ID_VALID_ALT,
         ),
         CatalogEntry(
             identifier=ENTRY_ID_3,
@@ -450,7 +450,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
             theme=["research", "climate"],
             issued=date(2024, 3, 1),
             modified=date(2024, 8, 1),
-            raw_metadata={"source": "test"},
+            latest_snapshot_id=None,
         ),
     ]
     for entry in entries:

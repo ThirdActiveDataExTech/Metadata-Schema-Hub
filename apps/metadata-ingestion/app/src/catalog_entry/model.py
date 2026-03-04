@@ -34,7 +34,7 @@ class CatalogEntryCreate(BaseModel):
     """카탈로그 생성 DTO"""
 
     identifier: str = Field(default_factory=lambda: str(uuid.uuid4()))
-    raw_metadata: Dict[str, Any]
+    latest_snapshot_id: Optional[str] = None
     ingested_at: datetime = Field(default_factory=datetime.now)
 
 
@@ -50,7 +50,7 @@ class CatalogEntryUpdate(BaseModel):
     landing_page: Optional[str] = None
     theme: Optional[List[str]] = None
     access_url: Optional[str] = None
-    raw_metadata: Optional[Dict[str, Any]] = None
+    latest_snapshot_id: Optional[str] = None
 
     def set_field(self, field_name: str, value: Any):
         """Set field with type coercion."""

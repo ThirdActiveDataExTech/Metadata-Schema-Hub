@@ -1,11 +1,10 @@
 import io
-from typing import Any, Dict, List, Optional, Sequence, Literal
+from typing import Any, Dict, List, Optional, Sequence
 
 import pandas as pd
-import xmltodict
 from sqlmodel import Session
 
-from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary, CatalogEntryCreate, CatalogEntryUpdate
+from app.src.catalog_entry.model import CatalogEntry, CatalogEntryCreate, CatalogEntrySummary, CatalogEntryUpdate
 from app.src.catalog_entry.repository import CatalogEntryRepository
 
 
@@ -24,7 +23,7 @@ class CatalogEntryService:
         """CatalogEntry 초안 생성."""
         catalog_entry = CatalogEntry(
             identifier=catalog_entry_create.identifier,
-            raw_metadata=catalog_entry_create.raw_metadata,
+            latest_snapshot_id=catalog_entry_create.latest_snapshot_id,
             ingested_at=catalog_entry_create.ingested_at,
         )
         catalog_entry = self.repository.save(db, catalog_entry)
@@ -67,22 +66,6 @@ class CatalogEntryService:
         """Get CatalogEntrySummary."""
         return self.repository.select_summaries_by_identifiers(db, catalog_entry_identifiers)
 
-    def get_raw_metadata(self, db: Session, catalog_entry_id: int, data_format: Literal["json", "xml"] = "json") -> Any:
-        """Get raw metadata."""
-        raw_metadata = self.repository.select(db, catalog_entry_id).raw_metadata
-
-        if data_format == "xml":
-            xml_string = xmltodict.unparse(raw_metadata, full_document=True)
-            return xml_string
-
-        return raw_metadata
-
-    def get_raw_metadatas(self, db: Session, catalog_entry_ids: List[int]) -> List[Any]:
-        """Get raw metadatas for multiple catalog entries."""
-        # WHERE IN 절로 단일 쿼리 실행
-        entries = self.repository.select_by_ids(db, catalog_entry_ids)
-        return [entry.raw_metadata for entry in entries]
-
     def export_to_csv_stream(self, db: Session, limit: int = 100) -> io.StringIO:
         """메모리에서 CSV 스트림 생성"""
         data_list = self.repository.export_data_list(db, limit=limit)
@@ -119,8 +102,6 @@ class CatalogEntryService:
             if item_dict.get("updated_at"):
                 item_dict["updated_at"] = str(item_dict["updated_at"])
 
-            # raw_metadata 제거 (크기 최적화)
-            item_dict.pop("raw_metadata", None)
             result_items.append(item_dict)
 
         return result_items
