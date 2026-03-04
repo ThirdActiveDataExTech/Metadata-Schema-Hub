@@ -8,6 +8,7 @@ maintainers = [
 license = { text = "LICENSE" }
 requires-python = "<3.13,>=3.9"
 dependencies = [
+    "active-metadata",
     "loguru<1.0.0,>=0.7.2",
     "pyyaml<7.0.0,>=6.0.2",
     "pydantic-settings<3.0.0,>=2.5.2",
@@ -50,9 +51,6 @@ classifiers = [
     "Topic :: Internet :: WWW/HTTP",
     "Intended Audience :: Developers",
 ]
-excludes = [
-    ".gitlab-ci.yml",
-]
 
 [dependency-groups]
 lint = [
@@ -66,6 +64,7 @@ test = [
     "pytest-cov<6.0.0,>=5.0.0",
     "setuptools>=77.0.3",
     "tabulate<1.0.0,>=0.9.0",
+    "testcontainers[postgres]>=4.0.0",
 ]
 gunicorn = [
     "gunicorn<24.0.0,>=23.0.0",
@@ -76,6 +75,9 @@ db = [
 
 [tool.uv]
 default-groups = ["db"]
+
+[tool.uv.sources]
+active-metadata = { path = "../../packages/active-metadata", editable = true }
 
 [tool.setuptools]
 py-modules = ["app"]

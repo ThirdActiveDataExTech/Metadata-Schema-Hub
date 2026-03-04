@@ -1,0 +1,1 @@
+"""ColumnRelation tests."""

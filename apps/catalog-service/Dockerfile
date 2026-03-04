@@ -2,33 +2,39 @@ FROM ghcr.io/astral-sh/uv:python3.11-bookworm-slim AS builder-base
 
 ENV PYTHONUNBUFFERED=1 \
     # prevents python creating .pyc files
-    PYTHONDONTWRITEBYTECODE=1
+    PYTHONDONTWRITEBYTECODE=1 \
+    # prevent venv location mismatch
+    UV_PROJECT_ENVIRONMENT=/app/.venv
 
-WORKDIR /app
+WORKDIR /app/apps/catalog-service
 
-COPY uv.lock pyproject.toml ./
+COPY packages/active-metadata /app/packages/active-metadata/
+COPY apps/catalog-service/pyproject.toml apps/catalog-service/uv.lock ./
 
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv sync --frozen --no-install-project --link-mode=copy
+    uv sync --frozen --no-editable --link-mode=copy
 
 
 # `production` image used for runtime
 FROM python:3.11-slim AS production
 
-# Setting home directory and user name
+# Setting home directory, user name, and snapshot path
 ENV APP_HOME=/home/wisenut/app \
+    SNAPSHOT_STORAGE_PATH=/data/snapshots \
     GROUP_NAME=wisenut \
     APP_USER=wisenut
 
-# Create a non-root user and group
-RUN groupadd -r $GROUP_NAME && useradd -r -g $GROUP_NAME -d $APP_HOME $APP_USER
-
 # Set the working directory
 WORKDIR $APP_HOME
-RUN chown -R $APP_USER:$GROUP_NAME $APP_HOME
+
+# Create user, set permissions, and create snapshot directory (single layer)
+RUN groupadd -r $GROUP_NAME && \
+    useradd -r -g $GROUP_NAME -d $APP_HOME $APP_USER && \
+    chown -R $APP_USER:$GROUP_NAME $APP_HOME && \
+    mkdir -p $SNAPSHOT_STORAGE_PATH && \
+    chown -R $APP_USER:$GROUP_NAME $SNAPSHOT_STORAGE_PATH
 
 # Set environment variables
-ARG DEBIAN_FRONTEND=noninteractive
 ENV TZ=Asia/Seoul \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
@@ -39,10 +45,10 @@ ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 USER $APP_USER
 
 # Copy necessary files and directory
-COPY --from=builder-base $VIRTUAL_ENV $VIRTUAL_ENV
-COPY pyproject.toml version_info.py .env ./
-COPY ./static ./static/
-COPY ./app ./app/
+COPY --from=builder-base /app/.venv $VIRTUAL_ENV
+COPY apps/catalog-service/pyproject.toml apps/catalog-service/version_info.py apps/catalog-service/.env ./
+COPY apps/catalog-service/static ./static/
+COPY apps/catalog-service/app ./app/
 
 # Expose the port
 EXPOSE 8084

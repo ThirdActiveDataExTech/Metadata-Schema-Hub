@@ -1,8 +1,11 @@
 import pathlib
+import json
 from collections import defaultdict
 from datetime import datetime
 from typing import Annotated, Any, Dict, List, Optional, Tuple
+from uuid import uuid4
 
+from active_metadata import SnapshotIdentifier, detect_extension
 from fastapi import APIRouter, Body, File, Path, Query, UploadFile
 
 from app.config import settings
@@ -31,6 +34,7 @@ from app.src.metadata_entry.schemas import (
     MetadataEntryResponse,
     PreviewResponse,
 )
+from app.src.metadata_snapshot.dependencies import FilesystemStorageDep, MetadataSnapshotServiceDep
 from app.src.workflow.dependencies import CatalogEntryTransformServiceDep
 
 router = APIRouter(prefix="/metadata", tags=["metadata"], route_class=ExceptionHandlingRoute)
@@ -169,7 +173,7 @@ async def convert_schema_org_metadata(
         raise MetadataEntryNotSupportedTypeError(type=extension)
 
     content = await file.read()
-    parsed_data = converter.convert_to_metadata_bases(content)
+    parsed_data = converter.convert_to_metadata_schemas(content)
 
     return APIResponseModel(result=parsed_data, description="Schema.org JSON import 완료")
 
@@ -203,7 +207,7 @@ async def convert_dcat_metadata(
         raise MetadataEntryNotSupportedTypeError(type=extension)
 
     content = await file.read()
-    parsed_data = converter.convert_to_metadata_bases(content)
+    parsed_data = converter.convert_to_metadata_schemas(content)
 
     return APIResponseModel(result=parsed_data, description="DCAT XML 파일 파싱 완료")
 
@@ -225,6 +229,8 @@ async def ingest_metadata(
     metadata_service: MetadataEntryServiceDep,
     catalog_service: CatalogEntryServiceDep,
     transform_service: CatalogEntryTransformServiceDep,
+    snapshot_service: MetadataSnapshotServiceDep,
+    filesystem_storage: FilesystemStorageDep,
     file: UploadFile = File(
         title="메타데이터 파일",
         description="메타데이터 파일 (.json, .jsonld, .xml, .rdf - Schema.org 또는 DCAT 형식)",
@@ -235,28 +241,39 @@ async def ingest_metadata(
     업로드된 메타데이터 파일을 다음 단계로 처리합니다:
     1. 파일 형식 자동 감지 및 파싱
     2. `key-value` 구조로 분해하여 `metadata_entry` 테이블에 저장
-    3. 원본 메타데이터를 포함한 `catalog_entry` 초안 생성
+    3. 원본 메타데이터 스냅샷 생성 후 `catalog_entry` 초안 생성
     4. 컬럼 관계 기반 자동 매핑을 통한 `catalog_entry` 갱신
 
     지원 형식: Schema.org JSON-LD (`.json`, `.jsonld`), DCAT RDF/XML (`.xml`, `.rdf`)"""
-    metadata_file = MetadataFile(filename=file.filename, content=await file.read())
+    file_content = await file.read()
+    metadata_file = MetadataFile(filename=file.filename, content=file_content)
     try:
-        serialized_content, metadata_bases = process_metadata_file(metadata_file)
+        _, metadata_schemas = process_metadata_file(metadata_file)
     except ValueError as e:
         raise MetadataEntryNotSupportedTypeError(type=metadata_file.get_extension(), result=str(e))
 
+    # Create snapshot for original metadata
+    identifier = SnapshotIdentifier.generate(file_content)
+    extension = detect_extension(file_content, file.filename)
+    storage_key = identifier.generate_storage_key(extension)
+    filesystem_storage.save(storage_key, file_content)
+
+    snapshot = snapshot_service.save_record(
+        db=session, identifier=identifier, storage_key=storage_key, original_filename=file.filename
+    )
+
     catalog_draft = catalog_service.create_catalog_entry(
-        db=session, catalog_entry=CatalogEntry(raw_metadata=serialized_content)
+        db=session, catalog_entry=CatalogEntry(latest_snapshot_id=snapshot.snapshot_id)
     )
 
     metadata_result = metadata_service.create(
         db=session,
         metadata_create=MetadataCreate(
-            metadata_id=catalog_draft.identifier, metadata_bases=metadata_bases, ingested_at=catalog_draft.ingested_at
+            metadata_id=catalog_draft.identifier, metadata_schemas=metadata_schemas, ingested_at=catalog_draft.ingested_at
         ),
     )
 
-    catalog_result = transform_service.update_catalog_entry_from_metadata_and_relation(
+    catalog_result = transform_service.transform_catalog_entry(
         db=session, catalog_entry_id=catalog_draft.id
     )
 
@@ -279,6 +296,8 @@ async def ingest_metadata_bulk(
     metadata_service: MetadataEntryServiceDep,
     catalog_service: CatalogEntryServiceDep,
     transform_service: CatalogEntryTransformServiceDep,
+    snapshot_service: MetadataSnapshotServiceDep,
+    filesystem_storage: FilesystemStorageDep,
     files: List[UploadFile] = File(
         title="메타데이터 파일 목록",
         description="메타데이터 파일 목록 (최대 100개, .json/.jsonld/.xml/.rdf/.zip)",
@@ -291,7 +310,7 @@ async def ingest_metadata_bulk(
 
     처리 과정:
     1. 각 파일의 형식을 자동 감지하고 파싱
-    2. 성공한 파일들을 일괄 처리하여 `metadata_entry` 저장
+    2. 원본 메타데이터 스냅샷 생성
     3. `catalog_entry` 초안 일괄 생성
     4. 컬럼 관계 기반 자동 매핑 일괄 수행
 
@@ -302,7 +321,13 @@ async def ingest_metadata_bulk(
     if len(files) > settings.MAXIMUM_INGESTION_LIMIT:
         raise MetadataEntryTooManyFileError(message=f"최대 {settings.MAXIMUM_INGESTION_LIMIT}개 파일까지 처리 가능")
 
-    metadata_files = [MetadataFile(filename=file.filename, content=await file.read()) for file in files]
+    # Read file contents and create MetadataFile objects
+    file_contents: List[Tuple[str, bytes]] = []
+    for file in files:
+        content = await file.read()
+        file_contents.append((file.filename or "", content))
+
+    metadata_files = [MetadataFile(filename=filename, content=content) for filename, content in file_contents]
 
     processed_metadatas, errors = process_metadata_files(metadata_files)
     if not processed_metadatas:
@@ -313,19 +338,41 @@ async def ingest_metadata_bulk(
 
     ingested_at = datetime.now()
 
+    # Map processed results back to original files by index
+    # process_metadata_files returns results for successfully processed files only
+    # We need to track which files succeeded to create snapshots for them
     iterables: List[Tuple[CatalogEntry, MetadataCreate]] = []
-    for serialized_content, metadata_bases in processed_metadatas:
-        metadata_create = MetadataCreate(metadata_bases=metadata_bases, ingested_at=ingested_at)
+    processed_idx = 0
+    for i, (filename, content) in enumerate(file_contents):
+        if processed_idx >= len(processed_metadatas):
+            break
+        # Check if this file was successfully processed (simple heuristic: check if content matches)
+        _, metadata_schemas = processed_metadatas[processed_idx]
+
+        # Create snapshot for this file
+        identifier = SnapshotIdentifier.generate(content)
+        extension = detect_extension(content, filename)
+        storage_key = identifier.generate_storage_key(extension)
+        filesystem_storage.save(storage_key, content)
+
+        snapshot = snapshot_service.save_record(
+            db=session, identifier=identifier, storage_key=storage_key, original_filename=filename
+        )
+
+        metadata_id = str(uuid4())
+        metadata_create = MetadataCreate(metadata_id=metadata_id, metadata_schemas=metadata_schemas, ingested_at=ingested_at)
         catalog_entry = CatalogEntry(
             identifier=metadata_create.metadata_id,
-            raw_metadata=serialized_content,
+            latest_snapshot_id=snapshot.snapshot_id,
             ingested_at=ingested_at,
         )
         iterables.append((catalog_entry, metadata_create))
+        processed_idx += 1
+
     catalog_service.create_catalog_entry_bulk(db=session, catalog_entries=[entry.model_dump() for entry, _ in iterables])
     metadata_service.create_bulk(db=session, metadata_create_list=[metadata_create for _, metadata_create in iterables])
 
-    transform_service.update_catalog_entry_from_metadata_and_relation_bulk(
+    transform_service.transform_catalog_entries_bulk(
         db=session, catalog_entry_identifiers=[entry.identifier for entry, _ in iterables]
     )
 
@@ -338,7 +385,7 @@ async def ingest_metadata_bulk(
     metadata_results = [
         MetadataCreateSummary(
             metadata_id=metadata_create.metadata_id,
-            total_entries=len(metadata_create.metadata_bases),
+            total_entries=len(metadata_create.metadata_schemas),
             ingested_at=metadata_create.ingested_at,
         )
         for _, metadata_create in iterables
@@ -417,12 +464,12 @@ async def preview_metadata(
     metadata_file = MetadataFile(filename=file.filename, content=await file.read())
 
     try:
-        _, metadata_bases = process_metadata_file(metadata_file)
+        _, metadata_schemas = process_metadata_file(metadata_file)
     except ValueError as e:
         raise MetadataEntryNotSupportedTypeError(type=metadata_file.get_extension(), result=str(e))
 
-    metadata_schemas = [base.metadata_schema for base in metadata_bases]
-    relations = relation_service.get_relations_by_metadata_columns(session, metadata_schemas)
+    metadata_schema_names = [schema.metadata_schema for schema in metadata_schemas]
+    relations = relation_service.get_relations_by_metadata_columns(session, metadata_schema_names)
 
     metadata_candidates = defaultdict(list)
     for relation in relations:
@@ -439,12 +486,14 @@ async def preview_metadata(
         if candidates
     }
 
-    schema_to_value = {base.metadata_schema: base.value for base in metadata_bases}
+    schema_to_value = {schema.metadata_schema: schema.value for schema in metadata_schemas}
 
     metadata = {best_matches[schema]: schema_to_value[schema] for schema in best_matches if schema in schema_to_value}
 
     untyped = {
-        base.metadata_schema: base.value for base in metadata_bases if base.metadata_schema not in metadata_candidates
+        schema.metadata_schema: schema.value
+        for schema in metadata_schemas
+        if schema.metadata_schema not in metadata_candidates
     }
 
     return APIResponseModel(
@@ -471,6 +520,8 @@ async def ingest_form(
     catalog_service: CatalogEntryServiceDep,
     transform_service: CatalogEntryTransformServiceDep,
     json_converter: JsonConverterDep,
+    snapshot_service: MetadataSnapshotServiceDep,
+    filesystem_storage: FilesystemStorageDep,
     metadata_form: Annotated[
         Dict[str, Any],
         Body(
@@ -488,27 +539,36 @@ async def ingest_form(
 
     처리 과정:
     1. JSON 객체 검증 및 변환
-    2. `key-value` 구조로 분해하여 `metadata_entry` 저장
+    2. 원본 메타데이터 스냅샷 생성
     3. `catalog_entry` 초안 생성
     4. 컬럼 관계 기반 자동 매핑 수행
 
     파일 업로드와 동일한 처리 과정을 거치며, 결과도 동일합니다."""
-    serialized_content = metadata_form
+    # Convert dict to bytes for converter and snapshot
+    json_bytes = json.dumps(metadata_form).encode("utf-8")
+    metadata_schemas = json_converter.convert_to_metadata_schemas(json_bytes)
 
-    metadata_bases = json_converter.convert_to_metadata_bases(metadata_form)
+    # Create snapshot for the JSON data
+    identifier = SnapshotIdentifier.generate(json_bytes)
+    storage_key = identifier.generate_storage_key("json")
+    filesystem_storage.save(storage_key, json_bytes)
+
+    snapshot = snapshot_service.save_record(
+        db=session, identifier=identifier, storage_key=storage_key, original_filename=None
+    )
 
     catalog_draft = catalog_service.create_catalog_entry(
-        db=session, catalog_entry=CatalogEntry(raw_metadata=serialized_content)
+        db=session, catalog_entry=CatalogEntry(latest_snapshot_id=snapshot.snapshot_id)
     )
 
     metadata_result = metadata_service.create(
         db=session,
         metadata_create=MetadataCreate(
-            metadata_id=catalog_draft.identifier, metadata_bases=metadata_bases, ingested_at=catalog_draft.ingested_at
+            metadata_id=catalog_draft.identifier, metadata_schemas=metadata_schemas, ingested_at=catalog_draft.ingested_at
         ),
     )
 
-    catalog_result = transform_service.update_catalog_entry_from_metadata_and_relation(
+    catalog_result = transform_service.transform_catalog_entry(
         db=session, catalog_entry_id=catalog_draft.id
     )
 

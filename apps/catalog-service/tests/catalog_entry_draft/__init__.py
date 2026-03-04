@@ -1,0 +1,1 @@
+"""CatalogEntryDraft tests."""

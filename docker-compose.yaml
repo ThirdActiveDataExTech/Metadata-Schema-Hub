@@ -1,8 +1,8 @@
 services:
   catalog-service:
     build:
-      context: ./apps/catalog-service
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/catalog-service/Dockerfile
     image: catalog-service:dev
     restart: unless-stopped
     environment:
@@ -14,15 +14,18 @@ services:
       POSTGRES_HOST: postgres-174
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-datagokr}
+      SNAPSHOT_STORAGE_PATH: /data/snapshots
     ports:
       - 8084:8084
+    volumes:
+      - snapshot-data:/data/snapshots:ro
     depends_on:
       - postgres-174
 
   metadata-ingestion:
     build:
-      context: ./apps/metadata-ingestion
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./apps/metadata-ingestion/Dockerfile
     image: metadata-ingestion:dev
     restart: unless-stopped
     environment:
@@ -34,8 +37,11 @@ services:
       POSTGRES_HOST: postgres-174
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-datagokr}
+      SNAPSHOT_STORAGE_PATH: /data/snapshots
     ports:
       - 8085:8085
+    volumes:
+      - snapshot-data:/data/snapshots
     depends_on:
       - postgres-174
 
@@ -74,3 +80,4 @@ services:
 
 volumes:
   pgdata-postgres17:
+  snapshot-data:

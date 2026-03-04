@@ -4,6 +4,7 @@ from typing import List, Optional, Sequence, Dict, Any
 from sqlalchemy import and_, or_
 from sqlmodel import Session, select
 
+from app.src.catalog_entry.exceptions import CatalogEntryNotFoundError
 from app.src.catalog_entry.model import CatalogEntry, CatalogEntrySummary
 
 
@@ -19,7 +20,7 @@ class CatalogEntryRepository:
         """Select catalog_entry."""
         catalog_entry = db.get(CatalogEntry, catalog_entry_id)
         if not catalog_entry:
-            raise ValueError(f"{catalog_entry_id=} not found.")
+            raise CatalogEntryNotFoundError.by_id(catalog_entry_id)
 
         return catalog_entry
 
@@ -28,7 +29,7 @@ class CatalogEntryRepository:
         stmt = select(CatalogEntry).where(CatalogEntry.identifier == catalog_entry_identifier)
         catalog_entry = db.exec(stmt).first()
         if not catalog_entry:
-            raise ValueError(f"Catalog entry with identifier '{catalog_entry_identifier}' not found.")
+            raise CatalogEntryNotFoundError.by_identifier(catalog_entry_identifier)
         return catalog_entry
 
     def select_by_ids(self, db: Session, catalog_entry_ids: List[int]) -> List[CatalogEntry]:
@@ -116,10 +117,6 @@ class CatalogEntryRepository:
             # JSONB 필드는 문자열로 변환하여 CSV에 저장
             if "publisher" in data and isinstance(data["publisher"], dict):
                 data["publisher"] = json.dumps(data["publisher"], ensure_ascii=False)
-
-            if "raw_metadata" in data:
-                # raw_metadata는 너무 크고 복잡하므로 CSV에서 제외
-                data.pop("raw_metadata", None)
 
             # 배열 타입 필드 (keyword, theme)도 문자열로 변환
             if "keyword" in data and isinstance(data["keyword"], list):

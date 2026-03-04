@@ -6,6 +6,8 @@ stages:
   - push-to-github
 
 include:
+  - local: /.gitlab/ci/build-and-push-app.yml
+  - local: /.gitlab/ci/push-to-github-registry.yml
   - project: wisenut-research/starter/templates/gitlab-ci-template
     ref: main
     file:
@@ -13,7 +15,6 @@ include:
       - templates/Python/Lint/Uv-Lint.gitlab-ci.yml
       - templates/Python/Test/Uv-Test.gitlab-ci.yml
       - templates/Security/Container-Scanning.gitlab-ci.yml
-      - templates/Python/Build-and-Push-App.gitlab-ci.yml
 
 variables:
   APP_NAME: metadata-ingestion
@@ -62,35 +63,25 @@ pyright-lint:
 
 pytest:
   extends: .app-test
+  services:
+    - name: postgres:17.4
+      alias: postgres
+  variables:
+    POSTGRES_DB: test_db
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: $POSTGRES_TEST_PASSWORD
+    POSTGRES_HOST: postgres
   parallel:
     matrix:
       - PYTHON_VERSION: ["3.11"]
 
 build-and-push-app:
-  variables:
-    IMAGE_TAG_LATEST: "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
+  extends: .build-and-push-app-monorepo
   rules:
     - if: $CI_COMMIT_BRANCH == "main"
       changes:
         - $APP_DIR/**/*
-  before_script:
-    - !reference [default, before_script]
-    - apk add --no-cache tzdata
-    - export TZ=Asia/Seoul
-    - |
-      set -o allexport
-      source .env
-      VERSION=${MAJOR_VERSION}.$(date +'%y%m.%d')-${STATUS}-$CI_COMMIT_SHORT_SHA
-      set +o allexport
-    - IMAGE_TAG=$CI_REGISTRY_IMAGE/$APP_NAME:$VERSION
-    - X_TOKEN=${X_TOKEN}
-    - BUILD_DATE=$(date +'%Y-%m-%d %H:%M:%S')
-    - |
-      echo "version: str = '$VERSION'" > version_info.py
-      echo "git_branch: str = '$CI_COMMIT_BRANCH'" >> version_info.py
-      echo "git_revision: str = '$CI_COMMIT_SHA'" >> version_info.py
-      echo "git_short_revision: str = '$CI_COMMIT_SHORT_SHA'" >> version_info.py
-      echo "build_date: str = '$BUILD_DATE'" >> version_info.py
+        - packages/active-metadata/**/*
 
 container_scanning:
   before_script: []  # GIT_STRATEGY: none이므로 cd $APP_DIR 실행 안 함
@@ -98,39 +89,8 @@ container_scanning:
     CS_IMAGE: "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
 
 push-to-github-registry:
-  stage: push-to-github
-  image: docker:24.0.5
-  services:
-    - docker:24.0.5-dind
-  variables:
-    DOCKER_HOST: tcp://docker:2376
-    DOCKER_TLS_CERTDIR: "/certs"
-  before_script:
-    - cd $APP_DIR
-  script:
-    # GitLab Registry에서 latest 이미지 pull
-    - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
-    - docker pull "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
-
-    # 이미지에서 VERSION 추출
-    - |
-      VERSION=$(docker run --rm "$CI_REGISTRY_IMAGE/$APP_NAME:latest" \
-        sh -c "cat version_info.py | grep '^version:' | cut -d \"'\" -f2" || echo "")
-      if [ -z "$VERSION" ]; then
-        echo "Error: Failed to extract version from container"
-        exit 1
-      fi
-      echo "Extracted version: $VERSION"
-
-    # GitHub Registry에 push (소문자 변환)
-    - GITHUB_OWNER_LOWER=$(echo "$GITHUB_OWNER" | tr '[:upper:]' '[:lower:]')
-    - echo "$GITHUB_TOKEN" | docker login ghcr.io -u "$GITHUB_USERNAME" --password-stdin 2>/dev/null
-    - docker tag "$CI_REGISTRY_IMAGE/$APP_NAME:latest" "ghcr.io/$GITHUB_OWNER_LOWER/$APP_NAME:latest"
-    - docker tag "$CI_REGISTRY_IMAGE/$APP_NAME:latest" "ghcr.io/$GITHUB_OWNER_LOWER/$APP_NAME:$VERSION"
-    - docker push "ghcr.io/$GITHUB_OWNER_LOWER/$APP_NAME:$VERSION"
-    - docker push "ghcr.io/$GITHUB_OWNER_LOWER/$APP_NAME:latest"
+  extends: .push-to-github-registry
   rules:
     - if: $CI_COMMIT_BRANCH == "github"
       changes:
         - $APP_DIR/**/*
-  dependencies: []

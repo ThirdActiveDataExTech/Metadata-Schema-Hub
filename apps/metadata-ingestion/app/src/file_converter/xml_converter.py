@@ -5,7 +5,7 @@ from lxml import etree
 
 from app.src.file_converter.converter import Converter
 from app.src.file_converter.namespace_handler import NamespaceHandler
-from app.src.metadata_entry.model import MetadataBase
+from app.src.metadata_entry.model import MetadataSchema
 
 
 class LxmlConverter(Converter):
@@ -72,13 +72,10 @@ class LxmlConverter(Converter):
 
         return results
 
-    def convert_to_metadata_bases(self, xml_content: str | bytes) -> List[MetadataBase]:
-        """XML을 MetadataBase로 변환"""
+    def convert_to_metadata_schemas(self, content: bytes) -> List[MetadataSchema]:
+        """XML을 MetadataSchema로 변환"""
         try:
-            if isinstance(xml_content, bytes):
-                root = etree.fromstring(xml_content)
-            else:
-                root = etree.fromstring(xml_content.encode("utf-8"))
+            root = etree.fromstring(content)
         except etree.XMLSyntaxError as e:
             raise ValueError(f"XML 파싱 오류: {e}")
 
@@ -97,6 +94,6 @@ class LxmlConverter(Converter):
             if not data["value"]:
                 continue  # 빈 값 제외
 
-            result.append(MetadataBase(metadata_schema=data["metadata_schema"], value=data["value"]))
+            result.append(MetadataSchema(metadata_schema=data["metadata_schema"], value=data["value"]))
 
         return result
