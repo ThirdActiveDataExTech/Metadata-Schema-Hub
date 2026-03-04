@@ -129,10 +129,6 @@ class CatalogEntryRepository:
             if "publisher" in data and isinstance(data["publisher"], dict):
                 data["publisher"] = json.dumps(data["publisher"], ensure_ascii=False)
 
-            if "raw_metadata" in data:
-                # raw_metadata는 너무 크고 복잡하므로 CSV에서 제외
-                data.pop("raw_metadata", None)
-
             # 배열 타입 필드 (keyword, theme)도 문자열로 변환
             if "keyword" in data and isinstance(data["keyword"], list):
                 data["keyword"] = ",".join(data["keyword"]) if data["keyword"] else ""

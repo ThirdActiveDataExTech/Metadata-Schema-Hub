@@ -67,8 +67,7 @@ class CatalogEntryBase(SQLModel):
     landing_page: str | None = None
     theme: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
     access_url: str | None = None
-    raw_metadata: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
-    # Traceability field
+    # Traceability field - links to original metadata in FilesystemStorage
     latest_snapshot_id: str | None = None
 
     @classmethod

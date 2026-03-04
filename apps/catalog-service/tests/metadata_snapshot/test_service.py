@@ -40,3 +40,63 @@ class TestGetSnapshot:
 
         assert result is None
         mock_metadata_snapshot_repository.find_by_snapshot_id.assert_called_once_with(mock_db, snapshot_id)
+
+
+class TestLoadRawContent:
+    """Tests for load_raw_content method."""
+
+    def test_returns_bytes_from_storage(
+        self,
+        metadata_snapshot_service: MetadataSnapshotService,
+        mock_metadata_snapshot_repository: MagicMock,
+        mock_filesystem_storage: MagicMock,
+        mock_db: MagicMock,
+    ) -> None:
+        """Should return raw bytes from storage."""
+        mock_snapshot = MagicMock()
+        mock_snapshot.storage_key = "2024/01/01/test.json"
+        mock_snapshot_content = b'{"title": "Test"}'
+        
+        mock_metadata_snapshot_repository.find_by_snapshot_id.return_value = mock_snapshot
+        mock_filesystem_storage.load.return_value = mock_snapshot_content
+
+        result = metadata_snapshot_service.load_raw_content(
+            mock_db, "urn:wisenut:metadata:1705312800-abc123def456"
+        )
+
+        assert result == mock_snapshot_content
+        mock_filesystem_storage.load.assert_called_once_with(mock_snapshot.storage_key)
+
+    def test_returns_none_when_snapshot_not_found(
+        self,
+        metadata_snapshot_service: MetadataSnapshotService,
+        mock_metadata_snapshot_repository: MagicMock,
+        mock_db: MagicMock,
+    ) -> None:
+        """Should return None when snapshot not found."""
+        mock_metadata_snapshot_repository.find_by_snapshot_id.return_value = None
+
+        result = metadata_snapshot_service.load_raw_content(
+            mock_db, "urn:wisenut:metadata:1705312800-000000000000"
+        )
+
+        assert result is None
+
+    def test_returns_none_when_file_not_found(
+        self,
+        metadata_snapshot_service: MetadataSnapshotService,
+        mock_metadata_snapshot_repository: MagicMock,
+        mock_filesystem_storage: MagicMock,
+        mock_db: MagicMock,
+    ) -> None:
+        """Should return None when file not found in storage."""
+        mock_snapshot = MagicMock()
+        mock_snapshot.storage_key = "2024/01/01/missing.json"
+        mock_metadata_snapshot_repository.find_by_snapshot_id.return_value = mock_snapshot
+        mock_filesystem_storage.load.side_effect = FileNotFoundError()
+
+        result = metadata_snapshot_service.load_raw_content(
+            mock_db, "urn:wisenut:metadata:1705312800-abc123def456"
+        )
+
+        assert result is None

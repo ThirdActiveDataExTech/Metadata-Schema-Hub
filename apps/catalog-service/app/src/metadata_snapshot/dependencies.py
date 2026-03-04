@@ -4,6 +4,7 @@ from typing import Annotated
 
 from fastapi import Depends
 
+from app.config import settings
 from app.src.metadata_snapshot.filesystem_storage import FilesystemStorage
 from app.src.metadata_snapshot.repository import MetadataSnapshotRepository
 from app.src.metadata_snapshot.service import MetadataSnapshotService
@@ -16,7 +17,7 @@ def get_metadata_snapshot_repository() -> MetadataSnapshotRepository:
 
 def get_filesystem_storage() -> FilesystemStorage:
     """FilesystemStorage dependency (read-only)."""
-    return FilesystemStorage(base_path="./snapshots")
+    return FilesystemStorage(base_path=settings.SNAPSHOT_STORAGE_PATH)
 
 
 def get_metadata_snapshot_service(

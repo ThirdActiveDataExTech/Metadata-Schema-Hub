@@ -121,8 +121,10 @@ def mock_catalog_entry_repository() -> MagicMock:
 
 
 @pytest.fixture
-def catalog_entry_service(mock_catalog_entry_repository: MagicMock) -> CatalogEntryService:
-    """Create CatalogEntryService with mock repository."""
+def catalog_entry_service(
+    mock_catalog_entry_repository: MagicMock,
+) -> CatalogEntryService:
+    """Create CatalogEntryService with mock dependencies."""
     return CatalogEntryService(repository=mock_catalog_entry_repository)
 
 
@@ -141,7 +143,7 @@ def sample_catalog_entry() -> CatalogEntry:
         access_url="https://example.com/data.csv",
         issued=date(2024, 1, 1),
         modified=date(2024, 6, 1),
-        raw_metadata={"title": "Sample Dataset", "nested": {"key": "value"}},
+        latest_snapshot_id=SNAPSHOT_ID_VALID,
         ingested_at=datetime(2024, 1, 15, 10, 0, 0),
         updated_at=datetime(2024, 6, 15, 10, 0, 0),
     )
@@ -361,7 +363,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
             theme=["research"],
             issued=date(2024, 1, 1),
             modified=date(2024, 6, 1),
-            raw_metadata={"source": "test"},
+            latest_snapshot_id=SNAPSHOT_ID_VALID,
         ),
         CatalogEntry(
             identifier=ENTRY_ID_2,
@@ -372,7 +374,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
             theme=["innovation"],
             issued=date(2024, 2, 1),
             modified=date(2024, 7, 1),
-            raw_metadata={"source": "test"},
+            latest_snapshot_id=SNAPSHOT_ID_VALID_ALT,
         ),
         CatalogEntry(
             identifier=ENTRY_ID_3,
@@ -383,7 +385,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
             theme=["research", "climate"],
             issued=date(2024, 3, 1),
             modified=date(2024, 8, 1),
-            raw_metadata={"source": "test"},
+            latest_snapshot_id=None,
         ),
     ]
     for entry in entries:

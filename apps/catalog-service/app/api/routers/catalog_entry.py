@@ -6,12 +6,14 @@ from typing import Annotated, Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Path, Query
 from starlette.responses import StreamingResponse
 
+from active_metadata.types import SnapshotIdentifier
 from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
 from app.src.catalog_entry.dependencies import CatalogEntryServiceDep
 from app.src.catalog_entry.model import CatalogEntrySummary
 from app.src.catalog_entry.schemas import CatalogEntryResponse
+from app.src.metadata_snapshot.dependencies import MetadataSnapshotServiceDep
 
 router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=ExceptionHandlingRoute)
 
@@ -44,31 +46,43 @@ async def get_catalog_entry(
 @router.get(
     "/entries/raw-metadata/{catalog_entry_id}",
     summary="원본 메타데이터 조회",
-    response_model=APIResponseModel[str | dict],
-    responses={404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}},
+    responses={
+        200: {"description": "원본 메타데이터 파일", "content": {"application/octet-stream": {}}},
+        404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"},
+    },
 )
 async def get_raw_metadata(
     session: SessionDep,
-    service: CatalogEntryServiceDep,
+    catalog_entry_service: CatalogEntryServiceDep,
+    snapshot_service: MetadataSnapshotServiceDep,
     catalog_entry_id: int = Path(
         title="카탈로그 엔트리 ID",
         description="조회할 카탈로그 엔트리의 고유 식별 번호",
         example=31,
         ge=1,
     ),
-    output_format: Literal["json", "xml"] = Query(
-        default="json",
-        title="출력 형식",
-        description="원본 메타데이터 출력 형식 (json: JSON-LD, xml: RDF/XML)",
-        examples=["json", "xml"],
-    ),
 ):
-    """카탈로그 엔트리의 원본 메타데이터를 지정된 형식으로 조회합니다.
+    """카탈로그 엔트리의 원본 메타데이터를 조회합니다.
 
-    수집 시점의 원본 메타데이터를 변환 없이 그대로 반환합니다.
-    JSON 또는 XML 형식으로 출력할 수 있습니다."""
-    catalog_entry = service.get_raw_metadata(db=session, catalog_entry_id=catalog_entry_id, data_format=output_format)
-    return APIResponseModel(result=catalog_entry, description="Raw Metadata Found.")
+    수집 시점의 원본 메타데이터를 변환 없이 그대로 반환합니다."""
+    entry = catalog_entry_service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id)
+
+    if not entry.latest_snapshot_id:
+        return APIResponseModel(result={}, description="No raw metadata available.")
+
+    snapshot_id = SnapshotIdentifier(entry.latest_snapshot_id)
+    snapshot = snapshot_service.get_snapshot(db=session, snapshot_id=snapshot_id)
+    if not snapshot:
+        return APIResponseModel(result={}, description=f"Snapshot not found: {snapshot_id}")
+
+    content = snapshot_service.load_raw_content(db=session, snapshot_id=entry.latest_snapshot_id)
+    if content is None:
+        return APIResponseModel(result={}, description=f"File not found: {snapshot.storage_key}")
+
+    return StreamingResponse(
+        io.BytesIO(content),
+        media_type="application/octet-stream",
+    )
 
 
 @router.get(
