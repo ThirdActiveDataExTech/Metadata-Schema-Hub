@@ -5,6 +5,7 @@ from sqlmodel import Session
 
 from app.src.column_relation.model import ColumnRelation
 from app.src.column_relation.repository import ColumnRelationRepository
+from tests.constants import CORRELATION_MEDIUM, CORRELATION_MIN, CORRELATION_MAX
 
 
 class TestSelectRelationsByCatalogColumn:
@@ -87,40 +88,35 @@ class TestSelectRelationsByMetadataColumn:
 class TestSelectRelationsByThreshold:
     """Tests for select_relations_by_threshold method."""
 
-    def test_select_above_threshold(
+    @pytest.mark.parametrize(
+        "threshold,expects_results",
+        [
+            pytest.param(CORRELATION_MEDIUM, True, id="medium_threshold"),
+            pytest.param(CORRELATION_MIN, True, id="min_returns_all"),
+            pytest.param(CORRELATION_MAX, False, id="max_returns_empty"),
+        ],
+    )
+    def test_select_by_threshold(
         self,
         db: Session,
         column_relation_repository: ColumnRelationRepository,
         sample_column_relations: list[ColumnRelation],
+        threshold: float,
+        expects_results: bool,
     ) -> None:
-        """Should return relations above correlation threshold."""
-        threshold = 0.90
+        """Should return relations based on correlation threshold."""
         result = column_relation_repository.select_relations_by_threshold(db, threshold)
-        expected_count = sum(
-            1 for r in sample_column_relations if r.correlation >= threshold
-        )
-        assert len(result) == expected_count
-        assert all(r.correlation >= threshold for r in result)
 
-    def test_select_all_above_zero(
-        self,
-        db: Session,
-        column_relation_repository: ColumnRelationRepository,
-        sample_column_relations: list[ColumnRelation],
-    ) -> None:
-        """Should return all relations for threshold 0."""
-        result = column_relation_repository.select_relations_by_threshold(db, 0.0)
-        assert len(result) == len(sample_column_relations)
-
-    def test_select_none_above_one(
-        self,
-        db: Session,
-        column_relation_repository: ColumnRelationRepository,
-        sample_column_relations: list[ColumnRelation],
-    ) -> None:
-        """Should return empty list for threshold 1.0."""
-        result = column_relation_repository.select_relations_by_threshold(db, 1.0)
-        assert result == []
+        if threshold == CORRELATION_MAX:
+            assert result == []
+        elif threshold == CORRELATION_MIN:
+            assert len(result) == len(sample_column_relations)
+        else:
+            expected_count = sum(
+                1 for r in sample_column_relations if r.correlation >= threshold
+            )
+            assert len(result) == expected_count
+            assert all(r.correlation >= threshold for r in result)
 
 
 class TestSelectAllRelations:

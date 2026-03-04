@@ -56,3 +56,24 @@ TEST_SHA256_ALT = "b" * 64
 NONEXISTENT_ID = 99999
 NONEXISTENT_IDENTIFIER = "nonexistent"
 NONEXISTENT_SNAPSHOT_ID = "urn:wisenut:metadata:9999999999-nonexistent"
+
+# =============================================================================
+# Correlation Thresholds
+# =============================================================================
+
+CORRELATION_HIGH = 0.95
+CORRELATION_MEDIUM = 0.90
+CORRELATION_LOW = 0.85
+CORRELATION_VERY_LOW = 0.75
+CORRELATION_THRESHOLD_DEFAULT = 0.90
+CORRELATION_MIN = 0.0
+CORRELATION_MAX = 1.0
+
+# =============================================================================
+# Pagination Constants
+# =============================================================================
+
+PAGINATION_LIMIT_DEFAULT = 10
+PAGINATION_LIMIT_SMALL = 2
+PAGINATION_LIMIT_EXPORT = 100
+PAGINATION_OFFSET_DEFAULT = 0

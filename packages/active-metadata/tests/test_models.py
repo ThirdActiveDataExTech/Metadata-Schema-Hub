@@ -4,6 +4,7 @@ from datetime import date, datetime
 
 import pytest
 from conftest import (
+    CORRELATION_HIGH,
     INVALID_SNAPSHOT_IDS,
     METADATA_SCHEMAS,
     SAMPLE_CATALOG_ENTRY,
@@ -121,11 +122,11 @@ class TestColumnRelationBase:
         """Test ColumnRelationBase with DCAT column mapping."""
         r = ColumnRelationBase(
             catalog_column="title",
-            correlation=0.95,
+            correlation=CORRELATION_HIGH,
             metadata_column=METADATA_SCHEMAS["title"],
         )
         assert r.catalog_column == "title"
-        assert r.correlation == 0.95
+        assert r.correlation == CORRELATION_HIGH
         assert r.metadata_column == METADATA_SCHEMAS["title"]
 
     @pytest.mark.parametrize(
@@ -166,10 +167,10 @@ class TestColumnRelationBase:
     def test_required_fields(self):
         """Test ColumnRelationBase requires all fields."""
         with pytest.raises(ValidationError):
-            ColumnRelationBase(catalog_column="title", correlation=0.95)  # type: ignore
+            ColumnRelationBase(catalog_column="title", correlation=CORRELATION_HIGH)  # type: ignore
 
         with pytest.raises(ValidationError):
-            ColumnRelationBase(correlation=0.95, metadata_column=METADATA_SCHEMAS["title"])  # type: ignore
+            ColumnRelationBase(correlation=CORRELATION_HIGH, metadata_column=METADATA_SCHEMAS["title"])  # type: ignore
 
 
 class TestMetadataSnapshotBase:

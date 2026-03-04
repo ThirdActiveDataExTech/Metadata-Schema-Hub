@@ -321,6 +321,16 @@ class TestSearchCatalog:
         result = catalog_entry_repository.search_catalog(db, query="nonexistent_xyz")
         assert result == []
 
+    def test_search_with_empty_query_returns_all(
+        self,
+        db: Session,
+        catalog_entry_repository: CatalogEntryRepository,
+        sample_catalog_entries: list[CatalogEntry],
+    ) -> None:
+        """Should return all entries when query is empty string."""
+        result = catalog_entry_repository.search_catalog(db, query="")
+        assert len(result) == len(sample_catalog_entries)
+
     def test_search_default_pagination(
         self,
         db: Session,

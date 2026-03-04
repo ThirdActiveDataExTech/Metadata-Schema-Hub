@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 from app.src.column_relation.model import ColumnRelation
 from app.src.column_relation.service import ColumnRelationService
+from tests.constants import CORRELATION_HIGH, CORRELATION_MEDIUM, CORRELATION_LOW
 
 
 class TestGetRelationsByCatalogColumn:
@@ -95,7 +96,7 @@ class TestGetRelationsByMetadataColumns:
             id=2,
             catalog_column="description",
             metadata_column="dct:description",
-            correlation=0.90,
+            correlation=CORRELATION_MEDIUM,
         )
         relations = [relation1, relation2]
         mock_column_relation_repository.select_relations_by_metadata_columns.return_value = relations
@@ -159,8 +160,8 @@ class TestGetAllRelations:
         """Should return all column relations."""
         relations = [
             sample_column_relation,
-            ColumnRelation(id=2, catalog_column="description", metadata_column="dct:description", correlation=0.85),
-            ColumnRelation(id=3, catalog_column="keyword", metadata_column="dcat:keyword", correlation=0.92),
+            ColumnRelation(id=2, catalog_column="description", metadata_column="dct:description", correlation=CORRELATION_LOW),
+            ColumnRelation(id=3, catalog_column="keyword", metadata_column="dcat:keyword", correlation=CORRELATION_HIGH),
         ]
         mock_column_relation_repository.select_all_relations.return_value = relations
 

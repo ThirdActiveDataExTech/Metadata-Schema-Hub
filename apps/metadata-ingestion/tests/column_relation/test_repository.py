@@ -1,10 +1,16 @@
 """Integration tests for ColumnRelationRepository."""
 
-import pytest
 from sqlmodel import Session
 
 from app.src.column_relation.model import ColumnRelation
 from app.src.column_relation.repository import ColumnRelationRepository
+from tests.constants import (
+    CORRELATION_LOW,
+    CORRELATION_MEDIUM,
+    CORRELATION_VERY_LOW,
+    CORRELATION_MIN,
+    CORRELATION_MAX,
+)
 
 
 class TestSave:
@@ -19,7 +25,7 @@ class TestSave:
         relation = ColumnRelation(
             catalog_column="test_col",
             metadata_column="dct:test",
-            correlation=0.75,
+            correlation=CORRELATION_VERY_LOW,
         )
 
         result = column_relation_repository.save(db, relation)
@@ -41,12 +47,12 @@ class TestSaveBulk:
             ColumnRelation(
                 catalog_column="col1",
                 metadata_column="dct:col1",
-                correlation=0.90,
+                correlation=CORRELATION_MEDIUM,
             ),
             ColumnRelation(
                 catalog_column="col2",
                 metadata_column="dct:col2",
-                correlation=0.85,
+                correlation=CORRELATION_LOW,
             ),
         ]
 
@@ -118,13 +124,43 @@ class TestSelectRelationsByThreshold:
         sample_column_relations: list[ColumnRelation],
     ) -> None:
         """Should return relations above threshold."""
-        threshold = 0.90
+        threshold = CORRELATION_MEDIUM
         result = column_relation_repository.select_relations_by_threshold(db, threshold)
         expected_count = sum(
             1 for r in sample_column_relations if r.correlation >= threshold
         )
         assert len(result) == expected_count
         assert all(r.correlation >= threshold for r in result)
+
+    def test_select_all_above_zero(
+        self,
+        db: Session,
+        column_relation_repository: ColumnRelationRepository,
+        sample_column_relations: list[ColumnRelation],
+    ) -> None:
+        """Should return all relations for threshold 0.0 (minimum boundary)."""
+        result = column_relation_repository.select_relations_by_threshold(db, CORRELATION_MIN)
+        assert len(result) == len(sample_column_relations)
+
+    def test_select_none_above_one(
+        self,
+        db: Session,
+        column_relation_repository: ColumnRelationRepository,
+        sample_column_relations: list[ColumnRelation],
+    ) -> None:
+        """Should return empty list for threshold 1.0 (maximum boundary)."""
+        result = column_relation_repository.select_relations_by_threshold(db, CORRELATION_MAX)
+        assert result == []
+
+    def test_select_with_negative_threshold(
+        self,
+        db: Session,
+        column_relation_repository: ColumnRelationRepository,
+        sample_column_relations: list[ColumnRelation],
+    ) -> None:
+        """Should return all relations for negative threshold (edge case)."""
+        result = column_relation_repository.select_relations_by_threshold(db, -0.1)
+        assert len(result) == len(sample_column_relations)
 
 
 class TestSelectAllRelations:

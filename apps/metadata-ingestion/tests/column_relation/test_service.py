@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 
 from active_metadata.models import ColumnRelationBase
 from app.src.column_relation.model import ColumnRelation
+from tests.constants import CORRELATION_HIGH, CORRELATION_MEDIUM, CORRELATION_LOW
 
 
 class TestColumnRelationService:
@@ -15,7 +16,7 @@ class TestColumnRelationService:
 
     def test_create_single_relation(self, column_relation_service, mock_db_session):
         """Should create single column relation."""
-        relation_base = ColumnRelationBase(catalog_column="title", metadata_column="name", correlation=0.95)
+        relation_base = ColumnRelationBase(catalog_column="title", metadata_column="name", correlation=CORRELATION_HIGH)
 
         # Mock repository to return what was passed
         column_relation_service.repository.save.side_effect = lambda db, r: r
@@ -35,9 +36,9 @@ class TestColumnRelationService:
     def test_create_relations_multiple(self, column_relation_service, mock_db_session):
         """Should create multiple relations."""
         relations = [
-            ColumnRelationBase(catalog_column="title", metadata_column="name", correlation=0.95),
-            ColumnRelationBase(catalog_column="description", metadata_column="desc", correlation=0.90),
-            ColumnRelationBase(catalog_column="keyword", metadata_column="keywords", correlation=0.85),
+            ColumnRelationBase(catalog_column="title", metadata_column="name", correlation=CORRELATION_HIGH),
+            ColumnRelationBase(catalog_column="description", metadata_column="desc", correlation=CORRELATION_MEDIUM),
+            ColumnRelationBase(catalog_column="keyword", metadata_column="keywords", correlation=CORRELATION_LOW),
         ]
 
         column_relation_service.repository.save_bulk.side_effect = lambda db, r: r
@@ -64,8 +65,8 @@ class TestColumnRelationService:
     def test_get_relations_by_catalog_column(self, column_relation_service, mock_db_session):
         """Should return relations for catalog column."""
         expected = [
-            MagicMock(catalog_column="title", metadata_column="name", correlation=0.95),
-            MagicMock(catalog_column="title", metadata_column="title", correlation=0.90),
+            MagicMock(catalog_column="title", metadata_column="name", correlation=CORRELATION_HIGH),
+            MagicMock(catalog_column="title", metadata_column="title", correlation=CORRELATION_MEDIUM),
         ]
         column_relation_service.repository.select_relations_by_catalog_column.return_value = expected
 
@@ -90,7 +91,7 @@ class TestColumnRelationService:
 
     def test_get_relations_by_metadata_column(self, column_relation_service, mock_db_session):
         """Should return relations for metadata column."""
-        expected = [MagicMock(catalog_column="title", metadata_column="name", correlation=0.95)]
+        expected = [MagicMock(catalog_column="title", metadata_column="name", correlation=CORRELATION_HIGH)]
         column_relation_service.repository.select_relations_by_metadata_column.return_value = expected
 
         result = column_relation_service.get_relations_by_metadata_column(mock_db_session, "name")
@@ -107,8 +108,8 @@ class TestColumnRelationService:
     def test_get_relations_by_metadata_columns(self, column_relation_service, mock_db_session):
         """Should return relations for multiple metadata columns."""
         expected = [
-            MagicMock(catalog_column="title", metadata_column="name", correlation=0.95),
-            MagicMock(catalog_column="description", metadata_column="desc", correlation=0.90),
+            MagicMock(catalog_column="title", metadata_column="name", correlation=CORRELATION_HIGH),
+            MagicMock(catalog_column="description", metadata_column="desc", correlation=CORRELATION_MEDIUM),
         ]
         column_relation_service.repository.select_relations_by_metadata_columns.return_value = expected
 
@@ -147,7 +148,7 @@ class TestColumnRelationService:
 
     def test_replace_catalog_relations(self, column_relation_service, mock_db_session):
         """Should delete existing and create new relations."""
-        new_predictions = [("name", 0.95), ("title", 0.90), ("label", 0.85)]
+        new_predictions = [("name", CORRELATION_HIGH), ("title", CORRELATION_MEDIUM), ("label", CORRELATION_LOW)]
 
         column_relation_service.repository.delete_relations_by_catalog_column.return_value = 2
         column_relation_service.repository.save_bulk.side_effect = lambda db, r: r
@@ -178,15 +179,15 @@ class TestColumnRelationService:
 
     def test_replace_catalog_relations_creates_correct_objects(self, column_relation_service, mock_db_session):
         """Should create ColumnRelation objects with correct values."""
-        new_predictions = [("meta_name", 0.95), ("meta_title", 0.85)]
+        new_predictions = [("meta_name", CORRELATION_HIGH), ("meta_title", CORRELATION_LOW)]
 
         column_relation_service.repository.save_bulk.side_effect = lambda db, r: r
 
         result = column_relation_service.replace_catalog_relations(mock_db_session, "catalog_title", new_predictions)
 
-        assert len(result) == 2
+        assert len(result) == len(new_predictions)
         assert result[0].catalog_column == "catalog_title"
-        assert result[0].metadata_column == "meta_name"
-        assert result[0].correlation == 0.95
-        assert result[1].metadata_column == "meta_title"
-        assert result[1].correlation == 0.85
+        assert result[0].metadata_column == new_predictions[0][0]
+        assert result[0].correlation == new_predictions[0][1]
+        assert result[1].metadata_column == new_predictions[1][0]
+        assert result[1].correlation == new_predictions[1][1]

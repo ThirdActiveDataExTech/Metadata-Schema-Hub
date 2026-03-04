@@ -98,6 +98,15 @@ class TestSelectMetadataEntry:
         result = metadata_entry_repository.select_metadata_entry(db, NONEXISTENT_IDENTIFIER)
         assert result == []
 
+    def test_select_with_empty_string_metadata_id(
+        self,
+        db: Session,
+        metadata_entry_repository: MetadataEntryRepository,
+    ) -> None:
+        """Should return empty list for empty string metadata_id."""
+        result = metadata_entry_repository.select_metadata_entry(db, "")
+        assert result == []
+
 
 class TestSelectMetadataEntriesByMetadataIds:
     """Tests for select_metadata_entries_by_metadata_ids method."""
