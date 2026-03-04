@@ -247,8 +247,8 @@ class TestTransformCatalogEntriesBulk:
         """Should propagate CatalogEntryNotFoundError."""
         from app.src.catalog_entry.exceptions import CatalogEntryNotFoundError
 
-        transform_service.catalog_entry_service.repository.select.side_effect = CatalogEntryNotFoundError(
-            catalog_entry_id=99999
+        transform_service.catalog_entry_service.repository.select.side_effect = (
+            CatalogEntryNotFoundError.by_id(99999)
         )
 
         with pytest.raises(CatalogEntryNotFoundError):

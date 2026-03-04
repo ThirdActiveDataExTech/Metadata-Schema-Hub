@@ -4,17 +4,20 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from active_metadata.models import IngestionRunState
+from active_metadata.models import DraftStatus, IngestionRunState
 from tests.constants import SNAPSHOT_ID_VALID, SNAPSHOT_ID_VALID_ALT
 
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
 from app.src.column_relation.service import ColumnRelationService
+from app.src.ingestion_run.exceptions import (
+    IngestionRunNotFoundError,
+    InvalidIngestionRunStateError,
+    NoMetadataEntriesError,
+)
 from app.src.ingestion_run.service import IngestionRunService
 from app.src.metadata_entry.service import MetadataEntryService
 from app.src.metadata_snapshot.service import MetadataSnapshotService
 from app.src.workflow.ingestion_workflow import IngestionWorkflowService
-
-from active_metadata.models import DraftStatus
 
 
 class TestIngestionWorkflowService:
@@ -176,28 +179,24 @@ class TestIngestionWorkflowService:
         mock_db_session.commit.assert_called_once()
 
     def test_execute_draft_phase_run_not_found(self, workflow_service, mock_db_session):
-        """Should raise ValueError when run not found."""
+        """Should raise IngestionRunNotFoundError when run not found."""
         workflow_service.ingestion_run_service.repository.find_by_run_id.return_value = None
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(IngestionRunNotFoundError):
             workflow_service.execute_draft_phase(mock_db_session, run_id=999)
 
-        assert "not found" in str(exc_info.value)
-
     def test_execute_draft_phase_wrong_state(self, workflow_service, mock_db_session):
-        """Should raise ValueError when run not in STORED state."""
+        """Should raise InvalidIngestionRunStateError when run not in STORED state."""
         mock_run = MagicMock()
         mock_run.state = MagicMock()
         mock_run.state.value = "DRAFTED"  # Wrong state
         workflow_service.ingestion_run_service.repository.find_by_run_id.return_value = mock_run
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(InvalidIngestionRunStateError):
             workflow_service.execute_draft_phase(mock_db_session, run_id=1)
 
-        assert "STORED" in str(exc_info.value)
-
     def test_execute_draft_phase_no_metadata_raises(self, workflow_service, mock_db_session):
-        """Should raise ValueError when no metadata entries found."""
+        """Should raise NoMetadataEntriesError when no metadata entries found."""
         mock_run = MagicMock()
         mock_run.snapshot_id = SNAPSHOT_ID_VALID
         mock_run.state = MagicMock()
@@ -207,10 +206,8 @@ class TestIngestionWorkflowService:
         # No metadata entries
         workflow_service.metadata_entry_service.repository.select_metadata_entry.return_value = []
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(NoMetadataEntriesError):
             workflow_service.execute_draft_phase(mock_db_session, run_id=1)
-
-        assert "No metadata" in str(exc_info.value)
 
     def test_execute_draft_phase_marks_failed_on_error(self, workflow_service, mock_db_session):
         """Should mark run as failed on exception."""
