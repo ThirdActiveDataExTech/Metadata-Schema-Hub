@@ -64,6 +64,7 @@ test = [
     "pytest-cov<6.0.0,>=5.0.0",
     "setuptools>=77.0.3",
     "tabulate<1.0.0,>=0.9.0",
+    "testcontainers[postgres]>=4.0.0",
 ]
 gunicorn = [
     "gunicorn<24.0.0,>=23.0.0",

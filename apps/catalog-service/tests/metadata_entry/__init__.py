@@ -1,0 +1,1 @@
+"""MetadataEntry tests."""

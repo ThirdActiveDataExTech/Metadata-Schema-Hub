@@ -64,13 +64,15 @@ class MetadataEntryRepository:
 
     def select_distinct_metadata_schemas(self, db: Session, metadata_id_list: List[str]) -> List[str]:
         """주어진 메타데이터 id 로 스키마들을 조회."""
+        if not metadata_id_list:
+            return []
+
         statement = (
             select(MetadataEntry.metadata_schema)
             .where(MetadataEntry.metadata_id.in_(metadata_id_list))  # pyright: ignore
             .distinct()
         )
 
-        # db.exec(statement).all()은 [(id1,), (id2,), ...] 와 같이 튜플의 리스트를 반환함
-        # 각 튜플에서 첫 번째 요소를 추출하여 문자열 리스트로 반환
+        # SQLModel의 exec().all()은 단일 컬럼 선택 시 스칼라 리스트 반환
         results = db.exec(statement).all()
-        return [result[0] for result in results]
+        return list(results)

@@ -63,6 +63,14 @@ pyright-lint:
 
 pytest:
   extends: .app-test
+  services:
+    - name: postgres:17.4
+      alias: postgres
+  variables:
+    POSTGRES_DB: test_db
+    POSTGRES_USER: postgres
+    POSTGRES_PASSWORD: $POSTGRES_TEST_PASSWORD
+    POSTGRES_HOST: postgres
   parallel:
     matrix:
       - PYTHON_VERSION: ["3.11"]

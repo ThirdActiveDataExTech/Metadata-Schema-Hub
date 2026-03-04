@@ -1,8 +1,23 @@
 """Shared test fixtures and constants."""
 
-from datetime import date
+from datetime import date, datetime, UTC
 
 import pytest
+
+# =============================================================================
+# Common Test Constants
+# =============================================================================
+
+SAMPLE_METADATA_ID = "15107742"
+SAMPLE_TIMESTAMP = 1708675200
+SAMPLE_SNAPSHOT_ID = "urn:wisenut:metadata:1708675200-abcdef123456"
+SAMPLE_DATETIME = datetime(2024, 2, 23, 8, 0, 0, tzinfo=UTC)
+TEST_DATE = date(2024, 1, 15)
+
+# Correlation thresholds
+CORRELATION_HIGH = 0.95
+CORRELATION_MEDIUM = 0.90
+CORRELATION_LOW = 0.85
 
 # =============================================================================
 # Realistic test data based on sample/ directory

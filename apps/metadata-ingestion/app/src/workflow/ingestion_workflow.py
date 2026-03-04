@@ -7,6 +7,11 @@ from active_metadata import SnapshotIdentifier, detect_extension
 from sqlmodel import Session
 
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
+from app.src.ingestion_run.exceptions import (
+    IngestionRunNotFoundError,
+    InvalidIngestionRunStateError,
+    NoMetadataEntriesError,
+)
 from app.src.column_relation.service import ColumnRelationService
 from app.src.file_converter.file_handler import MetadataFile, process_metadata_file
 from app.src.ingestion_run.model import IngestionRunCreate
@@ -117,10 +122,10 @@ class IngestionWorkflowService:
         # Get the run
         run = self.ingestion_run_service.get_run(db, run_id)
         if not run:
-            raise ValueError(f"IngestionRun not found: {run_id}")
+            raise IngestionRunNotFoundError(run_id)
 
         if run.state.value != "STORED":
-            raise ValueError(f"IngestionRun {run_id} is not in STORED state: {run.state}")
+            raise InvalidIngestionRunStateError(run_id, str(run.state))
 
         try:
             # Step 1: Get metadata entries (metadata_id = snapshot_id)
@@ -129,7 +134,7 @@ class IngestionWorkflowService:
             )
 
             if not metadata_entries:
-                raise ValueError(f"No metadata entries found for snapshot: {run.snapshot_id}")
+                raise NoMetadataEntriesError(run.snapshot_id)
 
             # Step 2: Get column relations for matching schemas
             metadata_schemas = list(set(e.metadata_schema for e in metadata_entries))

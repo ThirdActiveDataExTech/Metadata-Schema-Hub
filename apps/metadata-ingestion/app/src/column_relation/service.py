@@ -53,6 +53,9 @@ class ColumnRelationService:
             catalog_column: Target catalog column
             new_predictions: List of (metadata_column, correlation) tuples
         """
+        if not new_predictions:
+            return []
+
         # Delete existing relations
         self.repository.delete_relations_by_catalog_column(db, catalog_column)
 
