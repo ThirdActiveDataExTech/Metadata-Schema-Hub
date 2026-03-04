@@ -93,7 +93,7 @@ class TestCatalogEntryBase:
         e = CatalogEntryBase(
             identifier="15107742",
             **sample_catalog_entry,
-            raw_metadata={"source": "data.go.kr", "@type": "Dataset"},
+            latest_snapshot_id="urn:wisenut:metadata:1708675200-a1b2c3d4e5f6",
         )
         assert e.identifier == "15107742"
         assert e.title == SAMPLE_CATALOG_ENTRY["title"]
@@ -109,10 +109,10 @@ class TestCatalogEntryBase:
         assert e.identifier is not None
         assert len(e.identifier) > 0
 
-    def test_default_raw_metadata(self):
-        """Test CatalogEntryBase has empty dict for raw_metadata by default."""
+    def test_default_latest_snapshot_id(self):
+        """Test CatalogEntryBase has None for latest_snapshot_id by default."""
         e = CatalogEntryBase(identifier="15107742")
-        assert e.raw_metadata == {}
+        assert e.latest_snapshot_id is None
 
 
 class TestColumnRelationBase:
