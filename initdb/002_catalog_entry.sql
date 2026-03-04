@@ -21,11 +21,8 @@ CREATE TABLE IF NOT EXISTS catalog_entry
     -- distribution 필드
     access_url     TEXT,                      -- 배포판에 접근할 수 있는 URL (dcat:accessURL)
 
-    -- 원본 메타데이터 저장용
-    raw_metadata   JSONB NOT NULL,            -- 원본 메타데이터 전체(JSON-LD, schema.org, openapi 등)
-
-    -- 추적 컬럼 (스냅샷 연결)
-    latest_snapshot_id TEXT,                  -- 최신 스냅샷 참조
+    -- 추적 컬럼 (스냅샷 연결 - 원본 메타데이터는 FilesystemStorage에 저장)
+    latest_snapshot_id TEXT,                  -- 최신 스냅샷 참조 (원본 메타데이터 접근용)
 
     -- 수집/입력 메타 정보
     ingested_at    TIMESTAMPTZ DEFAULT now(), -- 시스템 수집 일시
@@ -62,10 +59,8 @@ ON COLUMN catalog_entry.theme IS '주제 분류 URI/코드 배열. dcat:theme.';
 COMMENT
 ON COLUMN catalog_entry.access_url IS '배포판에 접근할 수 있는 URL. dcat:accessURL.';
 COMMENT
-ON COLUMN catalog_entry.raw_metadata IS '입력된 원본 메타데이터 전체 (JSON-LD, schema.org, openapi 등).';
-COMMENT
 ON COLUMN catalog_entry.ingested_at IS '데이터가 수집되어 저장된 시간.';
 COMMENT
 ON COLUMN catalog_entry.updated_at IS '후처리, 재매핑 등으로 갱신된 시각.';
 COMMENT
-ON COLUMN catalog_entry.latest_snapshot_id IS '이 엔트리를 갱신하는 데 사용된 최신 메타데이터 스냅샷 참조';
+ON COLUMN catalog_entry.latest_snapshot_id IS '원본 메타데이터를 저장한 스냅샷 참조 (FilesystemStorage를 통해 조회)';
