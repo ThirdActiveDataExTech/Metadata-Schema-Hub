@@ -6,6 +6,7 @@ from typing import Annotated, Any, Dict, List, Literal, Optional
 from fastapi import APIRouter, Path, Query
 from starlette.responses import StreamingResponse
 
+from active_metadata.types import SnapshotIdentifier
 from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
@@ -69,9 +70,14 @@ async def get_raw_metadata(
     if not entry.latest_snapshot_id:
         return APIResponseModel(result={}, description="No raw metadata available.")
 
+    snapshot_id = SnapshotIdentifier(entry.latest_snapshot_id)
+    snapshot = snapshot_service.get_snapshot(db=session, snapshot_id=snapshot_id)
+    if not snapshot:
+        return APIResponseModel(result={}, description=f"Snapshot not found: {snapshot_id}")
+
     content = snapshot_service.load_raw_content(db=session, snapshot_id=entry.latest_snapshot_id)
     if content is None:
-        return APIResponseModel(result={}, description="Snapshot not found.")
+        return APIResponseModel(result={}, description=f"File not found: {snapshot.storage_key}")
 
     return StreamingResponse(
         io.BytesIO(content),
