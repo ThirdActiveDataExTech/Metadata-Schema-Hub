@@ -25,6 +25,8 @@ __all__ = [
     "IngestionRunBase",
     "DraftStatus",
     "CatalogEntryDraftBase",
+    "LineageEventType",
+    "LineageEventBase",
 ]
 
 
@@ -88,7 +90,9 @@ class CatalogEntryBase(SQLModel):
     def to_api_dict(self) -> dict[str, Any]:
         """Convert to API response dictionary with automatic date/datetime serialization."""
         result = {}
-        for field_name, value in self:
+        # Use model_dump() for SQLModel compatibility (works for both table=True and regular models)
+        data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
+        for field_name, value in data.items():
             if isinstance(value, (date, datetime)):
                 result[field_name] = value.isoformat()
             else:
@@ -106,7 +110,9 @@ class CatalogEntryBase(SQLModel):
         """
         long_text_fields = self.get_long_text_fields()
         result = {}
-        for field_name, value in self:
+        # Use model_dump() for SQLModel compatibility
+        data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
+        for field_name, value in data.items():
             if field_name in long_text_fields and value and len(value) > max_text_length:
                 result[field_name] = value[:max_text_length] + "..."
             elif isinstance(value, (date, datetime)):
@@ -311,7 +317,9 @@ class CatalogEntryDraftBase(SQLModel):
     def to_api_dict(self) -> dict[str, Any]:
         """Convert to API response dictionary with automatic date/datetime serialization."""
         result = {}
-        for field_name, value in self:
+        # Use model_dump() for SQLModel compatibility (works for both table=True and regular models)
+        data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
+        for field_name, value in data.items():
             if isinstance(value, (date, datetime)):
                 result[field_name] = value.isoformat()
             else:
@@ -329,7 +337,9 @@ class CatalogEntryDraftBase(SQLModel):
         """
         long_text_fields = self.get_long_text_fields()
         result = {}
-        for field_name, value in self:
+        # Use model_dump() for SQLModel compatibility
+        data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
+        for field_name, value in data.items():
             if field_name in long_text_fields and value and len(value) > max_text_length:
                 result[field_name] = value[:max_text_length] + "..."
             elif isinstance(value, (date, datetime)):
@@ -337,3 +347,39 @@ class CatalogEntryDraftBase(SQLModel):
             else:
                 result[field_name] = value
         return result
+
+
+class LineageEventType(StrEnum):
+    """Lineage event types."""
+
+    START = "START"  # OpenLineage Spec
+    RUNNING = "RUNNING"
+    COMPLETE = "COMPLETE"  # OpenLineage Spec
+    FAIL = "FAIL"  # OpenLineage Spec
+    ABORT = "ABORT"  # OpenLineage Spec
+    OTHER = "OTHER"
+
+
+class LineageEventBase(SQLModel):
+    """Lineage event base model - OpenLineage compatible.
+
+    Stores lineage events for tracking metadata processing workflow.
+    event_payload contains full OpenLineage RunEvent JSON.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    event_time: datetime = Field(nullable=False)
+    event_type: LineageEventType = Field(nullable=False)
+    run_id: uuid.UUID = Field(nullable=False, index=True)
+    job_namespace: str = Field(default="wisenut-amm", max_length=255)
+    job_name: str = Field(max_length=255, nullable=False)
+    event_payload: dict[str, Any] = Field(sa_column=Column(JSONB, nullable=False))
+    # Internal references for query optimization
+    snapshot_id: str | None = None
+    draft_id: int | None = None
+    catalog_entry_id: int | None = None
+    ingestion_run_id: int | None = None
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),
+    )

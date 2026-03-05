@@ -10,6 +10,8 @@ from app.src.column_relation.dependencies import get_column_relation_service
 from app.src.column_relation.service import ColumnRelationService
 from app.src.ingestion_run.dependencies import get_ingestion_run_service
 from app.src.ingestion_run.service import IngestionRunService
+from app.src.lineage.dependencies import get_lineage_service
+from app.src.lineage.service import LineageEventService
 from app.src.metadata_entry.dependencies import get_metadata_entry_service
 from app.src.metadata_entry.service import MetadataEntryService
 from app.src.metadata_snapshot.dependencies import (
@@ -45,6 +47,7 @@ def get_ingestion_workflow_service(
     draft_service: Annotated[CatalogEntryDraftService, Depends(get_catalog_entry_draft_service)],
     column_relation_service: Annotated[ColumnRelationService, Depends(get_column_relation_service)],
     file_storage: Annotated[FilesystemStorage, Depends(get_filesystem_storage)],
+    lineage_service: Annotated[LineageEventService, Depends(get_lineage_service)],
 ) -> IngestionWorkflowService:
     """IngestionWorkflowService dependency injection."""
     return IngestionWorkflowService(
@@ -54,6 +57,7 @@ def get_ingestion_workflow_service(
         draft_service=draft_service,
         column_relation_service=column_relation_service,
         file_storage=file_storage,
+        lineage_service=lineage_service,
     )
 
 

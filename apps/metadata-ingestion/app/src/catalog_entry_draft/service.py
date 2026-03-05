@@ -1,6 +1,8 @@
 """Business logic for CatalogEntryDraft."""
 
-from typing import Any, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Optional
 
 from active_metadata import CatalogEntryDraftBase, convert_field_types
 from active_metadata.models import DraftStatus
@@ -18,6 +20,9 @@ from app.src.catalog_entry_draft.repository import CatalogEntryDraftRepository
 from app.src.column_relation.model import ColumnRelation
 from app.src.metadata_entry.model import MetadataEntry
 
+if TYPE_CHECKING:
+    from app.src.lineage.service import LineageEventService
+
 
 class CatalogEntryDraftService:
     """CatalogEntryDraft service."""
@@ -26,10 +31,12 @@ class CatalogEntryDraftService:
         self,
         repository: CatalogEntryDraftRepository,
         catalog_entry_service: Optional[CatalogEntryService] = None,
+        lineage_service: Optional[LineageEventService] = None,
     ):
-        """Initialize with repository and optional catalog service for publish."""
+        """Initialize with repository and optional services for publish/lineage."""
         self.repository = repository
         self.catalog_entry_service = catalog_entry_service
+        self.lineage_service = lineage_service
 
     def build_mapping_with_evidence(
         self,
@@ -136,8 +143,19 @@ class CatalogEntryDraftService:
     def discard(self, db: Session, draft_id: int) -> CatalogEntryDraft:
         """Discard a draft (change status to DISCARDED)."""
         draft = self._get_draft_or_raise(db, draft_id)
+        snapshot_id = draft.snapshot_id  # Capture before update
         draft.status = DraftStatus.DISCARDED
-        return self.repository.update(db, draft)
+        updated_draft = self.repository.update(db, draft)
+
+        # Emit lineage event
+        if self.lineage_service:
+            self.lineage_service.emit_discard_complete(
+                db,
+                draft_id=draft_id,
+                snapshot_id=snapshot_id,
+            )
+
+        return updated_draft
 
     def publish(self, db: Session, draft_id: int) -> CatalogEntry:
         """Publish draft to catalog entry."""
@@ -165,5 +183,15 @@ class CatalogEntryDraftService:
         # Update draft status
         draft.status = DraftStatus.PUBLISHED
         self.repository.update(db, draft)
+
+        # Emit lineage event
+        if self.lineage_service:
+            self.lineage_service.emit_publish_complete(
+                db,
+                draft_id=draft_id,
+                catalog_entry_id=saved_entry.id,  # type: ignore[arg-type]
+                identifier=saved_entry.identifier,
+                snapshot_id=draft.snapshot_id,
+            )
 
         return saved_entry

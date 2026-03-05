@@ -38,6 +38,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-datagokr}
       SNAPSHOT_STORAGE_PATH: /data/snapshots
+      BACKEND_CORS_ORIGINS: '["http://localhost:3000"]'
     ports:
       - 8085:8085
     volumes:
@@ -67,6 +68,20 @@ services:
     volumes:
       - pgdata-postgres17:/var/lib/postgresql/data
       - ./initdb:/docker-entrypoint-initdb.d # todo create table 필요할 경우
+
+  # Workflow visualization UI
+  workflow-ui:
+    build:
+      context: .
+      dockerfile: ./apps/workflow-ui/Dockerfile
+    image: workflow-ui:dev
+    restart: unless-stopped
+    environment:
+      TZ: Asia/Seoul
+    ports:
+      - 3000:80
+    depends_on:
+      - catalog-service
 
   # DB client tool 이 없을 경우, 웹에서 간편하게 사용
   adminer:

@@ -1,7 +1,9 @@
 """Ingestion workflow orchestration (Store Phase + Draft Phase)."""
 
+from __future__ import annotations
+
 import logging
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from active_metadata import SnapshotIdentifier, detect_extension
 from sqlmodel import Session
@@ -23,6 +25,9 @@ from app.src.metadata_snapshot.service import MetadataSnapshotService
 from app.src.workflow.model import DraftPhaseResult, StorePhaseResult
 from app.version import VERSION
 
+if TYPE_CHECKING:
+    from app.src.lineage.service import LineageEventService
+
 
 class IngestionWorkflowService:
     """Orchestrates the two-phase ingestion workflow (Facade)."""
@@ -35,6 +40,7 @@ class IngestionWorkflowService:
         draft_service: CatalogEntryDraftService,
         column_relation_service: ColumnRelationService,
         file_storage: FilesystemStorage,
+        lineage_service: Optional[LineageEventService] = None,
     ):
         """Initialize with all required services."""
         self.snapshot_service = snapshot_service
@@ -43,6 +49,7 @@ class IngestionWorkflowService:
         self.draft_service = draft_service
         self.column_relation_service = column_relation_service
         self.file_storage = file_storage
+        self.lineage_service = lineage_service
 
     def get_mapping_version(self) -> str:
         """Get current mapping version from app version."""
@@ -99,6 +106,19 @@ class IngestionWorkflowService:
         db.commit()
         db.refresh(snapshot)
         db.refresh(run)
+
+        # Emit lineage event (after TX1 committed)
+        if self.lineage_service:
+            self.lineage_service.emit_store_phase_complete(
+                db,
+                snapshot_id=snapshot.snapshot_id,
+                ingestion_run_id=run.run_id,  # type: ignore[arg-type]
+                mapping_version=mapping_version,
+                storage_key=storage_key,
+                original_filename=filename,
+                payload_sha256=identifier.payload_sha256 or snapshot.payload_sha256,
+            )
+            db.commit()  # Commit lineage event
 
         return StorePhaseResult(
             snapshot_id=snapshot.snapshot_id,
@@ -158,6 +178,18 @@ class IngestionWorkflowService:
             db.commit()
             db.refresh(draft)
 
+            # Emit lineage event (after TX2 committed)
+            if self.lineage_service:
+                self.lineage_service.emit_draft_phase_complete(
+                    db,
+                    snapshot_id=run.snapshot_id,
+                    draft_id=draft.id,  # type: ignore[arg-type]
+                    ingestion_run_id=run_id,
+                    mapping_version=run.mapping_version,
+                )
+                db.commit()  # Commit lineage event
+                db.refresh(draft)  # Refresh draft after lineage commit (expire_on_commit)
+
             return DraftPhaseResult(
                 draft=draft,
                 run_id=run_id,
@@ -167,4 +199,14 @@ class IngestionWorkflowService:
         except Exception as e:
             logging.error(f"Draft phase failed for run {run_id}: {e}")
             self.ingestion_run_service.mark_failed(db, run_id, str(e))
+            # Emit failure event
+            if self.lineage_service:
+                self.lineage_service.emit_draft_phase_failed(
+                    db,
+                    snapshot_id=run.snapshot_id,
+                    ingestion_run_id=run_id,
+                    mapping_version=run.mapping_version,
+                    error_message=str(e),
+                )
+                db.commit()
             raise
