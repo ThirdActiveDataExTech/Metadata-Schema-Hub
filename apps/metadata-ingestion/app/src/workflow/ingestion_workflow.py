@@ -9,13 +9,13 @@ from active_metadata import SnapshotIdentifier, detect_extension
 from sqlmodel import Session
 
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
+from app.src.column_relation.service import ColumnRelationService
+from app.src.file_converter.file_handler import MetadataFile, process_metadata_file
 from app.src.ingestion_run.exceptions import (
     IngestionRunNotFoundError,
     InvalidIngestionRunStateError,
     NoMetadataEntriesError,
 )
-from app.src.column_relation.service import ColumnRelationService
-from app.src.file_converter.file_handler import MetadataFile, process_metadata_file
 from app.src.ingestion_run.model import IngestionRunCreate
 from app.src.ingestion_run.service import IngestionRunService
 from app.src.metadata_entry.model import MetadataCreate
@@ -97,17 +97,15 @@ class IngestionWorkflowService:
         # Step 7: Create ingestion run
         run = self.ingestion_run_service.create_run(
             db,
-            IngestionRunCreate(
-                snapshot_id=snapshot.snapshot_id, mapping_version=mapping_version
-            ),
+            IngestionRunCreate(snapshot_id=snapshot.snapshot_id, mapping_version=mapping_version),
         )
 
-        # TX1 commit
-        db.commit()
+        # TX1 flush
+        db.flush()
         db.refresh(snapshot)
         db.refresh(run)
 
-        # Emit lineage event (after TX1 committed)
+        # Emit lineage event
         if self.lineage_service:
             self.lineage_service.emit_store_phase_complete(
                 db,
@@ -118,7 +116,7 @@ class IngestionWorkflowService:
                 original_filename=filename,
                 payload_sha256=identifier.payload_sha256 or snapshot.payload_sha256,
             )
-            db.commit()  # Commit lineage event
+            db.flush()
 
         return StorePhaseResult(
             snapshot_id=snapshot.snapshot_id,
@@ -149,18 +147,14 @@ class IngestionWorkflowService:
 
         try:
             # Step 1: Get metadata entries (metadata_id = snapshot_id)
-            metadata_entries = self.metadata_entry_service.select_metadata(
-                db, run.snapshot_id
-            )
+            metadata_entries = self.metadata_entry_service.select_metadata(db, run.snapshot_id)
 
             if not metadata_entries:
                 raise NoMetadataEntriesError(run.snapshot_id)
 
             # Step 2: Get column relations for matching schemas
             metadata_schemas = list(set(e.metadata_schema for e in metadata_entries))
-            relations = self.column_relation_service.get_relations_by_metadata_columns(
-                db, metadata_schemas
-            )
+            relations = self.column_relation_service.get_relations_by_metadata_columns(db, metadata_schemas)
 
             # Step 3-4: Create draft with mapping
             draft = self.draft_service.create_draft(
@@ -174,11 +168,11 @@ class IngestionWorkflowService:
             # Step 5: Update run state
             self.ingestion_run_service.mark_drafted(db, run_id, draft.id)  # type: ignore[arg-type]
 
-            # TX2 commit
-            db.commit()
+            # TX2 flush
+            db.flush()
             db.refresh(draft)
 
-            # Emit lineage event (after TX2 committed)
+            # Emit lineage event
             if self.lineage_service:
                 self.lineage_service.emit_draft_phase_complete(
                     db,
@@ -187,8 +181,8 @@ class IngestionWorkflowService:
                     ingestion_run_id=run_id,
                     mapping_version=run.mapping_version,
                 )
-                db.commit()  # Commit lineage event
-                db.refresh(draft)  # Refresh draft after lineage commit (expire_on_commit)
+                db.flush()
+                db.refresh(draft)
 
             return DraftPhaseResult(
                 draft=draft,
@@ -208,5 +202,5 @@ class IngestionWorkflowService:
                     mapping_version=run.mapping_version,
                     error_message=str(e),
                 )
-                db.commit()
+                db.flush()
             raise
