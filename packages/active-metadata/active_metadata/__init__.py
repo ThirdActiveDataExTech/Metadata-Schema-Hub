@@ -10,11 +10,13 @@ from active_metadata.models import (
     CatalogEntryDraftBase,
     ColumnRelationBase,
     DraftStatus,
+    LineageEventBase,
+    LineageEventType,
     MetadataBase,
     MetadataSnapshotBase,
 )
 from active_metadata.parsing import convert_field_types, detect_extension, parse_date, to_str_list
-from active_metadata.types import SnapshotIdentifier
+from active_metadata.types import EntityURI, SnapshotIdentifier
 
 __all__ = [
     "MetadataBase",
@@ -24,6 +26,9 @@ __all__ = [
     "MetadataSnapshotBase",
     "SnapshotIdentifier",
     "DraftStatus",
+    "LineageEventBase",
+    "LineageEventType",
+    "EntityURI",
     "detect_extension",
     "parse_date",
     "to_str_list",

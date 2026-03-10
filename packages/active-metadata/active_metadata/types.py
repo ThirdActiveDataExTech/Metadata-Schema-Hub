@@ -1,6 +1,6 @@
 """Custom types for metadata management."""
 
-__all__ = ["SnapshotIdentifier"]
+__all__ = ["SnapshotIdentifier", "EntityURI"]
 
 import hashlib
 import re
@@ -144,3 +144,61 @@ class SnapshotIdentifier(str):
         """
         dt = self.datetime_utc
         return f"{dt.year}/{dt.month:02d}/{dt.day:02d}/{self.timestamp}-{self.hash_prefix}.{extension}"
+
+
+class EntityURI:
+    """Entity URI reference helper for lineage tracking.
+
+    URI 형식: {schema}.{table}/{id}
+    예: public.metadata_snapshot/abc123, public.catalog_entry_draft/7
+    """
+
+    SCHEMA: str = "public"
+
+    @classmethod
+    def snapshot(cls, snapshot_id: str, schema: str = SCHEMA) -> str:
+        """MetadataSnapshot URI 생성."""
+        return f"{schema}.metadata_snapshot/{snapshot_id}"
+
+    @classmethod
+    def entry(cls, entry_id: int, schema: str = SCHEMA) -> str:
+        """MetadataEntry URI 생성."""
+        return f"{schema}.metadata_entry/{entry_id}"
+
+    @classmethod
+    def draft(cls, draft_id: int, schema: str = SCHEMA) -> str:
+        """CatalogEntryDraft URI 생성."""
+        return f"{schema}.catalog_entry_draft/{draft_id}"
+
+    @classmethod
+    def catalog(cls, catalog_id: int, schema: str = SCHEMA) -> str:
+        """CatalogEntry URI 생성."""
+        return f"{schema}.catalog_entry/{catalog_id}"
+
+    @staticmethod
+    def file(filename: str) -> str:
+        """File URI 생성."""
+        return f"file://{filename}"
+
+    @staticmethod
+    def parse(uri: str) -> tuple[str, str, str]:
+        """URI를 (schema, table, id)로 파싱.
+
+        Args:
+            uri: 파싱할 URI 문자열
+
+        Returns:
+            ("", "file", filename) for file:// URIs
+            (schema, table, id) for {schema}.{table}/{id} URIs
+
+        Examples:
+            >>> EntityURI.parse("file://dataset.json")
+            ("", "file", "dataset.json")
+            >>> EntityURI.parse("public.metadata_snapshot/abc123")
+            ("public", "metadata_snapshot", "abc123")
+        """
+        if uri.startswith("file://"):
+            return ("", "file", uri[7:])
+        schema_table, entity_id = uri.rsplit("/", 1)
+        schema, table = schema_table.split(".", 1)
+        return (schema, table, entity_id)

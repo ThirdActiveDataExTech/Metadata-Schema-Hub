@@ -2,7 +2,7 @@
 -- Store Phase / Draft Phase 워크플로우 상태 관리
 CREATE TABLE IF NOT EXISTS ingestion_run
 (
-    run_id           BIGSERIAL PRIMARY KEY,                                      -- 작업 고유 식별자
+    run_id           UUID PRIMARY KEY,
     snapshot_id      TEXT NOT NULL,                                              -- 스냅샷 참조
     state            VARCHAR(20) NOT NULL DEFAULT 'STORED',                      -- 워크플로우 상태: STORED/DRAFTED/FAILED
     mapping_version  VARCHAR(100) NOT NULL,                                      -- 매핑 로직 버전 (컨테이너 태그)
@@ -23,7 +23,7 @@ CREATE INDEX IF NOT EXISTS idx_ingestion_run_created_at ON ingestion_run(created
 COMMENT ON TABLE ingestion_run IS '메타데이터 수집 워크플로우 상태 추적 (Store Phase: 저장, Draft Phase: 드래프트 생성)';
 
 -- 컬럼 설명
-COMMENT ON COLUMN ingestion_run.run_id IS '자동 생성 작업 고유 식별자';
+COMMENT ON COLUMN ingestion_run.run_id IS 'run_id (UUID, 앱에서 생성)';
 COMMENT ON COLUMN ingestion_run.snapshot_id IS '불변 메타데이터 스냅샷 참조';
 COMMENT ON COLUMN ingestion_run.state IS '워크플로우 상태: STORED (Store Phase 완료), DRAFTED (Draft Phase 완료), FAILED (실패)';
 COMMENT ON COLUMN ingestion_run.mapping_version IS '매핑에 사용된 서비스 버전 (예: v1.2601.20-dev-5f937c57)';
