@@ -14,7 +14,7 @@ from sqlalchemy import String, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TIMESTAMP
 from sqlmodel import Column, Field, SQLModel
 
-from active_metadata.types import SnapshotIdentifier
+from active_metadata.types import EntityURI, SnapshotIdentifier
 
 __all__ = [
     "MetadataBase",
@@ -399,8 +399,6 @@ class LineageEventBase(SQLModel):
         Returns:
             Dict with snapshotId, draftId, catalogEntryId, filename (all nullable)
         """
-        from active_metadata.types import EntityURI
-
         snapshot_id: str | None = None
         draft_id: int | None = None
         catalog_entry_id: int | None = None
