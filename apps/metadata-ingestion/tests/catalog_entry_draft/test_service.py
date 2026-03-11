@@ -16,9 +16,14 @@ class TestBuildMappingWithEvidence:
     """Test cases for build_mapping_with_evidence method."""
 
     @pytest.fixture
-    def service(self, mock_catalog_entry_draft_repository):
+    def service(self, mock_catalog_entry_draft_repository, mock_event_bus):
         """Create service instance."""
-        return CatalogEntryDraftService(repository=mock_catalog_entry_draft_repository)
+        mock_catalog_service = MagicMock(spec=CatalogEntryService)
+        return CatalogEntryDraftService(
+            repository=mock_catalog_entry_draft_repository,
+            event_bus=mock_event_bus,
+            catalog_entry_service=mock_catalog_service,
+        )
 
     @pytest.fixture
     def sample_metadata_entries(self):
@@ -244,18 +249,8 @@ class TestCatalogEntryDraftService:
     # publish tests
     # ========================================================================
 
-    def test_publish_no_catalog_service_raises(self, mock_catalog_entry_draft_repository, mock_db_session):
-        """Should raise ValueError when catalog_entry_service not configured."""
-        service = CatalogEntryDraftService(repository=mock_catalog_entry_draft_repository)
-        # catalog_entry_service is None
-
-        with pytest.raises(ValueError) as exc_info:
-            service.publish(mock_db_session, 1)
-
-        assert "not configured" in str(exc_info.value)
-
     def test_publish_success(
-        self, mock_catalog_entry_draft_repository, mock_catalog_entry_repository, mock_db_session
+        self, mock_catalog_entry_draft_repository, mock_catalog_entry_repository, mock_event_bus, mock_db_session
     ):
         """Should create catalog entry and update draft status."""
 
@@ -263,7 +258,9 @@ class TestCatalogEntryDraftService:
         mock_catalog_service.create_catalog_entry.side_effect = lambda db, e: e
 
         service = CatalogEntryDraftService(
-            repository=mock_catalog_entry_draft_repository, catalog_entry_service=mock_catalog_service
+            repository=mock_catalog_entry_draft_repository,
+            event_bus=mock_event_bus,
+            catalog_entry_service=mock_catalog_service,
         )
 
         mock_draft = MagicMock(spec=CatalogEntryDraft)
@@ -288,13 +285,15 @@ class TestCatalogEntryDraftService:
         assert mock_draft.status == DraftStatus.PUBLISHED
 
     def test_publish_not_pending_raises(
-        self, mock_catalog_entry_draft_repository, mock_catalog_entry_repository, mock_db_session
+        self, mock_catalog_entry_draft_repository, mock_catalog_entry_repository, mock_event_bus, mock_db_session
     ):
         """Should raise when draft not in PENDING status."""
 
         mock_catalog_service = MagicMock(spec=CatalogEntryService)
         service = CatalogEntryDraftService(
-            repository=mock_catalog_entry_draft_repository, catalog_entry_service=mock_catalog_service
+            repository=mock_catalog_entry_draft_repository,
+            event_bus=mock_event_bus,
+            catalog_entry_service=mock_catalog_service,
         )
 
         mock_draft = MagicMock(spec=CatalogEntryDraft)

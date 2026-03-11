@@ -3,10 +3,13 @@
 All ID constants follow actual production formats:
 - snapshot_id / metadata_id: URN format (urn:wisenut:metadata:{timestamp}-{hash})
 - identifier: UUID4 format (default_factory)
+- run_id: UUID format
 
 Usage:
     from tests.constants import SNAPSHOT_ID_VALID, METADATA_ID_1
 """
+
+from uuid import UUID
 
 # =============================================================================
 # Snapshot IDs (URN format: urn:wisenut:metadata:{timestamp}-{hash})
@@ -50,12 +53,21 @@ TEST_SHA256 = "a" * 64
 TEST_SHA256_ALT = "b" * 64
 
 # =============================================================================
+# Run IDs (UUID format)
+# =============================================================================
+
+TEST_RUN_UUID_1 = UUID("11111111-1111-1111-1111-111111111111")
+TEST_RUN_UUID_2 = UUID("22222222-2222-2222-2222-222222222222")
+TEST_RUN_UUID_3 = UUID("33333333-3333-3333-3333-333333333333")
+
+# =============================================================================
 # Nonexistent IDs (for error handling tests)
 # =============================================================================
 
 NONEXISTENT_ID = 99999
 NONEXISTENT_IDENTIFIER = "nonexistent"
 NONEXISTENT_SNAPSHOT_ID = "urn:wisenut:metadata:9999999999-nonexistent"
+NONEXISTENT_UUID = UUID("00000000-0000-0000-0000-000000000000")
 
 # =============================================================================
 # Correlation Thresholds

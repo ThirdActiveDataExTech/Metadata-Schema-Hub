@@ -4,17 +4,17 @@ Provides base SQLModel classes for metadata, catalog entries, and column relatio
 These models define the core schema shared across metadata-ingestion and catalog-service.
 """
 
-import uuid
 from datetime import date, datetime
 from enum import StrEnum
 from typing import Any, ClassVar
+from uuid import UUID, uuid4
 
 from pydantic import field_validator
 from sqlalchemy import String, func
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB, TIMESTAMP
 from sqlmodel import Column, Field, SQLModel
 
-from active_metadata.types import SnapshotIdentifier
+from active_metadata.types import EntityURI, SnapshotIdentifier
 
 __all__ = [
     "MetadataBase",
@@ -25,6 +25,8 @@ __all__ = [
     "IngestionRunBase",
     "DraftStatus",
     "CatalogEntryDraftBase",
+    "LineageEventType",
+    "LineageEventBase",
 ]
 
 
@@ -61,7 +63,7 @@ class CatalogEntryBase(SQLModel):
     description: str | None = None
     issued: date | None = None
     modified: date | None = None
-    identifier: str = Field(nullable=False, default_factory=lambda: str(uuid.uuid4()))
+    identifier: str = Field(nullable=False, default_factory=lambda: str(uuid4()))
     publisher: str | None = None
     keyword: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
     landing_page: str | None = None
@@ -88,7 +90,9 @@ class CatalogEntryBase(SQLModel):
     def to_api_dict(self) -> dict[str, Any]:
         """Convert to API response dictionary with automatic date/datetime serialization."""
         result = {}
-        for field_name, value in self:
+        # Use model_dump() for SQLModel compatibility (works for both table=True and regular models)
+        data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
+        for field_name, value in data.items():
             if isinstance(value, (date, datetime)):
                 result[field_name] = value.isoformat()
             else:
@@ -106,7 +110,9 @@ class CatalogEntryBase(SQLModel):
         """
         long_text_fields = self.get_long_text_fields()
         result = {}
-        for field_name, value in self:
+        # Use model_dump() for SQLModel compatibility
+        data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
+        for field_name, value in data.items():
             if field_name in long_text_fields and value and len(value) > max_text_length:
                 result[field_name] = value[:max_text_length] + "..."
             elif isinstance(value, (date, datetime)):
@@ -247,9 +253,18 @@ class DraftStatus(StrEnum):
 
 
 class IngestionRunBase(SQLModel):
-    """Ingestion run job tracking - base model."""
+    """Workflow state machine for ingestion process monitoring.
 
-    run_id: int | None = Field(default=None, primary_key=True)
+    Tracks the state of metadata ingestion workflows (STORED → DRAFTED or FAILED).
+    Used for:
+    - Monitoring pending/failed workflows
+    - Identifying runs that need retry or investigation
+    - Linking snapshot to draft via run lifecycle
+
+    Note: This is operational data, not lineage. For data provenance, see LineageEventBase.
+    """
+
+    run_id: UUID = Field(default_factory=uuid4, primary_key=True)
     snapshot_id: str = Field(nullable=False, index=True)
     state: IngestionRunState = Field(default=IngestionRunState.STORED, nullable=False)
     mapping_version: str = Field(nullable=False)
@@ -311,7 +326,9 @@ class CatalogEntryDraftBase(SQLModel):
     def to_api_dict(self) -> dict[str, Any]:
         """Convert to API response dictionary with automatic date/datetime serialization."""
         result = {}
-        for field_name, value in self:
+        # Use model_dump() for SQLModel compatibility (works for both table=True and regular models)
+        data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
+        for field_name, value in data.items():
             if isinstance(value, (date, datetime)):
                 result[field_name] = value.isoformat()
             else:
@@ -329,7 +346,9 @@ class CatalogEntryDraftBase(SQLModel):
         """
         long_text_fields = self.get_long_text_fields()
         result = {}
-        for field_name, value in self:
+        # Use model_dump() for SQLModel compatibility
+        data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
+        for field_name, value in data.items():
             if field_name in long_text_fields and value and len(value) > max_text_length:
                 result[field_name] = value[:max_text_length] + "..."
             elif isinstance(value, (date, datetime)):
@@ -337,3 +356,132 @@ class CatalogEntryDraftBase(SQLModel):
             else:
                 result[field_name] = value
         return result
+
+
+class LineageEventType(StrEnum):
+    """Lineage event types."""
+
+    START = "START"
+    COMPLETE = "COMPLETE"
+    FAIL = "FAIL"
+
+
+class LineageEventBase(SQLModel):
+    """Immutable data provenance events for lineage tracking.
+
+    Records the flow of data through the system:
+    file → metadata_snapshot → catalog_entry_draft → catalog_entry
+
+    Used for:
+    - Upstream/downstream lineage queries (where did this data come from?)
+    - Audit trail (who processed what, when?)
+    - Lineage visualization in UI
+
+    Note: This is append-only audit data. For workflow state, see IngestionRunBase.
+    URI refs are generated via EntityURI.
+    """
+
+    id: int | None = Field(default=None, primary_key=True)
+    event_time: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),
+    )
+    event_type: LineageEventType = Field(nullable=False, default=LineageEventType.COMPLETE)
+    job_name: str = Field(max_length=50, nullable=False)
+
+    # URI 배열 참조
+    input_refs: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String), nullable=False))
+    output_refs: list[str] = Field(default_factory=list, sa_column=Column(ARRAY(String), nullable=False))
+
+    # 선택적 메타데이터
+    error_message: str | None = None
+
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now()),
+    )
+
+    def extract_context(self) -> dict[str, Any]:
+        """Extract context from URI refs.
+
+        Parses URIs to extract:
+        - snapshotId from {schema}.metadata_snapshot/{id}
+        - draftId from {schema}.catalog_entry_draft/{id}
+        - catalogEntryId from {schema}.catalog_entry/{id}
+        - filename from file://{filename}
+
+        Returns:
+            Dict with snapshotId, draftId, catalogEntryId, filename (all nullable)
+        """
+        snapshot_id: str | None = None
+        draft_id: int | None = None
+        catalog_entry_id: int | None = None
+        filename: str | None = None
+
+        all_refs = (self.input_refs or []) + (self.output_refs or [])
+
+        for ref in all_refs:
+            schema, table, entity_id = EntityURI.parse(ref)
+
+            if table == "metadata_snapshot" and not snapshot_id:
+                snapshot_id = entity_id
+            elif table == "catalog_entry_draft" and draft_id is None:
+                try:
+                    draft_id = int(entity_id)
+                except ValueError:
+                    pass
+            elif table == "catalog_entry" and catalog_entry_id is None:
+                try:
+                    catalog_entry_id = int(entity_id)
+                except ValueError:
+                    pass
+            elif table == "file" and not filename:
+                filename = entity_id
+
+        return {
+            "snapshotId": snapshot_id,
+            "draftId": draft_id,
+            "catalogEntryId": catalog_entry_id,
+            "filename": filename,
+        }
+
+    def to_api_dict(self) -> dict[str, Any]:
+        """Convert to API response dictionary.
+
+        Includes base fields with datetime serialization and extracted context.
+
+        Returns:
+            Dict ready for JSON serialization
+        """
+        context = self.extract_context()
+        return {
+            "id": self.id,
+            "eventTime": self.event_time.isoformat() if self.event_time else None,
+            "eventType": self.event_type,
+            "jobName": self.job_name,
+            "inputRefs": self.input_refs,
+            "outputRefs": self.output_refs,
+            "snapshotId": context["snapshotId"],
+            "draftId": context["draftId"],
+            "catalogEntryId": context["catalogEntryId"],
+            "filename": context["filename"],
+            "errorMessage": self.error_message,
+        }
+
+    def to_graph_node(self) -> dict[str, Any]:
+        """Convert to graph node dictionary for lineage visualization.
+
+        Returns:
+            Dict with node properties for graph rendering
+        """
+        context = self.extract_context()
+        return {
+            "id": f"job-{self.id}",
+            "type": "run",
+            "job": self.job_name,
+            "eventType": self.event_type,
+            "eventTime": self.event_time.isoformat() if self.event_time else None,
+            "draftId": context["draftId"],
+            "catalogEntryId": context["catalogEntryId"],
+            "filename": context["filename"],
+        }

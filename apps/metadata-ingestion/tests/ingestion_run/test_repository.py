@@ -1,5 +1,7 @@
 """Integration tests for IngestionRunRepository."""
 
+from uuid import uuid4
+
 import pytest
 from sqlmodel import Session
 
@@ -7,7 +9,7 @@ from active_metadata.models import IngestionRunState
 from app.src.ingestion_run.model import IngestionRun
 from app.src.ingestion_run.repository import IngestionRunRepository
 from app.src.metadata_snapshot.model import MetadataSnapshot
-from tests.constants import NONEXISTENT_ID, NONEXISTENT_IDENTIFIER
+from tests.constants import NONEXISTENT_IDENTIFIER, NONEXISTENT_UUID, TEST_RUN_UUID_1
 
 
 class TestSave:
@@ -20,6 +22,7 @@ class TestSave:
     ) -> None:
         """Should save ingestion run."""
         run = IngestionRun(
+            run_id=TEST_RUN_UUID_1,
             snapshot_id="test-snapshot-id",
             state=IngestionRunState.STORED,
             mapping_version="v1.0",
@@ -27,7 +30,7 @@ class TestSave:
 
         result = ingestion_run_repository.save(db, run)
 
-        assert result.run_id is not None
+        assert result.run_id == TEST_RUN_UUID_1
         assert result.state == IngestionRunState.STORED
 
 
@@ -53,7 +56,7 @@ class TestFindByRunId:
         ingestion_run_repository: IngestionRunRepository,
     ) -> None:
         """Should return None when not found."""
-        result = ingestion_run_repository.find_by_run_id(db, NONEXISTENT_ID)
+        result = ingestion_run_repository.find_by_run_id(db, NONEXISTENT_UUID)
         assert result is None
 
 
@@ -129,9 +132,10 @@ class TestFindByState:
         ingestion_run_repository: IngestionRunRepository,
     ) -> None:
         """Should respect limit parameter."""
-        # Create multiple runs with same state
+        # Create multiple runs with same state (UUID required)
         for i in range(5):
             run = IngestionRun(
+                run_id=uuid4(),
                 snapshot_id=f"test-snapshot-{i}",
                 state=IngestionRunState.STORED,
                 mapping_version="v1.0",
