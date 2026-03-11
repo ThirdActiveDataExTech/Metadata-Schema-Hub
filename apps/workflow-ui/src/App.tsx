@@ -116,7 +116,7 @@ function App() {
                       {latestEvent.eventType}
                     </span>
                     <div className="event-time">
-                      {snapEvents.length} event(s) • {new Date(latestEvent.eventTime).toLocaleString()}
+                      {snapEvents.length} event(s) • {latestEvent.eventTime ? new Date(latestEvent.eventTime).toLocaleString() : '-'}
                     </div>
                   </div>
                 )
@@ -165,38 +165,42 @@ function convertToFlowGraph(graph: LineageGraph): { flowNodes: Node[]; flowEdges
   let inputY = 0
   let outputY = 0
 
-  // Add run nodes
-  graph.nodes.forEach((node) => {
-    const nodeType = node.job.includes('store')
-      ? 'store-phase'
-      : node.job.includes('publish')
-        ? 'publish'
-        : node.job.includes('discard')
-          ? 'discard'
-          : 'draft-phase'
+  // Add run nodes (filter by type to ensure required fields exist)
+  graph.nodes
+    .filter((node) => node.type === 'run' && node.job && node.eventTime)
+    .forEach((node) => {
+      const job = node.job!
+      const eventTime = node.eventTime!
+      const nodeType = job.includes('store')
+        ? 'store-phase'
+        : job.includes('publish')
+          ? 'publish'
+          : job.includes('discard')
+            ? 'discard'
+            : 'draft-phase'
 
-    const details: string[] = []
-    if (node.filename) details.push(node.filename)
-    if (node.draftId) details.push(`Draft #${node.draftId}`)
-    if (node.catalogEntryId) details.push(`Entry #${node.catalogEntryId}`)
+      const details: string[] = []
+      if (node.filename) details.push(node.filename)
+      if (node.draftId) details.push(`Draft #${node.draftId}`)
+      if (node.catalogEntryId) details.push(`Entry #${node.catalogEntryId}`)
 
-    flowNodes.push({
-      id: node.id,
-      position: { x: runX, y: runY },
-      data: {
-        label: (
-          <div className={`workflow-node ${nodeType}`}>
-            <div className="node-label">{node.job.split('.').pop()}</div>
-            <div className="node-type">{node.eventType} • {new Date(node.eventTime).toLocaleTimeString()}</div>
-            {details.length > 0 && <div className="node-details">{details.join(' • ')}</div>}
-          </div>
-        ),
-      },
-      type: 'default',
+      flowNodes.push({
+        id: node.id,
+        position: { x: runX, y: runY },
+        data: {
+          label: (
+            <div className={`workflow-node ${nodeType}`}>
+              <div className="node-label">{job.split('.').pop()}</div>
+              <div className="node-type">{node.eventType} • {new Date(eventTime).toLocaleTimeString()}</div>
+              {details.length > 0 && <div className="node-details">{details.join(' • ')}</div>}
+            </div>
+          ),
+        },
+        type: 'default',
+      })
+      nodeSet.add(node.id)
+      runY += 120
     })
-    nodeSet.add(node.id)
-    runY += 120
-  })
 
   // Add dataset nodes from edges
   graph.edges.forEach((edge) => {

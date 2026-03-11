@@ -5,14 +5,12 @@ const API_BASE = '/api'
 export async function fetchLineageEvents(params?: {
   jobName?: string
   eventType?: string
-  snapshotId?: string
   limit?: number
   offset?: number
 }): Promise<EventListResponse> {
   const searchParams = new URLSearchParams()
   if (params?.jobName) searchParams.set('job_name', params.jobName)
   if (params?.eventType) searchParams.set('event_type', params.eventType)
-  if (params?.snapshotId) searchParams.set('snapshot_id', params.snapshotId)
   if (params?.limit) searchParams.set('limit', String(params.limit))
   if (params?.offset) searchParams.set('offset', String(params.offset))
 

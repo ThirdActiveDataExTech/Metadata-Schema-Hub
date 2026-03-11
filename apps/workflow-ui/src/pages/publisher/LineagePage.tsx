@@ -13,7 +13,7 @@ import {
 } from '@xyflow/react'
 import '@xyflow/react/dist/style.css'
 import { fetchLineageEvents, fetchLineageGraph } from '../../api'
-import type { LineageEvent, LineageGraph } from '../../types'
+import type { LineageEvent, LineageGraph, GraphNode } from '../../types'
 
 export default function LineagePage() {
   const [searchParams] = useSearchParams()
@@ -124,7 +124,7 @@ export default function LineagePage() {
                       {latestEvent.eventType}
                     </span>
                     <div className="event-time">
-                      {snapEvents.length} event(s) - {new Date(latestEvent.eventTime).toLocaleString()}
+                      {snapEvents.length} event(s) - {latestEvent.eventTime ? new Date(latestEvent.eventTime).toLocaleString() : ''}
                     </div>
                   </div>
                 )
@@ -171,39 +171,68 @@ function convertToFlowGraph(graph: LineageGraph): { flowNodes: Node[]; flowEdges
   let inputY = 0
   let outputY = 0
 
-  graph.nodes.forEach((node) => {
-    const nodeType = node.job.includes('store')
-      ? 'store-phase'
-      : node.job.includes('publish')
-        ? 'publish'
-        : node.job.includes('discard')
-          ? 'discard'
-          : 'draft-phase'
+  // Process nodes from API (includes both run and dataset nodes)
+  graph.nodes.forEach((node: GraphNode) => {
+    if (node.type === 'run') {
+      // Run node rendering
+      const nodeType = node.job?.includes('store')
+        ? 'store-phase'
+        : node.job?.includes('publish')
+          ? 'publish'
+          : node.job?.includes('discard')
+            ? 'discard'
+            : 'draft-phase'
 
-    const details: string[] = []
-    if (node.filename) details.push(node.filename)
-    if (node.draftId) details.push(`Draft #${node.draftId}`)
-    if (node.catalogEntryId) details.push(`Entry #${node.catalogEntryId}`)
+      const details: string[] = []
+      if (node.filename) details.push(node.filename)
+      if (node.draftId) details.push(`Draft #${node.draftId}`)
+      if (node.catalogEntryId) details.push(`Entry #${node.catalogEntryId}`)
 
-    flowNodes.push({
-      id: node.id,
-      position: { x: runX, y: runY },
-      data: {
-        label: (
-          <div className={`workflow-node ${nodeType}`}>
-            <div className="node-label">{node.job.split('.').pop()}</div>
-            <div className="node-type">{node.eventType} - {new Date(node.eventTime).toLocaleTimeString()}</div>
-            {details.length > 0 && <div className="node-details">{details.join(' / ')}</div>}
-          </div>
-        ),
-      },
-      type: 'default',
-    })
-    nodeSet.add(node.id)
-    runY += 120
+      flowNodes.push({
+        id: node.id,
+        position: { x: runX, y: runY },
+        data: {
+          label: (
+            <div className={`workflow-node ${nodeType}`}>
+              <div className="node-label">{node.job?.split('.').pop() || 'unknown'}</div>
+              <div className="node-type">{node.eventType} - {node.eventTime ? new Date(node.eventTime).toLocaleTimeString() : ''}</div>
+              {details.length > 0 && <div className="node-details">{details.join(' / ')}</div>}
+            </div>
+          ),
+        },
+        type: 'default',
+      })
+      nodeSet.add(node.id)
+      runY += 120
+    } else if (node.type === 'dataset') {
+      // Dataset node rendering - determine position by URI pattern
+      const isInput = node.id.includes('file://') || node.name?.includes('metadata_snapshot')
+      const x = isInput ? 50 : 550
+      const y = isInput ? inputY : outputY
+
+      if (isInput) inputY += 80
+      else outputY += 80
+
+      flowNodes.push({
+        id: node.id,
+        position: { x, y },
+        data: {
+          label: (
+            <div className="workflow-node dataset">
+              <div className="node-label">{node.name || node.id.split('/').pop()}</div>
+              <div className="node-type">{isInput ? 'Input' : 'Output'}</div>
+            </div>
+          ),
+        },
+        type: 'default',
+      })
+      nodeSet.add(node.id)
+    }
   })
 
+  // Process edges
   graph.edges.forEach((edge) => {
+    // Create dataset nodes for edges that don't have corresponding nodes yet
     const datasetId = edge.type === 'input' ? edge.source : edge.target
 
     if (!nodeSet.has(datasetId) && datasetId.includes('/')) {
