@@ -5,7 +5,13 @@ from unittest.mock import MagicMock
 import pytest
 
 from active_metadata.models import IngestionRunState
-from tests.constants import SNAPSHOT_ID_VALID, TEST_MAPPING_VERSION
+from tests.constants import (
+    NONEXISTENT_UUID,
+    SNAPSHOT_ID_VALID,
+    TEST_MAPPING_VERSION,
+    TEST_RUN_UUID_1,
+    TEST_RUN_UUID_2,
+)
 from app.src.ingestion_run.model import IngestionRun, IngestionRunCreate
 from app.src.ingestion_run.service import IngestionRunService
 
@@ -19,20 +25,29 @@ class TestIngestionRunService:
 
     def test_create_run_sets_stored_state(self, ingestion_run_service, mock_db_session):
         """Should create run with STORED state."""
-        request = IngestionRunCreate(snapshot_id=SNAPSHOT_ID_VALID, mapping_version=TEST_MAPPING_VERSION)
+        request = IngestionRunCreate(
+            run_id=TEST_RUN_UUID_1,
+            snapshot_id=SNAPSHOT_ID_VALID,
+            mapping_version=TEST_MAPPING_VERSION,
+        )
 
         ingestion_run_service.repository.save.side_effect = lambda db, r: r
 
         result = ingestion_run_service.create_run(mock_db_session, request)
 
         assert isinstance(result, IngestionRun)
+        assert result.run_id == TEST_RUN_UUID_1
         assert result.snapshot_id == SNAPSHOT_ID_VALID
         assert result.mapping_version == TEST_MAPPING_VERSION
         assert result.state == IngestionRunState.STORED
 
     def test_create_run_calls_repository(self, ingestion_run_service, mock_db_session):
         """Should call repository.save."""
-        request = IngestionRunCreate(snapshot_id=SNAPSHOT_ID_VALID, mapping_version=TEST_MAPPING_VERSION)
+        request = IngestionRunCreate(
+            run_id=TEST_RUN_UUID_2,
+            snapshot_id=SNAPSHOT_ID_VALID,
+            mapping_version=TEST_MAPPING_VERSION,
+        )
 
         ingestion_run_service.create_run(mock_db_session, request)
 
@@ -49,7 +64,7 @@ class TestIngestionRunService:
         ingestion_run_service.repository.find_by_run_id.return_value = mock_run
         ingestion_run_service.repository.save.side_effect = lambda db, r: r
 
-        result = ingestion_run_service.mark_drafted(mock_db_session, run_id=1, draft_id=10)
+        result = ingestion_run_service.mark_drafted(mock_db_session, run_id=TEST_RUN_UUID_1, draft_id=10)
 
         assert result.state == IngestionRunState.DRAFTED
         assert result.draft_id == 10
@@ -59,7 +74,7 @@ class TestIngestionRunService:
         ingestion_run_service.repository.find_by_run_id.return_value = None
 
         with pytest.raises(ValueError) as exc_info:
-            ingestion_run_service.mark_drafted(mock_db_session, run_id=999, draft_id=10)
+            ingestion_run_service.mark_drafted(mock_db_session, run_id=NONEXISTENT_UUID, draft_id=10)
 
         assert "not found" in str(exc_info.value)
 
@@ -70,7 +85,7 @@ class TestIngestionRunService:
         ingestion_run_service.repository.find_by_run_id.return_value = mock_run
 
         with pytest.raises(ValueError) as exc_info:
-            ingestion_run_service.mark_drafted(mock_db_session, run_id=1, draft_id=10)
+            ingestion_run_service.mark_drafted(mock_db_session, run_id=TEST_RUN_UUID_1, draft_id=10)
 
         assert "DRAFTED" in str(exc_info.value)
 
@@ -81,7 +96,7 @@ class TestIngestionRunService:
         ingestion_run_service.repository.find_by_run_id.return_value = mock_run
 
         with pytest.raises(ValueError) as exc_info:
-            ingestion_run_service.mark_drafted(mock_db_session, run_id=1, draft_id=10)
+            ingestion_run_service.mark_drafted(mock_db_session, run_id=TEST_RUN_UUID_1, draft_id=10)
 
         assert "FAILED" in str(exc_info.value)
 
@@ -96,7 +111,7 @@ class TestIngestionRunService:
         ingestion_run_service.repository.find_by_run_id.return_value = mock_run
         ingestion_run_service.repository.save.side_effect = lambda db, r: r
 
-        result = ingestion_run_service.mark_failed(mock_db_session, run_id=1, error="Parse error")
+        result = ingestion_run_service.mark_failed(mock_db_session, run_id=TEST_RUN_UUID_1, error="Parse error")
 
         assert result.state == IngestionRunState.FAILED
         assert result.error == "Parse error"
@@ -106,7 +121,7 @@ class TestIngestionRunService:
         ingestion_run_service.repository.find_by_run_id.return_value = None
 
         with pytest.raises(ValueError) as exc_info:
-            ingestion_run_service.mark_failed(mock_db_session, run_id=999, error="error")
+            ingestion_run_service.mark_failed(mock_db_session, run_id=NONEXISTENT_UUID, error="error")
 
         assert "not found" in str(exc_info.value)
 
@@ -117,7 +132,7 @@ class TestIngestionRunService:
         ingestion_run_service.repository.find_by_run_id.return_value = mock_run
         ingestion_run_service.repository.save.side_effect = lambda db, r: r
 
-        result = ingestion_run_service.mark_failed(mock_db_session, run_id=1, error="Late failure")
+        result = ingestion_run_service.mark_failed(mock_db_session, run_id=TEST_RUN_UUID_1, error="Late failure")
 
         assert result.state == IngestionRunState.FAILED
         assert result.error == "Late failure"
@@ -130,7 +145,7 @@ class TestIngestionRunService:
         ingestion_run_service.repository.find_by_run_id.return_value = mock_run
         ingestion_run_service.repository.save.side_effect = lambda db, r: r
 
-        result = ingestion_run_service.mark_failed(mock_db_session, run_id=1, error="Updated error")
+        result = ingestion_run_service.mark_failed(mock_db_session, run_id=TEST_RUN_UUID_1, error="Updated error")
 
         assert result.state == IngestionRunState.FAILED
         assert result.error == "Updated error"
@@ -208,16 +223,16 @@ class TestIngestionRunService:
         expected = MagicMock(spec=IngestionRun)
         ingestion_run_service.repository.find_by_run_id.return_value = expected
 
-        result = ingestion_run_service.get_run(mock_db_session, 1)
+        result = ingestion_run_service.get_run(mock_db_session, TEST_RUN_UUID_1)
 
         assert result == expected
-        ingestion_run_service.repository.find_by_run_id.assert_called_once_with(mock_db_session, 1)
+        ingestion_run_service.repository.find_by_run_id.assert_called_once_with(mock_db_session, TEST_RUN_UUID_1)
 
     def test_get_run_not_found(self, ingestion_run_service, mock_db_session):
         """Should return None when not found."""
         ingestion_run_service.repository.find_by_run_id.return_value = None
 
-        result = ingestion_run_service.get_run(mock_db_session, 999)
+        result = ingestion_run_service.get_run(mock_db_session, NONEXISTENT_UUID)
 
         assert result is None
 

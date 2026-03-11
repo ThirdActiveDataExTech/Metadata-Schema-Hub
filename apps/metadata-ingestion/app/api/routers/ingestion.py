@@ -1,6 +1,7 @@
 """Ingestion workflow API endpoints."""
 
 from typing import Optional
+from uuid import UUID
 
 from active_metadata.models import IngestionRunState
 from fastapi import APIRouter, File, HTTPException, Query, UploadFile
@@ -58,7 +59,7 @@ async def store_metadata(
 async def create_draft(
     session: SessionDep,
     workflow_service: IngestionWorkflowServiceDep,
-    run_id: int,
+    run_id: UUID,
 ) -> APIResponseModel:
     """Draft Phase - create catalog entry draft with mapping.
 
@@ -69,7 +70,6 @@ async def create_draft(
     return APIResponseModel(
         result={
             "draft": result.draft.to_api_dict(),
-            "run_id": result.run_id,
             "mapping_version": result.mapping_version,
             "state": IngestionRunState.DRAFTED,
         },
@@ -115,7 +115,7 @@ async def list_runs(
 async def get_run(
     session: SessionDep,
     ingestion_run_service: IngestionRunServiceDep,
-    run_id: int,
+    run_id: UUID,
 ) -> APIResponseModel:
     """Get details of a specific ingestion run."""
     run = ingestion_run_service.get_run(session, run_id)

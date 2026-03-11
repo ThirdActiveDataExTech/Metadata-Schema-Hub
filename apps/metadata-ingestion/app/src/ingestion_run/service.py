@@ -1,6 +1,7 @@
 """Business logic for IngestionRun."""
 
 from typing import Optional
+from uuid import UUID
 
 from active_metadata.models import IngestionRunState
 from sqlmodel import Session
@@ -19,13 +20,14 @@ class IngestionRunService:
     def create_run(self, db: Session, request: IngestionRunCreate) -> IngestionRun:
         """Create new ingestion run (TX1 - STORED state)."""
         run = IngestionRun(
+            run_id=request.run_id,  # App-generated UUID
             snapshot_id=request.snapshot_id,
             mapping_version=request.mapping_version,
             state=IngestionRunState.STORED,
         )
         return self.repository.save(db, run)
 
-    def mark_drafted(self, db: Session, run_id: int, draft_id: int) -> Optional[IngestionRun]:
+    def mark_drafted(self, db: Session, run_id: UUID, draft_id: int) -> Optional[IngestionRun]:
         """Mark run as DRAFTED after TX2 completion."""
         run = self.repository.find_by_run_id(db, run_id)
         if not run:
@@ -38,7 +40,7 @@ class IngestionRunService:
         run.draft_id = draft_id
         return self.repository.save(db, run)
 
-    def mark_failed(self, db: Session, run_id: int, error: str) -> Optional[IngestionRun]:
+    def mark_failed(self, db: Session, run_id: UUID, error: str) -> Optional[IngestionRun]:
         """Mark run as FAILED with error message."""
         run = self.repository.find_by_run_id(db, run_id)
         if not run:
@@ -60,8 +62,8 @@ class IngestionRunService:
         """Get run by SnapshotID."""
         return self.repository.find_by_snapshot_id(db, snapshot_id)
 
-    def get_run(self, db: Session, run_id: int) -> Optional[IngestionRun]:
-        """Get run by ID."""
+    def get_run(self, db: Session, run_id: UUID) -> Optional[IngestionRun]:
+        """Get run by ID (UUID)."""
         return self.repository.find_by_run_id(db, run_id)
 
     def get_all_runs(self, db: Session, limit: int = 100) -> list[IngestionRun]:

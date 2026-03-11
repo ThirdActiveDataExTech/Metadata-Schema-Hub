@@ -22,6 +22,8 @@ from tests.constants import (
     SNAPSHOT_ID_VALID_ALT,
     TEST_MAPPING_VERSION,
     TEST_MAPPING_VERSION_ALT,
+    TEST_RUN_UUID_1,
+    TEST_RUN_UUID_2,
     TEST_SHA256,
     TEST_SHA256_ALT,
 )
@@ -276,6 +278,17 @@ def mock_file_storage() -> MagicMock:
     return storage
 
 
+@pytest.fixture
+def mock_event_bus() -> MagicMock:
+    """Create mock EventBus."""
+    from app.src.events import EventBus
+
+    bus = MagicMock(spec=EventBus)
+    bus.publish = MagicMock()
+    bus.subscribe = MagicMock()
+    return bus
+
+
 # ============================================================================
 # Service Instance Fixtures
 # ============================================================================
@@ -322,11 +335,15 @@ def ingestion_run_service(mock_ingestion_run_repository):
 
 
 @pytest.fixture
-def catalog_entry_draft_service(mock_catalog_entry_draft_repository):
-    """Create CatalogEntryDraftService with mock repository."""
+def catalog_entry_draft_service(mock_catalog_entry_draft_repository, mock_event_bus, catalog_entry_service):
+    """Create CatalogEntryDraftService with mock repository, event bus, and catalog entry service."""
     from app.src.catalog_entry_draft.service import CatalogEntryDraftService
 
-    return CatalogEntryDraftService(repository=mock_catalog_entry_draft_repository)
+    return CatalogEntryDraftService(
+        repository=mock_catalog_entry_draft_repository,
+        event_bus=mock_event_bus,
+        catalog_entry_service=catalog_entry_service,
+    )
 
 
 # ============================================================================
@@ -583,11 +600,13 @@ def sample_ingestion_runs(db: Session, sample_metadata_snapshots) -> list[Ingest
     """Create and persist sample ingestion runs."""
     runs = [
         IngestionRun(
+            run_id=TEST_RUN_UUID_1,  # UUID required for PK
             snapshot_id=str(sample_metadata_snapshots[0].snapshot_id),
             state=IngestionRunState.STORED,
             mapping_version=TEST_MAPPING_VERSION,
         ),
         IngestionRun(
+            run_id=TEST_RUN_UUID_2,  # UUID required for PK
             snapshot_id=str(sample_metadata_snapshots[1].snapshot_id),
             state=IngestionRunState.DRAFTED,
             mapping_version=TEST_MAPPING_VERSION,

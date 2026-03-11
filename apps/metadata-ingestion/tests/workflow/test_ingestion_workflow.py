@@ -1,12 +1,14 @@
 """Tests for IngestionWorkflowService."""
 
 from unittest.mock import MagicMock
+from uuid import UUID
 
 import pytest
 
 from active_metadata.models import DraftStatus, IngestionRunState
-from tests.constants import SNAPSHOT_ID_VALID, SNAPSHOT_ID_VALID_ALT
+from tests.constants import NONEXISTENT_UUID, SNAPSHOT_ID_VALID, SNAPSHOT_ID_VALID_ALT, TEST_RUN_UUID_1, TEST_RUN_UUID_2
 
+from app.src.catalog_entry.service import CatalogEntryService
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
 from app.src.column_relation.service import ColumnRelationService
 from app.src.ingestion_run.exceptions import (
@@ -32,15 +34,20 @@ class TestIngestionWorkflowService:
         mock_catalog_entry_draft_repository,
         mock_column_relation_repository,
         mock_file_storage,
+        mock_event_bus,
     ):
         """Create IngestionWorkflowService with all mocked dependencies."""
+        mock_catalog_entry_service = MagicMock(spec=CatalogEntryService)
         return IngestionWorkflowService(
             snapshot_service=MetadataSnapshotService(mock_metadata_snapshot_repository),
             metadata_entry_service=MetadataEntryService(mock_metadata_entry_repository),
             ingestion_run_service=IngestionRunService(mock_ingestion_run_repository),
-            draft_service=CatalogEntryDraftService(mock_catalog_entry_draft_repository),
+            draft_service=CatalogEntryDraftService(
+                mock_catalog_entry_draft_repository, mock_event_bus, mock_catalog_entry_service
+            ),
             column_relation_service=ColumnRelationService(mock_column_relation_repository),
             file_storage=mock_file_storage,
+            event_bus=mock_event_bus,
         )
 
     # ========================================================================
@@ -73,21 +80,21 @@ class TestIngestionWorkflowService:
 
         # Mock run creation - clear side_effect to use return_value
         mock_run = MagicMock()
-        mock_run.run_id = 1
+        mock_run.run_id = TEST_RUN_UUID_1  # UUID type
         workflow_service.ingestion_run_service.repository.save.side_effect = None
         workflow_service.ingestion_run_service.repository.save.return_value = mock_run
 
         result = workflow_service.execute_store_phase(mock_db_session, json_payload, filename="test.json")
 
         assert result.snapshot_id == SNAPSHOT_ID_VALID
-        assert result.run_id == 1
+        assert isinstance(result.run_id, UUID)  # run_id is now UUID
         assert result.metadata_count > 0
 
         # Verify file was saved
         workflow_service.file_storage.save.assert_called_once()
 
-        # Verify commit was called
-        mock_db_session.commit.assert_called_once()
+        # Verify flush was called (UoW pattern - commit is handled by SessionDep)
+        mock_db_session.flush.assert_called()
 
     def test_execute_store_phase_invalid_payload_raises(self, workflow_service, mock_db_session):
         """Should raise ValueError for invalid payload."""
@@ -109,13 +116,14 @@ class TestIngestionWorkflowService:
         workflow_service.snapshot_service.repository.save.return_value = mock_snapshot
 
         mock_run = MagicMock()
-        mock_run.run_id = 2
+        mock_run.run_id = TEST_RUN_UUID_2  # UUID type
         workflow_service.ingestion_run_service.repository.save.side_effect = None
         workflow_service.ingestion_run_service.repository.save.return_value = mock_run
 
         result = workflow_service.execute_store_phase(mock_db_session, xml_payload, filename="test.xml")
 
         assert result.snapshot_id == SNAPSHOT_ID_VALID_ALT
+        assert isinstance(result.run_id, UUID)  # run_id is now UUID
         assert result.metadata_count > 0
 
     # ========================================================================
@@ -124,10 +132,10 @@ class TestIngestionWorkflowService:
 
     def test_execute_draft_phase_success(self, workflow_service, mock_db_session):
         """Should create draft from stored run."""
-        
 
         # Mock run lookup - use actual enum for state comparison
         mock_run = MagicMock()
+        mock_run.run_id = TEST_RUN_UUID_1  # UUID for parent lineage
         mock_run.snapshot_id = SNAPSHOT_ID_VALID
         mock_run.mapping_version = "v1.0"
         mock_run.state = IngestionRunState.STORED  # Use actual enum
@@ -169,35 +177,37 @@ class TestIngestionWorkflowService:
         workflow_service.ingestion_run_service.repository.save.side_effect = None
         workflow_service.ingestion_run_service.repository.save.return_value = mock_run
 
-        result = workflow_service.execute_draft_phase(mock_db_session, run_id=1)
+        result = workflow_service.execute_draft_phase(mock_db_session, run_id=TEST_RUN_UUID_1)
 
         # Verify draft was created with correct attributes
         assert result.draft.id == 10
         assert result.draft.snapshot_id == SNAPSHOT_ID_VALID
-        assert result.run_id == 1
         assert result.mapping_version == "v1.0"
-        mock_db_session.commit.assert_called_once()
+        # Verify flush was called (UoW pattern - commit is handled by SessionDep)
+        mock_db_session.flush.assert_called()
 
     def test_execute_draft_phase_run_not_found(self, workflow_service, mock_db_session):
         """Should raise IngestionRunNotFoundError when run not found."""
         workflow_service.ingestion_run_service.repository.find_by_run_id.return_value = None
 
         with pytest.raises(IngestionRunNotFoundError):
-            workflow_service.execute_draft_phase(mock_db_session, run_id=999)
+            workflow_service.execute_draft_phase(mock_db_session, run_id=NONEXISTENT_UUID)
 
     def test_execute_draft_phase_wrong_state(self, workflow_service, mock_db_session):
         """Should raise InvalidIngestionRunStateError when run not in STORED state."""
         mock_run = MagicMock()
+        mock_run.run_id = TEST_RUN_UUID_1
         mock_run.state = MagicMock()
         mock_run.state.value = "DRAFTED"  # Wrong state
         workflow_service.ingestion_run_service.repository.find_by_run_id.return_value = mock_run
 
         with pytest.raises(InvalidIngestionRunStateError):
-            workflow_service.execute_draft_phase(mock_db_session, run_id=1)
+            workflow_service.execute_draft_phase(mock_db_session, run_id=TEST_RUN_UUID_1)
 
     def test_execute_draft_phase_no_metadata_raises(self, workflow_service, mock_db_session):
         """Should raise NoMetadataEntriesError when no metadata entries found."""
         mock_run = MagicMock()
+        mock_run.run_id = TEST_RUN_UUID_1
         mock_run.snapshot_id = SNAPSHOT_ID_VALID
         mock_run.state = MagicMock()
         mock_run.state.value = "STORED"
@@ -207,11 +217,12 @@ class TestIngestionWorkflowService:
         workflow_service.metadata_entry_service.repository.select_metadata_entry.return_value = []
 
         with pytest.raises(NoMetadataEntriesError):
-            workflow_service.execute_draft_phase(mock_db_session, run_id=1)
+            workflow_service.execute_draft_phase(mock_db_session, run_id=TEST_RUN_UUID_1)
 
     def test_execute_draft_phase_marks_failed_on_error(self, workflow_service, mock_db_session):
         """Should mark run as failed on exception."""
         mock_run = MagicMock()
+        mock_run.run_id = TEST_RUN_UUID_1
         mock_run.snapshot_id = SNAPSHOT_ID_VALID
         mock_run.state = MagicMock()
         mock_run.state.value = "STORED"
@@ -221,27 +232,28 @@ class TestIngestionWorkflowService:
         workflow_service.metadata_entry_service.repository.select_metadata_entry.side_effect = Exception("DB error")
 
         with pytest.raises(Exception):
-            workflow_service.execute_draft_phase(mock_db_session, run_id=1)
+            workflow_service.execute_draft_phase(mock_db_session, run_id=TEST_RUN_UUID_1)
 
         # Verify mark_failed was called
         # (The service calls mark_failed which calls repository.save)
         # Since we're mocking at repository level, check the save was called
 
     def test_execute_store_phase_file_storage_failure(self, workflow_service, mock_db_session):
-        """Should not commit when file_storage.save fails."""
+        """Should not flush when file_storage.save fails."""
         valid_json = b'{"name": "Test Dataset"}'
         workflow_service.file_storage.save.side_effect = IOError("Storage full")
 
         with pytest.raises(IOError):
             workflow_service.execute_store_phase(mock_db_session, valid_json, "test.json")
 
-        # DB commit should not be called
-        mock_db_session.commit.assert_not_called()
+        # DB flush should not be called (failure happens before DB operations)
+        mock_db_session.flush.assert_not_called()
 
     def test_execute_draft_phase_empty_relations(self, workflow_service, mock_db_session):
         """Should create draft even with no column relations."""
         # Mock run lookup
         mock_run = MagicMock()
+        mock_run.run_id = TEST_RUN_UUID_1
         mock_run.snapshot_id = SNAPSHOT_ID_VALID
         mock_run.mapping_version = "v1.0"
         mock_run.state = IngestionRunState.STORED
@@ -276,7 +288,7 @@ class TestIngestionWorkflowService:
         workflow_service.ingestion_run_service.repository.save.side_effect = None
         workflow_service.ingestion_run_service.repository.save.return_value = mock_run
 
-        result = workflow_service.execute_draft_phase(mock_db_session, run_id=1)
+        result = workflow_service.execute_draft_phase(mock_db_session, run_id=TEST_RUN_UUID_1)
 
         # Draft should still be created even with empty relations
         assert result.draft is not None
@@ -286,6 +298,7 @@ class TestIngestionWorkflowService:
         """Should mark failed when mark_drafted raises after draft creation."""
         # Mock run lookup
         mock_run = MagicMock()
+        mock_run.run_id = TEST_RUN_UUID_1
         mock_run.snapshot_id = SNAPSHOT_ID_VALID
         mock_run.mapping_version = "v1.0"
         mock_run.state = IngestionRunState.STORED
@@ -330,7 +343,7 @@ class TestIngestionWorkflowService:
         workflow_service.ingestion_run_service.repository.save.side_effect = save_side_effect
 
         with pytest.raises(Exception) as exc_info:
-            workflow_service.execute_draft_phase(mock_db_session, run_id=1)
+            workflow_service.execute_draft_phase(mock_db_session, run_id=TEST_RUN_UUID_1)
 
         assert "DB error" in str(exc_info.value)
 
@@ -347,17 +360,20 @@ class TestExecuteStorePhaseWithSamples:
         mock_catalog_entry_draft_repository,
         mock_column_relation_repository,
         mock_file_storage,
+        mock_event_bus,
     ):
         """Create IngestionWorkflowService with all mocked dependencies."""
-
-
+        mock_catalog_entry_service = MagicMock(spec=CatalogEntryService)
         return IngestionWorkflowService(
             snapshot_service=MetadataSnapshotService(mock_metadata_snapshot_repository),
             metadata_entry_service=MetadataEntryService(mock_metadata_entry_repository),
             ingestion_run_service=IngestionRunService(mock_ingestion_run_repository),
-            draft_service=CatalogEntryDraftService(mock_catalog_entry_draft_repository),
+            draft_service=CatalogEntryDraftService(
+                mock_catalog_entry_draft_repository, mock_event_bus, mock_catalog_entry_service
+            ),
             column_relation_service=ColumnRelationService(mock_column_relation_repository),
             file_storage=mock_file_storage,
+            event_bus=mock_event_bus,
         )
 
     def test_store_phase_with_sample_json(self, workflow_service, mock_db_session, sample_schema_org_json):
@@ -368,7 +384,7 @@ class TestExecuteStorePhaseWithSamples:
         workflow_service.snapshot_service.repository.save.return_value = mock_snapshot
 
         mock_run = MagicMock()
-        mock_run.run_id = 1
+        mock_run.run_id = TEST_RUN_UUID_1
         workflow_service.ingestion_run_service.repository.save.side_effect = None
         workflow_service.ingestion_run_service.repository.save.return_value = mock_run
 
@@ -386,7 +402,7 @@ class TestExecuteStorePhaseWithSamples:
         workflow_service.snapshot_service.repository.save.return_value = mock_snapshot
 
         mock_run = MagicMock()
-        mock_run.run_id = 2
+        mock_run.run_id = TEST_RUN_UUID_2
         workflow_service.ingestion_run_service.repository.save.side_effect = None
         workflow_service.ingestion_run_service.repository.save.return_value = mock_run
 

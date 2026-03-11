@@ -1,6 +1,7 @@
 """Database operations for IngestionRun."""
 
 from typing import Optional
+from uuid import UUID
 
 from active_metadata.models import IngestionRunState
 from sqlmodel import Session, select
@@ -17,7 +18,7 @@ class IngestionRunRepository:
         db.flush()
         return run
 
-    def find_by_run_id(self, db: Session, run_id: int) -> Optional[IngestionRun]:
+    def find_by_run_id(self, db: Session, run_id: UUID) -> Optional[IngestionRun]:
         """Find run by run_id."""
         stmt = select(IngestionRun).where(IngestionRun.run_id == run_id)
         return db.exec(stmt).first()
