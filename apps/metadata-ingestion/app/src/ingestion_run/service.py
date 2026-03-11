@@ -18,10 +18,7 @@ class IngestionRunService:
         self.repository = repository
 
     def create_run(self, db: Session, request: IngestionRunCreate) -> IngestionRun:
-        """Create new ingestion run (TX1 - STORED state).
-
-        run_id is UUID, shared with lineage_run_event for direct JOIN.
-        """
+        """Create new ingestion run (TX1 - STORED state)."""
         run = IngestionRun(
             run_id=request.run_id,  # App-generated UUID
             snapshot_id=request.snapshot_id,

@@ -3,7 +3,7 @@
 All ID constants follow actual production formats:
 - snapshot_id / metadata_id: URN format (urn:wisenut:metadata:{timestamp}-{hash})
 - identifier: UUID4 format (default_factory)
-- run_id: UUID format (shared with lineage_run_event)
+- run_id: UUID format
 
 Usage:
     from tests.constants import SNAPSHOT_ID_VALID, METADATA_ID_1
@@ -53,7 +53,7 @@ TEST_SHA256 = "a" * 64
 TEST_SHA256_ALT = "b" * 64
 
 # =============================================================================
-# Run IDs (UUID format - shared with lineage_run_event)
+# Run IDs (UUID format)
 # =============================================================================
 
 TEST_RUN_UUID_1 = UUID("11111111-1111-1111-1111-111111111111")

@@ -79,7 +79,6 @@ class IngestionWorkflowService:
         6. INSERT ingestion_run (TX1, state=STORED)
 
         Lineage: Publishes StorePhaseCompleted/Failed events.
-        run_id is shared between ingestion_run and lineage_run_event (JOIN key).
         """
         mapping_version = self.get_mapping_version()
         run_id = uuid4()  # Shared UUID for both ingestion_run and lineage

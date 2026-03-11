@@ -264,7 +264,7 @@ class IngestionRunBase(SQLModel):
     Note: This is operational data, not lineage. For data provenance, see LineageEventBase.
     """
 
-    run_id: UUID | None = Field(default=None, primary_key=True)
+    run_id: UUID = Field(default_factory=uuid4, primary_key=True)
     snapshot_id: str = Field(nullable=False, index=True)
     state: IngestionRunState = Field(default=IngestionRunState.STORED, nullable=False)
     mapping_version: str = Field(nullable=False)

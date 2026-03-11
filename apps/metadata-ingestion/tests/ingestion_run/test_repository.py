@@ -9,7 +9,7 @@ from active_metadata.models import IngestionRunState
 from app.src.ingestion_run.model import IngestionRun
 from app.src.ingestion_run.repository import IngestionRunRepository
 from app.src.metadata_snapshot.model import MetadataSnapshot
-from tests.constants import NONEXISTENT_IDENTIFIER, NONEXISTENT_UUID
+from tests.constants import NONEXISTENT_IDENTIFIER, NONEXISTENT_UUID, TEST_RUN_UUID_1
 
 
 class TestSave:
@@ -21,9 +21,8 @@ class TestSave:
         ingestion_run_repository: IngestionRunRepository,
     ) -> None:
         """Should save ingestion run."""
-        run_id = uuid4()
         run = IngestionRun(
-            run_id=run_id,
+            run_id=TEST_RUN_UUID_1,
             snapshot_id="test-snapshot-id",
             state=IngestionRunState.STORED,
             mapping_version="v1.0",
@@ -31,7 +30,7 @@ class TestSave:
 
         result = ingestion_run_repository.save(db, run)
 
-        assert result.run_id == run_id
+        assert result.run_id == TEST_RUN_UUID_1
         assert result.state == IngestionRunState.STORED
 
 

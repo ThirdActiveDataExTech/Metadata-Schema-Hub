@@ -1,12 +1,17 @@
 """Tests for IngestionRunService."""
 
 from unittest.mock import MagicMock
-from uuid import uuid4
 
 import pytest
 
 from active_metadata.models import IngestionRunState
-from tests.constants import NONEXISTENT_UUID, SNAPSHOT_ID_VALID, TEST_MAPPING_VERSION, TEST_RUN_UUID_1
+from tests.constants import (
+    NONEXISTENT_UUID,
+    SNAPSHOT_ID_VALID,
+    TEST_MAPPING_VERSION,
+    TEST_RUN_UUID_1,
+    TEST_RUN_UUID_2,
+)
 from app.src.ingestion_run.model import IngestionRun, IngestionRunCreate
 from app.src.ingestion_run.service import IngestionRunService
 
@@ -20,9 +25,8 @@ class TestIngestionRunService:
 
     def test_create_run_sets_stored_state(self, ingestion_run_service, mock_db_session):
         """Should create run with STORED state."""
-        run_id = uuid4()
         request = IngestionRunCreate(
-            run_id=run_id,
+            run_id=TEST_RUN_UUID_1,
             snapshot_id=SNAPSHOT_ID_VALID,
             mapping_version=TEST_MAPPING_VERSION,
         )
@@ -32,16 +36,15 @@ class TestIngestionRunService:
         result = ingestion_run_service.create_run(mock_db_session, request)
 
         assert isinstance(result, IngestionRun)
-        assert result.run_id == run_id
+        assert result.run_id == TEST_RUN_UUID_1
         assert result.snapshot_id == SNAPSHOT_ID_VALID
         assert result.mapping_version == TEST_MAPPING_VERSION
         assert result.state == IngestionRunState.STORED
 
     def test_create_run_calls_repository(self, ingestion_run_service, mock_db_session):
         """Should call repository.save."""
-        run_id = uuid4()
         request = IngestionRunCreate(
-            run_id=run_id,
+            run_id=TEST_RUN_UUID_2,
             snapshot_id=SNAPSHOT_ID_VALID,
             mapping_version=TEST_MAPPING_VERSION,
         )
