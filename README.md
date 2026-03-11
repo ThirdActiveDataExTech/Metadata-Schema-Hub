@@ -94,6 +94,14 @@
 - 컬럼 간 연관성 분석 결과 기반 매핑 자동화를 위한 예측 결과 저장
 - 메타데이터와 카탈로그 간 의미적 연관성 정량화
 
+### catalog_entry_draft
+- 매핑 결과의 검토/승인 워크플로우 지원
+- mapping_evidence 필드로 매핑 결정 근거 투명성 확보
+
+### lineage_event
+- 데이터 출처 추적을 위한 이벤트 기반 계보 관리
+- Upstream/Downstream 관계 조회 및 감사 이력 지원
+
 ---
 
 ## 레포지토리 구조
@@ -102,21 +110,34 @@
 active-metadata-management/
 ├── apps/
 │   ├── metadata-ingestion/         # 데이터 수집 / 처리 레이어
-│   └── catalog-service/            # 카탈로그 서비스 레이어
+│   ├── catalog-service/            # 카탈로그 서비스 레이어
+│   └── workflow-ui/                # 워크플로우 시각화 UI (React/Vite)
+├── packages/
+│   └── active-metadata/            # 공유 DB 모델 패키지 (SQLModel)
 ├── initdb/                         # 데이터베이스 스키마 정의
 │   ├── 001_init.sql                # 초기 설정
 │   ├── 002_catalog_entry.sql       # 통합 카탈로그 DB 스키마
+│   ├── 002_catalog_entry_draft.sql # 카탈로그 드래프트 스키마
 │   ├── 002_metadata_entry.sql      # 메타데이터 스키마 DB 스키마
-│   └── 002_column_relation.sql     # 스키마 관계 DB 스키마
+│   ├── 002_metadata_snapshot.sql   # 불변 스냅샷 스키마
+│   ├── 002_column_relation.sql     # 스키마 관계 DB 스키마
+│   ├── 002_ingestion_run.sql       # 워크플로우 상태 머신 스키마
+│   ├── 002_lineage_event.sql       # 데이터 계보 추적 스키마
+│   └── 003_initialize_column_relation.sql  # 컬럼 관계 초기화
 ├── sample/                         # 테스트용 메타데이터 샘플
+├── scripts/                        # 유틸리티 스크립트
 └── docker-compose.yaml             # 전체 시스템 오케스트레이션
 ```
 
 ## 서비스 아키텍처
 
-- **metadata-ingestion**: 스키마 및 메타데이터 수집/전처리
-- **catalog-service**: 통합 카탈로그 질의 및 데이터 변환
-- **PostgreSQL**: 메타데이터 스키마 DB, 통합 카탈로그 DB, 스키마 관계 DB
+| 서비스 | 포트 | 설명 |
+|--------|------|------|
+| metadata-ingestion | 8085 | 스키마 및 메타데이터 수집/전처리 |
+| catalog-service | 8084 | 통합 카탈로그 질의 및 데이터 변환 |
+| workflow-ui | 3000 | 워크플로우 시각화 UI |
+| PostgreSQL 17.4 | 5432 | 메타데이터/카탈로그/계보 DB |
+| Adminer | 8888 | DB 웹 클라이언트 (개발용) |
 
 ---
 
@@ -127,7 +148,19 @@ $ docker compose up -d
 ```
 
 ### 데이터 처리 흐름
-1. **메타데이터 수집**: 다양한 소스에서 원본 메타데이터 수집
-2. **변환 처리**: metadata_entry 테이블에 key-value 구조로 분해 저장
-3. **통합 저장**: catalog_entry 테이블에 DCAT 표준 형식으로 통합 저장
-4. **관계 매핑**: column_relation 테이블에 컬럼 간 연관성 정보 저장
+
+```
+┌─────────────┐    ┌─────────────┐    ┌─────────────┐    ┌─────────────┐
+│   Ingest    │───▶│   Store     │───▶│   Draft     │───▶│  Publish/   │
+│   (Upload)  │    │   Phase     │    │   Phase     │    │  Discard    │
+└─────────────┘    └─────────────┘    └─────────────┘    └─────────────┘
+                         │                  │                   │
+                         ▼                  ▼                   ▼
+                   metadata_snapshot  catalog_entry_draft  catalog_entry
+                   ingestion_run      ingestion_run        lineage_event
+                   lineage_event      lineage_event
+```
+
+1. **Store Phase**: 원본 메타데이터를 `metadata_snapshot`에 불변 저장, `ingestion_run` 상태 → STORED
+2. **Draft Phase**: 자동 매핑으로 `catalog_entry_draft` 생성 (PENDING), `ingestion_run` 상태 → DRAFTED
+3. **Publish/Discard**: 검토 후 `catalog_entry`로 게시 또는 폐기, 모든 작업은 `lineage_event`에 기록
