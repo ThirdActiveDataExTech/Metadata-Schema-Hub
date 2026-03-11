@@ -47,10 +47,7 @@ class EventBus:
                 handler(event)
             except Exception as e:
                 # Best-effort: log and continue, don't affect business logic
-                logger.warning(
-                    f"Event handler failed for {event_type.__name__} "
-                    f"(run_id={event.run_id}): {e}"
-                )
+                logger.warning(f"Event handler failed for {event_type.__name__}: {e}")
 
     def clear(self) -> None:
         """Clear all registered handlers. Useful for testing."""
