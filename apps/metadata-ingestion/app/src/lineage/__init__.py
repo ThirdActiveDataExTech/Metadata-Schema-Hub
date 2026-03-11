@@ -1,5 +1,5 @@
-"""Lineage event module for OpenLineage compatible event tracking."""
+"""Lineage event module for URI-based lineage tracking."""
 
-from app.src.lineage.model import LineageEvent, LineageEventType
+from app.src.lineage.model import LineageEvent
 
-__all__ = ["LineageEvent", "LineageEventType"]
+__all__ = ["LineageEvent"]

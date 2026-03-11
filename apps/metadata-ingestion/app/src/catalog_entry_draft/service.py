@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Optional
+from typing import Any
 
 from active_metadata import CatalogEntryDraftBase, convert_field_types
 from active_metadata.models import DraftStatus
@@ -18,25 +18,31 @@ from app.src.catalog_entry_draft.model import (
 )
 from app.src.catalog_entry_draft.repository import CatalogEntryDraftRepository
 from app.src.column_relation.model import ColumnRelation
+from app.src.events import (
+    DiscardCompleted,
+    EventBus,
+    PublishCompleted,
+)
 from app.src.metadata_entry.model import MetadataEntry
-
-if TYPE_CHECKING:
-    from app.src.lineage.service import LineageEventService
 
 
 class CatalogEntryDraftService:
-    """CatalogEntryDraft service."""
+    """CatalogEntryDraft service.
+
+    Uses EventBus for lineage tracking - publishes domain events,
+    LineageEventHandler subscribes and converts to lineage events.
+    """
 
     def __init__(
         self,
         repository: CatalogEntryDraftRepository,
-        catalog_entry_service: Optional[CatalogEntryService] = None,
-        lineage_service: Optional[LineageEventService] = None,
+        event_bus: EventBus,
+        catalog_entry_service: CatalogEntryService,
     ):
-        """Initialize with repository and optional services for publish/lineage."""
+        """Initialize with repository, event bus, and catalog entry service."""
         self.repository = repository
+        self.event_bus = event_bus
         self.catalog_entry_service = catalog_entry_service
-        self.lineage_service = lineage_service
 
     def build_mapping_with_evidence(
         self,
@@ -112,11 +118,13 @@ class CatalogEntryDraftService:
         draft = CatalogEntryDraft.model_validate(create_dto.model_dump())
         return self.repository.save(db, draft)
 
-    def get_draft(self, db: Session, draft_id: int) -> Optional[CatalogEntryDraft]:
+    def get_draft(self, db: Session, draft_id: int) -> CatalogEntryDraft | None:
         """Get draft by ID."""
         return self.repository.find_by_id(db, draft_id)
 
-    def get_drafts_by_snapshot(self, db: Session, snapshot_id: str, limit: int = 100, offset: int = 0) -> list[CatalogEntryDraft]:
+    def get_drafts_by_snapshot(
+        self, db: Session, snapshot_id: str, limit: int = 100, offset: int = 0
+    ) -> list[CatalogEntryDraft]:
         """Get all drafts for a snapshot."""
         return self.repository.find_by_snapshot_id(db, snapshot_id, limit, offset)
 
@@ -124,7 +132,7 @@ class CatalogEntryDraftService:
         """Get all drafts with pagination."""
         return self.repository.find_all(db, limit, offset)
 
-    def get_mapping_evidence(self, db: Session, draft_id: int) -> Optional[dict[str, Any]]:
+    def get_mapping_evidence(self, db: Session, draft_id: int) -> dict[str, Any] | None:
         """Get mapping evidence for a draft."""
         draft = self.get_draft(db, draft_id)
         if draft:
@@ -143,28 +151,17 @@ class CatalogEntryDraftService:
     def discard(self, db: Session, draft_id: int) -> CatalogEntryDraft:
         """Discard a draft (change status to DISCARDED)."""
         draft = self._get_draft_or_raise(db, draft_id)
-        snapshot_id = draft.snapshot_id  # Capture before update
         draft.status = DraftStatus.DISCARDED
         updated_draft = self.repository.update(db, draft)
-
-        # Emit lineage event
-        if self.lineage_service:
-            self.lineage_service.emit_discard_complete(
-                db,
-                draft_id=draft_id,
-                snapshot_id=snapshot_id,
-            )
-
+        db.flush()
+        self.event_bus.publish(DiscardCompleted(draft_id=draft_id))
         return updated_draft
 
     def publish(self, db: Session, draft_id: int) -> CatalogEntry:
         """Publish draft to catalog entry."""
-        if not self.catalog_entry_service:
-            raise ValueError("CatalogEntryService not configured for publish")
-
+        # TODO: catalog_entry service 쪽으로 로직 이동
         draft = self._get_draft_or_raise(db, draft_id)
 
-        # Create catalog entry from draft
         catalog_entry = CatalogEntry(
             title=draft.title,
             description=draft.description,
@@ -180,18 +177,14 @@ class CatalogEntryDraftService:
 
         saved_entry = self.catalog_entry_service.create_catalog_entry(db, catalog_entry)
 
-        # Update draft status
         draft.status = DraftStatus.PUBLISHED
         self.repository.update(db, draft)
+        db.flush()
 
-        # Emit lineage event
-        if self.lineage_service:
-            self.lineage_service.emit_publish_complete(
-                db,
+        self.event_bus.publish(
+            PublishCompleted(
                 draft_id=draft_id,
                 catalog_entry_id=saved_entry.id,  # type: ignore[arg-type]
-                identifier=saved_entry.identifier,
-                snapshot_id=draft.snapshot_id,
             )
-
+        )
         return saved_entry

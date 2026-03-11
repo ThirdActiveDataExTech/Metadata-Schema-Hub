@@ -1,5 +1,5 @@
--- 수집 작업 상태 추적 테이블
--- Store Phase / Draft Phase 워크플로우 상태 관리
+-- 워크플로우 상태 머신 테이블
+-- 수집 프로세스 모니터링 및 재처리 대상 식별용
 CREATE TABLE IF NOT EXISTS ingestion_run
 (
     run_id           UUID PRIMARY KEY,
@@ -20,7 +20,7 @@ CREATE INDEX IF NOT EXISTS idx_ingestion_run_state ON ingestion_run(state);
 CREATE INDEX IF NOT EXISTS idx_ingestion_run_created_at ON ingestion_run(created_at);
 
 -- 테이블 설명
-COMMENT ON TABLE ingestion_run IS '메타데이터 수집 워크플로우 상태 추적 (Store Phase: 저장, Draft Phase: 드래프트 생성)';
+COMMENT ON TABLE ingestion_run IS '워크플로우 상태 머신. 수집 프로세스 모니터링 및 재처리 대상 식별용';
 
 -- 컬럼 설명
 COMMENT ON COLUMN ingestion_run.run_id IS 'run_id (UUID, 앱에서 생성)';

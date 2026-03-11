@@ -3,13 +3,20 @@
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from uuid import UUID, uuid4
 
 from active_metadata import SnapshotIdentifier, detect_extension
 from sqlmodel import Session
 
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
 from app.src.column_relation.service import ColumnRelationService
+from app.src.events import (
+    DraftPhaseCompleted,
+    DraftPhaseFailed,
+    EventBus,
+    StorePhaseCompleted,
+    StorePhaseFailed,
+)
 from app.src.file_converter.file_handler import MetadataFile, process_metadata_file
 from app.src.ingestion_run.exceptions import (
     IngestionRunNotFoundError,
@@ -25,12 +32,13 @@ from app.src.metadata_snapshot.service import MetadataSnapshotService
 from app.src.workflow.model import DraftPhaseResult, StorePhaseResult
 from app.version import VERSION
 
-if TYPE_CHECKING:
-    from app.src.lineage.service import LineageEventService
-
 
 class IngestionWorkflowService:
-    """Orchestrates the two-phase ingestion workflow (Facade)."""
+    """Orchestrates the two-phase ingestion workflow (Facade).
+
+    Uses EventBus for lineage tracking - publishes domain events,
+    LineageEventHandler subscribes and converts to OpenLineage.
+    """
 
     def __init__(
         self,
@@ -40,7 +48,7 @@ class IngestionWorkflowService:
         draft_service: CatalogEntryDraftService,
         column_relation_service: ColumnRelationService,
         file_storage: FilesystemStorage,
-        lineage_service: Optional[LineageEventService] = None,
+        event_bus: EventBus,
     ):
         """Initialize with all required services."""
         self.snapshot_service = snapshot_service
@@ -49,7 +57,7 @@ class IngestionWorkflowService:
         self.draft_service = draft_service
         self.column_relation_service = column_relation_service
         self.file_storage = file_storage
-        self.lineage_service = lineage_service
+        self.event_bus = event_bus
 
     def get_mapping_version(self) -> str:
         """Get current mapping version from app version."""
@@ -59,7 +67,7 @@ class IngestionWorkflowService:
         self,
         db: Session,
         payload: str | bytes,
-        filename: Optional[str] = None,
+        filename: str | None = None,
     ) -> StorePhaseResult:
         """Store Phase: Persist metadata payload.
 
@@ -69,65 +77,81 @@ class IngestionWorkflowService:
         4. INSERT metadata_snapshot (TX1)
         5. Bulk INSERT metadata_entry (TX1)
         6. INSERT ingestion_run (TX1, state=STORED)
+
+        Lineage: Publishes StorePhaseCompleted/Failed events.
+        run_id is shared between ingestion_run and lineage_run_event (JOIN key).
         """
         mapping_version = self.get_mapping_version()
+        run_id = uuid4()  # Shared UUID for both ingestion_run and lineage
 
-        # Step 1: Parse payload first (fail fast, nothing saved yet)
-        metadata_file = MetadataFile(filename=filename, content=payload)
-        _, metadata_schemas = process_metadata_file(metadata_file)
+        try:
+            # Step 1: Parse payload first (fail fast, nothing saved yet)
+            metadata_file = MetadataFile(filename=filename, content=payload)
+            _, metadata_schemas = process_metadata_file(metadata_file)
 
-        # Step 2-3: Generate identifier and save file (outside TX)
-        identifier = SnapshotIdentifier.generate(payload)
-        extension = detect_extension(payload, filename)
-        storage_key = identifier.generate_storage_key(extension)
-        self.file_storage.save(storage_key, payload)
+            # Step 2-3: Generate identifier and save file (outside TX)
+            identifier = SnapshotIdentifier.generate(payload)
+            extension = detect_extension(payload, filename)
+            storage_key = identifier.generate_storage_key(extension)
+            self.file_storage.save(storage_key, payload)
 
-        # Step 4: Create snapshot DB record (TX1)
-        snapshot = self.snapshot_service.save_record(
-            db, identifier=identifier, storage_key=storage_key, original_filename=filename
-        )
-
-        # Step 5: Bulk insert metadata entries (metadata_id = snapshot_id)
-        metadata_create = MetadataCreate(
-            metadata_id=snapshot.snapshot_id,
-            metadata_schemas=metadata_schemas,
-        )
-        self.metadata_entry_service.create(db, metadata_create)
-
-        # Step 7: Create ingestion run
-        run = self.ingestion_run_service.create_run(
-            db,
-            IngestionRunCreate(snapshot_id=snapshot.snapshot_id, mapping_version=mapping_version),
-        )
-
-        # TX1 flush
-        db.flush()
-        db.refresh(snapshot)
-        db.refresh(run)
-
-        # Emit lineage event
-        if self.lineage_service:
-            self.lineage_service.emit_store_phase_complete(
-                db,
-                snapshot_id=snapshot.snapshot_id,
-                ingestion_run_id=run.run_id,  # type: ignore[arg-type]
-                mapping_version=mapping_version,
-                storage_key=storage_key,
-                original_filename=filename,
-                payload_sha256=identifier.payload_sha256 or snapshot.payload_sha256,
+            # Step 4: Create snapshot DB record (TX1)
+            snapshot = self.snapshot_service.save_record(
+                db, identifier=identifier, storage_key=storage_key, original_filename=filename
             )
-            db.flush()
 
-        return StorePhaseResult(
-            snapshot_id=snapshot.snapshot_id,
-            run_id=run.run_id,  # type: ignore[arg-type]
-            metadata_count=len(metadata_schemas),
-        )
+            # Step 5: Bulk insert metadata entries (metadata_id = snapshot_id)
+            metadata_create = MetadataCreate(
+                metadata_id=snapshot.snapshot_id,
+                metadata_schemas=metadata_schemas,
+            )
+            self.metadata_entry_service.create(db, metadata_create)
+
+            # Step 6: Create ingestion run with shared UUID
+            run = self.ingestion_run_service.create_run(
+                db,
+                IngestionRunCreate(
+                    run_id=run_id,  # Shared UUID
+                    snapshot_id=snapshot.snapshot_id,
+                    mapping_version=mapping_version,
+                ),
+            )
+
+            # TX1 flush
+            db.flush()
+            db.refresh(snapshot)
+            db.refresh(run)
+
+            # Publish COMPLETE event
+            self.event_bus.publish(
+                StorePhaseCompleted(
+                    snapshot_id=snapshot.snapshot_id,
+                    metadata_count=len(metadata_schemas),
+                    original_filename=filename,
+                )
+            )
+
+            return StorePhaseResult(
+                snapshot_id=snapshot.snapshot_id,
+                run_id=run_id,
+                metadata_count=len(metadata_schemas),
+            )
+
+        except Exception as e:
+            logging.error(f"Store phase failed: {e}")
+            # Publish FAIL event
+            self.event_bus.publish(
+                StorePhaseFailed(
+                    error_message=str(e),
+                    original_filename=filename,
+                )
+            )
+            raise
 
     def execute_draft_phase(
         self,
         db: Session,
-        run_id: int,
+        run_id: UUID,
     ) -> DraftPhaseResult:
         """Draft Phase: Create catalog entry draft with mapping.
 
@@ -136,8 +160,10 @@ class IngestionWorkflowService:
         3. Build mapping (top-1 now, keep top-k evidence)
         4. INSERT catalog_entry_draft
         5. UPDATE ingestion_run.state=DRAFTED
+
+        Lineage: Publishes DraftPhaseCompleted/Failed events.
+        Parent run is Store Phase run_id (= ingestion_run.run_id).
         """
-        # Get the run
         run = self.ingestion_run_service.get_run(db, run_id)
         if not run:
             raise IngestionRunNotFoundError(run_id)
@@ -171,36 +197,30 @@ class IngestionWorkflowService:
             # TX2 flush
             db.flush()
             db.refresh(draft)
+            db.refresh(run)
 
-            # Emit lineage event
-            if self.lineage_service:
-                self.lineage_service.emit_draft_phase_complete(
-                    db,
+            # Publish COMPLETE event
+            self.event_bus.publish(
+                DraftPhaseCompleted(
                     snapshot_id=run.snapshot_id,
                     draft_id=draft.id,  # type: ignore[arg-type]
-                    ingestion_run_id=run_id,
-                    mapping_version=run.mapping_version,
                 )
-                db.flush()
-                db.refresh(draft)
+            )
 
             return DraftPhaseResult(
                 draft=draft,
-                run_id=run_id,
                 mapping_version=run.mapping_version,
             )
 
         except Exception as e:
             logging.error(f"Draft phase failed for run {run_id}: {e}")
+            # TODO: raise 후 get_session에서 rollback되어 FAILED 상태가 저장되지 않음
             self.ingestion_run_service.mark_failed(db, run_id, str(e))
-            # Emit failure event
-            if self.lineage_service:
-                self.lineage_service.emit_draft_phase_failed(
-                    db,
+            # Publish FAIL event
+            self.event_bus.publish(
+                DraftPhaseFailed(
                     snapshot_id=run.snapshot_id,
-                    ingestion_run_id=run_id,
-                    mapping_version=run.mapping_version,
                     error_message=str(e),
                 )
-                db.flush()
+            )
             raise

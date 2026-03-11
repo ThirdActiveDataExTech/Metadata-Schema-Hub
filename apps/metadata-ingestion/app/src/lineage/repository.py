@@ -21,32 +21,6 @@ class LineageEventRepository:
         """Find event by ID."""
         return db.get(LineageEvent, event_id)
 
-    def find_by_snapshot_id(
-        self, db: Session, snapshot_id: str, limit: int = 100, offset: int = 0
-    ) -> list[LineageEvent]:
-        """Find events by snapshot_id."""
-        stmt = (
-            select(LineageEvent)
-            .where(LineageEvent.snapshot_id == snapshot_id)
-            .order_by(LineageEvent.event_time.desc())
-            .offset(offset)
-            .limit(limit)
-        )
-        return list(db.exec(stmt).all())
-
-    def find_by_job_name(
-        self, db: Session, job_name: str, limit: int = 100, offset: int = 0
-    ) -> list[LineageEvent]:
-        """Find events by job name."""
-        stmt = (
-            select(LineageEvent)
-            .where(LineageEvent.job_name == job_name)
-            .order_by(LineageEvent.event_time.desc())
-            .offset(offset)
-            .limit(limit)
-        )
-        return list(db.exec(stmt).all())
-
     def find_all(
         self,
         db: Session,
@@ -54,7 +28,6 @@ class LineageEventRepository:
         offset: int = 0,
         job_name: str | None = None,
         event_type: str | None = None,
-        snapshot_id: str | None = None,
     ) -> list[LineageEvent]:
         """Find all events with optional filters."""
         stmt = select(LineageEvent)
@@ -63,8 +36,26 @@ class LineageEventRepository:
             stmt = stmt.where(LineageEvent.job_name == job_name)
         if event_type:
             stmt = stmt.where(LineageEvent.event_type == event_type)
-        if snapshot_id:
-            stmt = stmt.where(LineageEvent.snapshot_id == snapshot_id)
 
-        stmt = stmt.order_by(LineageEvent.event_time.desc()).offset(offset).limit(limit)
+        stmt = stmt.order_by(LineageEvent.event_time.desc()).offset(offset).limit(limit)  # type: ignore[union-attr]
+        return list(db.exec(stmt).all())
+
+    def find_by_ref(self, db: Session, ref: str, limit: int = 100) -> list[LineageEvent]:
+        """Find events where ref is in input_refs or output_refs.
+
+        Uses GIN index on input_refs and output_refs arrays.
+        """
+        from sqlalchemy import or_
+
+        stmt = (
+            select(LineageEvent)
+            .where(
+                or_(
+                    LineageEvent.input_refs.any(ref),  # type: ignore[attr-defined]
+                    LineageEvent.output_refs.any(ref),  # type: ignore[attr-defined]
+                )
+            )
+            .order_by(LineageEvent.event_time.desc())  # type: ignore[union-attr]
+            .limit(limit)
+        )
         return list(db.exec(stmt).all())

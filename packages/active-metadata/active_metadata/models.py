@@ -253,9 +253,15 @@ class DraftStatus(StrEnum):
 
 
 class IngestionRunBase(SQLModel):
-    """Ingestion run job tracking - base model.
+    """Workflow state machine for ingestion process monitoring.
 
-    run_id is UUID, shared with lineage_run_event for direct JOIN.
+    Tracks the state of metadata ingestion workflows (STORED → DRAFTED or FAILED).
+    Used for:
+    - Monitoring pending/failed workflows
+    - Identifying runs that need retry or investigation
+    - Linking snapshot to draft via run lifecycle
+
+    Note: This is operational data, not lineage. For data provenance, see LineageEventBase.
     """
 
     run_id: UUID | None = Field(default=None, primary_key=True)
@@ -361,10 +367,18 @@ class LineageEventType(StrEnum):
 
 
 class LineageEventBase(SQLModel):
-    """LineageEvent base model - URI 배열 기반 단순화된 lineage 추적.
+    """Immutable data provenance events for lineage tracking.
 
-    URI 형식: {schema}.{table}/{id}
-    예: public.metadata_snapshot/abc123, public.catalog_entry_draft/7
+    Records the flow of data through the system:
+    file → metadata_snapshot → catalog_entry_draft → catalog_entry
+
+    Used for:
+    - Upstream/downstream lineage queries (where did this data come from?)
+    - Audit trail (who processed what, when?)
+    - Lineage visualization in UI
+
+    Note: This is append-only audit data. For workflow state, see IngestionRunBase.
+    URI refs are generated via EntityURI.
     """
 
     id: int | None = Field(default=None, primary_key=True)

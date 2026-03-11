@@ -1,5 +1,5 @@
--- Lineage 이벤트 테이블 (URI 배열 기반)
--- 메타데이터 처리 워크플로우 추적용
+-- 데이터 출처 추적 이벤트 테이블
+-- Upstream/Downstream 계보 조회 및 감사 이력용
 
 CREATE TABLE IF NOT EXISTS lineage_event
 (
@@ -27,7 +27,7 @@ CREATE INDEX IF NOT EXISTS idx_lineage_output_refs ON lineage_event USING GIN (o
 CREATE INDEX IF NOT EXISTS idx_lineage_event_time ON lineage_event (event_time DESC);
 
 -- 테이블 설명
-COMMENT ON TABLE lineage_event IS 'URI 배열 기반 리니지 이벤트 저장 테이블. 메타데이터 처리 워크플로우 추적용.';
+COMMENT ON TABLE lineage_event IS '데이터 출처 추적 이벤트. Upstream/Downstream 계보 조회 및 감사 이력용';
 
 -- 컬럼 설명
 COMMENT ON COLUMN lineage_event.id IS '고유 식별키 (Primary Key)';

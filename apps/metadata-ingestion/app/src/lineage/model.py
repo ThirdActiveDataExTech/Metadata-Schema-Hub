@@ -1,8 +1,8 @@
 """Lineage event model for metadata-ingestion service."""
 
-from active_metadata.models import LineageEventBase, LineageEventType
+from active_metadata.models import LineageEventBase
 
-__all__ = ["LineageEvent", "LineageEventType"]
+__all__ = ["LineageEvent"]
 
 
 class LineageEvent(LineageEventBase, table=True):  # type: ignore[call-arg]

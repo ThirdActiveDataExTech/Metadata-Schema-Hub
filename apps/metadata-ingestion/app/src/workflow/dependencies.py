@@ -1,3 +1,5 @@
+"""Dependency injection for workflow services."""
+
 from typing import Annotated
 
 from fastapi import Depends
@@ -8,10 +10,10 @@ from app.src.catalog_entry_draft.dependencies import get_catalog_entry_draft_ser
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
 from app.src.column_relation.dependencies import get_column_relation_service
 from app.src.column_relation.service import ColumnRelationService
+from app.src.events import EventBus
+from app.src.events.dependencies import get_event_bus
 from app.src.ingestion_run.dependencies import get_ingestion_run_service
 from app.src.ingestion_run.service import IngestionRunService
-from app.src.lineage.dependencies import get_lineage_service
-from app.src.lineage.service import LineageEventService
 from app.src.metadata_entry.dependencies import get_metadata_entry_service
 from app.src.metadata_entry.service import MetadataEntryService
 from app.src.metadata_snapshot.dependencies import (
@@ -47,7 +49,7 @@ def get_ingestion_workflow_service(
     draft_service: Annotated[CatalogEntryDraftService, Depends(get_catalog_entry_draft_service)],
     column_relation_service: Annotated[ColumnRelationService, Depends(get_column_relation_service)],
     file_storage: Annotated[FilesystemStorage, Depends(get_filesystem_storage)],
-    lineage_service: Annotated[LineageEventService, Depends(get_lineage_service)],
+    event_bus: Annotated[EventBus, Depends(get_event_bus)],
 ) -> IngestionWorkflowService:
     """IngestionWorkflowService dependency injection."""
     return IngestionWorkflowService(
@@ -57,10 +59,8 @@ def get_ingestion_workflow_service(
         draft_service=draft_service,
         column_relation_service=column_relation_service,
         file_storage=file_storage,
-        lineage_service=lineage_service,
+        event_bus=event_bus,
     )
 
 
-IngestionWorkflowServiceDep = Annotated[
-    IngestionWorkflowService, Depends(get_ingestion_workflow_service)
-]
+IngestionWorkflowServiceDep = Annotated[IngestionWorkflowService, Depends(get_ingestion_workflow_service)]
