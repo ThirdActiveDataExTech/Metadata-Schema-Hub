@@ -5,7 +5,15 @@ from unittest.mock import MagicMock
 import pytest
 
 from active_metadata.models import DraftStatus
-from tests.constants import SNAPSHOT_ID_VALID, TEST_MAPPING_VERSION
+from tests.constants import (
+    CORRELATION_HIGH,
+    CORRELATION_LOW,
+    CORRELATION_MEDIUM,
+    NONEXISTENT_ID,
+    SNAPSHOT_ID_VALID,
+    TEST_MAPPING_VERSION,
+)
+from app.src.catalog_entry_draft.exceptions import DraftNotFoundError, DraftNotPendingError
 from app.src.catalog_entry_draft.model import CatalogEntryDraft
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
 from app.src.column_relation.model import ColumnRelation
@@ -39,11 +47,11 @@ class TestBuildMappingWithEvidence:
     def sample_relations(self):
         """Create sample ColumnRelation list."""
         return [
-            MagicMock(spec=ColumnRelation, catalog_column="title", metadata_column="name", correlation=0.95),
-            MagicMock(spec=ColumnRelation, catalog_column="title", metadata_column="description", correlation=0.80),
-            MagicMock(spec=ColumnRelation, catalog_column="description", metadata_column="description", correlation=0.90),
-            MagicMock(spec=ColumnRelation, catalog_column="keyword", metadata_column="keywords", correlation=0.85),
-            MagicMock(spec=ColumnRelation, catalog_column="modified", metadata_column="dateModified", correlation=0.88),
+            MagicMock(spec=ColumnRelation, catalog_column="title", metadata_column="name", correlation=CORRELATION_HIGH),
+            MagicMock(spec=ColumnRelation, catalog_column="title", metadata_column="description", correlation=CORRELATION_LOW),
+            MagicMock(spec=ColumnRelation, catalog_column="description", metadata_column="description", correlation=CORRELATION_MEDIUM),
+            MagicMock(spec=ColumnRelation, catalog_column="keyword", metadata_column="keywords", correlation=CORRELATION_LOW),
+            MagicMock(spec=ColumnRelation, catalog_column="modified", metadata_column="dateModified", correlation=CORRELATION_LOW),
         ]
 
     def test_build_mapping_returns_evidence_map(self, service, sample_metadata_entries, sample_relations):
@@ -57,25 +65,38 @@ class TestBuildMappingWithEvidence:
         assert "modified" in result
 
     def test_build_mapping_selects_highest_correlation(self, service, sample_metadata_entries, sample_relations):
-        """Should select highest correlation as selected value."""
+        """Should select highest correlation as recommended value."""
         result = service.build_mapping_with_evidence(sample_metadata_entries, sample_relations)
 
-        # title has two candidates: name (0.95) and description (0.80)
-        assert result["title"].selected.metadata_column == "name"
-        assert result["title"].selected.correlation == 0.95
-        assert result["title"].selected.value == "Test Dataset"
+        # title -> name relation (highest correlation for title)
+        title_to_name_relation = sample_relations[0]
+        name_metadata = sample_metadata_entries[0]
 
-    def test_build_mapping_includes_alternatives(self, service, sample_metadata_entries, sample_relations):
-        """Should include alternatives in evidence."""
-        result = service.build_mapping_with_evidence(sample_metadata_entries, sample_relations, top_k=3)
+        title_evidence = result["title"]
+        recommended = title_evidence.recommended
 
-        # title has two candidates, so alternatives should have 1 item
-        assert len(result["title"].alternatives) == 1
-        assert result["title"].alternatives[0].metadata_column == "description"
-        assert result["title"].alternatives[0].correlation == 0.80
+        assert recommended.metadata_column == title_to_name_relation.metadata_column
+        assert recommended.correlation == title_to_name_relation.correlation
+        assert recommended.value == name_metadata.value
+
+    def test_build_mapping_includes_candidates(self, service, sample_metadata_entries, sample_relations):
+        """Should include all candidates in evidence."""
+        result = service.build_mapping_with_evidence(sample_metadata_entries, sample_relations)
+
+        # title의 두 candidates
+        title_to_name_relation = sample_relations[0]
+        title_to_description_relation = sample_relations[1]
+
+        title_evidence = result["title"]
+        first_candidate = title_evidence.candidates[0]
+        second_candidate = title_evidence.candidates[1]
+
+        assert len(title_evidence.candidates) == 2
+        assert first_candidate.metadata_column == title_to_name_relation.metadata_column
+        assert second_candidate.metadata_column == title_to_description_relation.metadata_column
 
     def test_build_mapping_respects_top_k(self, service):
-        """Should limit alternatives to top_k - 1."""
+        """Should limit candidates to top_k."""
         metadata_entries = [
             MagicMock(spec=MetadataEntry, metadata_schema=f"field{i}", value=f"value{i}") for i in range(5)
         ]
@@ -86,13 +107,13 @@ class TestBuildMappingWithEvidence:
 
         result = service.build_mapping_with_evidence(metadata_entries, relations, top_k=3)
 
-        # Should have 1 selected + 2 alternatives (top_k=3)
-        assert len(result["title"].alternatives) == 2
+        # Should have 3 candidates (top_k=3)
+        assert len(result["title"].candidates) == 3
 
     def test_build_mapping_no_matching_metadata(self, service):
         """Should return empty dict when no metadata matches relations."""
         metadata_entries = [MagicMock(spec=MetadataEntry, metadata_schema="unrelated", value="value")]
-        relations = [MagicMock(spec=ColumnRelation, catalog_column="title", metadata_column="name", correlation=0.95)]
+        relations = [MagicMock(spec=ColumnRelation, catalog_column="title", metadata_column="name", correlation=CORRELATION_HIGH)]
 
         result = service.build_mapping_with_evidence(metadata_entries, relations)
 
@@ -117,7 +138,7 @@ class TestCatalogEntryDraftService:
             MagicMock(spec=MetadataEntry, metadata_schema="name", value="Test Title"),
         ]
         relations = [
-            MagicMock(spec=ColumnRelation, catalog_column="title", metadata_column="name", correlation=0.95),
+            MagicMock(spec=ColumnRelation, catalog_column="title", metadata_column="name", correlation=CORRELATION_HIGH),
         ]
 
         catalog_entry_draft_service.repository.save.side_effect = lambda db, d: d
@@ -125,14 +146,14 @@ class TestCatalogEntryDraftService:
         result = catalog_entry_draft_service.create_draft(
             mock_db_session,
             snapshot_id=SNAPSHOT_ID_VALID,
-            mapping_version="v1.0",
+            mapping_version=TEST_MAPPING_VERSION,
             metadata_entries=metadata_entries,
             relations=relations,
         )
 
         assert isinstance(result, CatalogEntryDraft)
         assert result.snapshot_id == SNAPSHOT_ID_VALID
-        assert result.mapping_version == "v1.0"
+        assert result.mapping_version == TEST_MAPPING_VERSION
         catalog_entry_draft_service.repository.save.assert_called_once()
 
     # ========================================================================
@@ -144,16 +165,16 @@ class TestCatalogEntryDraftService:
         expected = MagicMock(spec=CatalogEntryDraft)
         catalog_entry_draft_service.repository.find_by_id.return_value = expected
 
-        result = catalog_entry_draft_service.get_draft(mock_db_session, 1)
+        result = catalog_entry_draft_service.get_draft(mock_db_session, expected.id)
 
         assert result == expected
-        catalog_entry_draft_service.repository.find_by_id.assert_called_once_with(mock_db_session, 1)
+        catalog_entry_draft_service.repository.find_by_id.assert_called_once_with(mock_db_session, expected.id)
 
     def test_get_draft_not_found(self, catalog_entry_draft_service, mock_db_session):
         """Should return None when not found."""
         catalog_entry_draft_service.repository.find_by_id.return_value = None
 
-        result = catalog_entry_draft_service.get_draft(mock_db_session, 999)
+        result = catalog_entry_draft_service.get_draft(mock_db_session, NONEXISTENT_ID)
 
         assert result is None
 
@@ -197,15 +218,15 @@ class TestCatalogEntryDraftService:
         mock_draft.mapping_evidence = {"title": {"selected": {"value": "Test"}}}
         catalog_entry_draft_service.repository.find_by_id.return_value = mock_draft
 
-        result = catalog_entry_draft_service.get_mapping_evidence(mock_db_session, 1)
+        result = catalog_entry_draft_service.get_mapping_evidence(mock_db_session, mock_draft.id)
 
-        assert result == {"title": {"selected": {"value": "Test"}}}
+        assert result == mock_draft.mapping_evidence
 
     def test_get_mapping_evidence_not_found(self, catalog_entry_draft_service, mock_db_session):
         """Should return None when draft not found."""
         catalog_entry_draft_service.repository.find_by_id.return_value = None
 
-        result = catalog_entry_draft_service.get_mapping_evidence(mock_db_session, 999)
+        result = catalog_entry_draft_service.get_mapping_evidence(mock_db_session, NONEXISTENT_ID)
 
         assert result is None
 
@@ -220,30 +241,30 @@ class TestCatalogEntryDraftService:
         catalog_entry_draft_service.repository.find_by_id.return_value = mock_draft
         catalog_entry_draft_service.repository.update.side_effect = lambda db, d: d
 
-        result = catalog_entry_draft_service.discard(mock_db_session, 1)
+        result = catalog_entry_draft_service.discard(mock_db_session, mock_draft.id)
 
         assert result.status == DraftStatus.DISCARDED
         catalog_entry_draft_service.repository.update.assert_called_once()
 
     def test_discard_not_pending_raises(self, catalog_entry_draft_service, mock_db_session):
-        """Should raise ValueError when not in PENDING status."""
+        """Should raise DraftNotPendingError when not in PENDING status."""
         mock_draft = MagicMock(spec=CatalogEntryDraft)
         mock_draft.status = DraftStatus.PUBLISHED
         catalog_entry_draft_service.repository.find_by_id.return_value = mock_draft
 
-        with pytest.raises(ValueError) as exc_info:
-            catalog_entry_draft_service.discard(mock_db_session, 1)
+        with pytest.raises(DraftNotPendingError) as exc_info:
+            catalog_entry_draft_service.discard(mock_db_session, mock_draft.id)
 
-        assert "PENDING" in str(exc_info.value)
+        assert DraftStatus.PENDING.name in exc_info.value.message
 
     def test_discard_not_found_raises(self, catalog_entry_draft_service, mock_db_session):
-        """Should raise ValueError when draft not found."""
+        """Should raise DraftNotFoundError when draft not found."""
         catalog_entry_draft_service.repository.find_by_id.return_value = None
 
-        with pytest.raises(ValueError) as exc_info:
-            catalog_entry_draft_service.discard(mock_db_session, 999)
+        with pytest.raises(DraftNotFoundError) as exc_info:
+            catalog_entry_draft_service.discard(mock_db_session, NONEXISTENT_ID)
 
-        assert "not found" in str(exc_info.value)
+        assert "not found" in exc_info.value.message
 
     # ========================================================================
     # publish tests
@@ -278,7 +299,7 @@ class TestCatalogEntryDraftService:
         service.repository.find_by_id.return_value = mock_draft
         service.repository.update.side_effect = lambda db, d: d
 
-        result = service.publish(mock_db_session, 1)
+        result = service.publish(mock_db_session, mock_draft.id)
 
         assert result.title == "Test Title"
         mock_catalog_service.create_catalog_entry.assert_called_once()
@@ -300,7 +321,7 @@ class TestCatalogEntryDraftService:
         mock_draft.status = DraftStatus.DISCARDED
         service.repository.find_by_id.return_value = mock_draft
 
-        with pytest.raises(ValueError) as exc_info:
-            service.publish(mock_db_session, 1)
+        with pytest.raises(DraftNotPendingError) as exc_info:
+            service.publish(mock_db_session, mock_draft.id)
 
-        assert "PENDING" in str(exc_info.value)
+        assert DraftStatus.PENDING.name in exc_info.value.message
