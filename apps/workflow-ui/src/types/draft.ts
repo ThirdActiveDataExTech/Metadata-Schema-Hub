@@ -6,11 +6,36 @@ export interface MappingCandidate {
   value: string | null
 }
 
+export interface DecidedMapping {
+  metadata_column: string
+  correlation: number | null
+  value: string | null
+  out_of_candidates: boolean
+}
+
+export interface FieldMappingEvidence {
+  candidates: MappingCandidate[]
+  recommended: MappingCandidate
+  decided: DecidedMapping
+}
+
 export interface MappingEvidence {
-  [fieldName: string]: {
-    selected: MappingCandidate
-    alternatives: MappingCandidate[]
-  }
+  [fieldName: string]: FieldMappingEvidence
+}
+
+// API types for draft editing
+export interface MetadataEntryOption {
+  schema: string
+  value: string | null
+}
+
+export interface DraftFieldUpdate {
+  catalog_field: string
+  metadata_schema: string
+}
+
+export interface DraftFieldsUpdatePayload {
+  updates: DraftFieldUpdate[]
 }
 
 export interface DraftSummary {

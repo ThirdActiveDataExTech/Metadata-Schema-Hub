@@ -1,4 +1,4 @@
-import type { APIResponse, StoreResult, DraftCreationResult, IngestionRun, IngestionRunListResponse, PublishResult, DiscardResult } from '../types'
+import type { APIResponse, StoreResult, DraftCreationResult, IngestionRun, IngestionRunListResponse, PublishResult, DiscardResult, MetadataEntryOption, DraftFieldsUpdatePayload, DraftDetail } from '../types'
 
 const INGESTION_API_BASE = '/ingestion-api'
 
@@ -77,5 +77,35 @@ export async function discardDraft(draftId: number): Promise<DiscardResult> {
   }
 
   const data: APIResponse<DiscardResult> = await response.json()
+  return data.result
+}
+
+export async function getMetadataOptions(draftId: number): Promise<MetadataEntryOption[]> {
+  const response = await fetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/metadata-options`)
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.description || 'Failed to get metadata options')
+  }
+
+  const data: APIResponse<MetadataEntryOption[]> = await response.json()
+  return data.result
+}
+
+export async function updateDraftFields(draftId: number, payload: DraftFieldsUpdatePayload): Promise<DraftDetail> {
+  const response = await fetch(`${INGESTION_API_BASE}/draft/entries/${draftId}`, {
+    method: 'PATCH',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(payload),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.description || 'Failed to update draft')
+  }
+
+  const data: APIResponse<DraftDetail> = await response.json()
   return data.result
 }
