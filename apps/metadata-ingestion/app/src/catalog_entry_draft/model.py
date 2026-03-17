@@ -42,12 +42,12 @@ class MappingEvidence(BaseModel):
 
     Attributes:
         candidates: Top-k candidates from column_relation (immutable)
-        recommended: Algorithm's top-1 recommendation (immutable)
+        recommended: Algorithm's top-1 recommendation (immutable, None if no candidates)
         decided: Final decided value (editable by user)
     """
 
     candidates: list[MappingCandidate]
-    recommended: MappingCandidate
+    recommended: MappingCandidate | None = None
     decided: DecidedMapping
 
 

@@ -15,7 +15,7 @@ export interface DecidedMapping {
 
 export interface FieldMappingEvidence {
   candidates: MappingCandidate[]
-  recommended: MappingCandidate
+  recommended: MappingCandidate | null
   decided: DecidedMapping
 }
 

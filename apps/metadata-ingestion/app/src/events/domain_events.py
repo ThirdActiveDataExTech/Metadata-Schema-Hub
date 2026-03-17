@@ -74,6 +74,7 @@ class PublishCompleted(DomainEvent):
 
     draft_id: int = 0
     catalog_entry_id: int = 0
+    recommendation_followed: bool = True
 
 
 @dataclass

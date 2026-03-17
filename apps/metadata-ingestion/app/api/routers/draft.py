@@ -138,14 +138,14 @@ async def update_draft_fields(
     Each update specifies a catalog_field and the metadata_schema to use.
     The evidence.decided will also be updated accordingly.
     """
+    # Get draft first to retrieve snapshot_id for metadata lookup
     draft = draft_service.get_draft(session, draft_id)
     if not draft:
         raise HTTPException(status_code=404, detail=f"Draft {draft_id} not found")
 
-    # Get metadata entries for validation
     metadata_entries = metadata_service.select_metadata(session, draft.snapshot_id)
 
-    updated_draft = draft_service.update_draft_fields(session, draft, request.updates, metadata_entries)
+    updated_draft = draft_service.update_draft_fields(session, draft_id, request.updates, metadata_entries)
 
     return APIResponseModel(
         result=updated_draft.to_api_dict(),
