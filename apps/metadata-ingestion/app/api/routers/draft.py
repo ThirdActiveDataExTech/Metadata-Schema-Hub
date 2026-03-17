@@ -8,6 +8,8 @@ from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
 from app.src.catalog_entry_draft.dependencies import CatalogEntryDraftServiceDep
+from app.src.catalog_entry_draft.model import DraftFieldsUpdateRequest
+from app.src.metadata_entry.dependencies import MetadataEntryServiceDep
 
 router = APIRouter(
     prefix="/draft",
@@ -87,6 +89,67 @@ async def get_draft_evidence(
             "mapping_evidence": draft.mapping_evidence,
         },
         description=f"Mapping evidence for draft {draft_id}",
+    )
+
+
+@router.get(
+    "/entries/{draft_id}/metadata-options",
+    summary="Get available metadata entries for draft editing",
+    response_model=APIResponseModel,
+)
+async def get_metadata_options(
+    session: SessionDep,
+    draft_service: CatalogEntryDraftServiceDep,
+    metadata_service: MetadataEntryServiceDep,
+    draft_id: int,
+) -> APIResponseModel:
+    """Get all metadata entries available for editing this draft.
+
+    Returns the full list of metadata_entry for the draft's snapshot,
+    allowing users to select any metadata value for any catalog field.
+    """
+    draft = draft_service.get_draft(session, draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail=f"Draft {draft_id} not found")
+
+    # snapshot_id = metadata_id in metadata_entry table
+    entries = metadata_service.select_metadata(session, draft.snapshot_id)
+
+    return APIResponseModel(
+        result=[{"schema": e.metadata_schema, "value": e.value} for e in entries],
+        description=f"Found {len(entries)} metadata entries for draft {draft_id}",
+    )
+
+
+@router.patch(
+    "/entries/{draft_id}",
+    summary="Update draft fields by selecting metadata entries",
+    response_model=APIResponseModel,
+)
+async def update_draft_fields(
+    session: SessionDep,
+    draft_service: CatalogEntryDraftServiceDep,
+    metadata_service: MetadataEntryServiceDep,
+    draft_id: int,
+    request: DraftFieldsUpdateRequest,
+) -> APIResponseModel:
+    """Update draft fields by selecting from available metadata entries.
+
+    Each update specifies a catalog_field and the metadata_schema to use.
+    The evidence.decided will also be updated accordingly.
+    """
+    # Get draft first to retrieve snapshot_id for metadata lookup
+    draft = draft_service.get_draft(session, draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail=f"Draft {draft_id} not found")
+
+    metadata_entries = metadata_service.select_metadata(session, draft.snapshot_id)
+
+    updated_draft = draft_service.update_draft_fields(session, draft_id, request.updates, metadata_entries)
+
+    return APIResponseModel(
+        result=updated_draft.to_api_dict(),
+        description=f"Draft {draft_id} updated ({len(request.updates)} fields)",
     )
 
 

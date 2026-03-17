@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getDraft, publishDraft, discardDraft } from '../../api'
+import { getDraft, publishDraft, discardDraft, getMetadataOptions, updateDraftFields } from '../../api'
 import { StatusBadge } from '../../components'
-import type { DraftDetail, MappingCandidate } from '../../types'
+import type { DraftDetail, MetadataEntryOption, MappingCandidate } from '../../types'
+
+const EDITABLE_FIELDS = [
+  'title', 'description', 'publisher', 'issued', 'modified',
+  'keyword', 'theme', 'landing_page', 'access_url'
+] as const
+
+type EditableField = typeof EDITABLE_FIELDS[number]
 
 export default function DraftDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -13,21 +20,88 @@ export default function DraftDetailPage() {
   const [discarding, setDiscarding] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
+  // Edit mode state
+  const [isEditing, setIsEditing] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [metadataOptions, setMetadataOptions] = useState<MetadataEntryOption[]>([])
+  const [fieldSelections, setFieldSelections] = useState<Record<string, string>>({})
+  const [activeField, setActiveField] = useState<string | null>(null)
+
   useEffect(() => {
     if (id) {
-      loadDraft(Number(id))
+      loadDraftAndMetadata(Number(id))
     }
   }, [id])
 
-  const loadDraft = async (draftId: number) => {
+  const loadDraftAndMetadata = async (draftId: number) => {
     setLoading(true)
     try {
-      const data = await getDraft(draftId)
-      setDraft(data)
+      // Load draft and metadata options in parallel
+      const [draftData, options] = await Promise.all([
+        getDraft(draftId),
+        getMetadataOptions(draftId)
+      ])
+      setDraft(draftData)
+      setMetadataOptions(options)
     } catch (err) {
       console.error('Failed to load draft:', err)
     } finally {
       setLoading(false)
+    }
+  }
+
+  const handleEditStart = () => {
+    setFieldSelections({})
+    setActiveField(null)
+    setIsEditing(true)
+  }
+
+  const handleEditCancel = () => {
+    setIsEditing(false)
+    setFieldSelections({})
+    setActiveField(null)
+    setError(null)
+  }
+
+  const handleFieldClick = (field: string) => {
+    // All fields are clickable in both view and edit mode
+    setActiveField(activeField === field ? null : field)
+  }
+
+  const handleMetadataSelect = (metadataSchema: string) => {
+    if (!activeField) return
+    setFieldSelections(prev => ({ ...prev, [activeField]: metadataSchema }))
+  }
+
+  const handleClearSelection = (field: string) => {
+    setFieldSelections(prev => {
+      const updated = { ...prev }
+      delete updated[field]
+      return updated
+    })
+  }
+
+  const handleSave = async () => {
+    if (!id || Object.keys(fieldSelections).length === 0) return
+
+    setSaving(true)
+    setError(null)
+
+    try {
+      const updates = Object.entries(fieldSelections).map(([catalog_field, metadata_schema]) => ({
+        catalog_field,
+        metadata_schema,
+      }))
+
+      const updatedDraft = await updateDraftFields(Number(id), { updates })
+      setDraft(updatedDraft)
+      setIsEditing(false)
+      setFieldSelections({})
+      setActiveField(null)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to save')
+    } finally {
+      setSaving(false)
     }
   }
 
@@ -65,6 +139,32 @@ export default function DraftDetailPage() {
     }
   }
 
+  const getFieldValue = (field: EditableField): string => {
+    if (!draft) return '-'
+    const value = draft[field]
+    if (Array.isArray(value)) return value.join(', ') || '-'
+    return value || '-'
+  }
+
+  const isFieldModified = (field: string): boolean => {
+    if (!draft?.mapping_evidence?.[field]) return false
+    const evidence = draft.mapping_evidence[field]
+    return evidence.decided?.metadata_column !== evidence.recommended?.metadata_column
+  }
+
+  const getCorrelationForSchema = (field: string | null, schema: string): number | null => {
+    if (!field || !draft?.mapping_evidence?.[field]) return null
+    const candidates = draft.mapping_evidence[field].candidates || []
+    const candidate = candidates.find(c => c.metadata_column === schema)
+    return candidate?.correlation ?? null
+  }
+
+  const isCandidate = (field: string, schema: string): boolean => {
+    if (!draft?.mapping_evidence?.[field]) return false
+    const candidates = draft.mapping_evidence[field].candidates || []
+    return candidates.some(c => c.metadata_column === schema)
+  }
+
   if (loading) {
     return <div className="page"><div className="loading">Loading...</div></div>
   }
@@ -88,20 +188,40 @@ export default function DraftDetailPage() {
         <Link to="/admin/drafts" className="back-link">Back to Drafts</Link>
         {isPending && (
           <div className="header-actions">
-            <button
-              onClick={handleDiscard}
-              disabled={discarding}
-              className="btn btn-danger"
-            >
-              {discarding ? 'Discarding...' : 'Discard'}
-            </button>
-            <button
-              onClick={handlePublish}
-              disabled={publishing}
-              className="btn btn-primary"
-            >
-              {publishing ? 'Publishing...' : 'Publish'}
-            </button>
+            {isEditing ? (
+              <>
+                <button onClick={handleEditCancel} className="btn btn-secondary">
+                  Cancel
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={saving || Object.keys(fieldSelections).length === 0}
+                  className="btn btn-primary"
+                >
+                  {saving ? 'Saving...' : `Save (${Object.keys(fieldSelections).length} changes)`}
+                </button>
+              </>
+            ) : (
+              <>
+                <button onClick={handleEditStart} className="btn btn-secondary">
+                  Edit
+                </button>
+                <button
+                  onClick={handleDiscard}
+                  disabled={discarding}
+                  className="btn btn-danger"
+                >
+                  {discarding ? 'Discarding...' : 'Discard'}
+                </button>
+                <button
+                  onClick={handlePublish}
+                  disabled={publishing}
+                  className="btn btn-primary"
+                >
+                  {publishing ? 'Publishing...' : 'Publish'}
+                </button>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -116,90 +236,182 @@ export default function DraftDetailPage() {
           <StatusBadge status={draft.status} />
         </div>
 
-        <div className="draft-content">
-          <div className="draft-fields">
+        {/* 3-Column Layout */}
+        <div className="draft-three-column">
+          {/* Column 1: Mapped Fields */}
+          <div className="draft-column">
             <h2>Mapped Fields</h2>
-            <dl className="field-list">
-              <dt>Title</dt>
-              <dd>{draft.title || '-'}</dd>
+            <div className="field-cards">
+              {EDITABLE_FIELDS.map(field => {
+                const evidence = draft.mapping_evidence?.[field]
+                const pendingSelection = fieldSelections[field]
+                const pendingValue = pendingSelection
+                  ? metadataOptions.find(o => o.schema === pendingSelection)?.value
+                  : null
 
-              <dt>Description</dt>
-              <dd>{draft.description || '-'}</dd>
-
-              <dt>Publisher</dt>
-              <dd>{draft.publisher || '-'}</dd>
-
-              <dt>Issued</dt>
-              <dd>{draft.issued || '-'}</dd>
-
-              <dt>Modified</dt>
-              <dd>{draft.modified || '-'}</dd>
-
-              <dt>Keywords</dt>
-              <dd>
-                {draft.keyword?.length ? (
-                  <div className="tag-list">
-                    {draft.keyword.map((kw: string, i: number) => (
-                      <span key={i} className="keyword-tag">{kw}</span>
-                    ))}
-                  </div>
-                ) : '-'}
-              </dd>
-
-              <dt>Themes</dt>
-              <dd>
-                {draft.theme?.length ? (
-                  <div className="tag-list">
-                    {draft.theme.map((t: string, i: number) => (
-                      <span key={i} className="theme-tag">{t}</span>
-                    ))}
-                  </div>
-                ) : '-'}
-              </dd>
-
-              <dt>Landing Page</dt>
-              <dd>{draft.landing_page || '-'}</dd>
-
-              <dt>Access URL</dt>
-              <dd>{draft.access_url || '-'}</dd>
-            </dl>
-          </div>
-
-          <div className="mapping-evidence">
-            <h2>Mapping Evidence</h2>
-            {draft.mapping_evidence && Object.keys(draft.mapping_evidence).length > 0 ? (
-              <div className="evidence-list">
-                {Object.entries(draft.mapping_evidence).map(([field, evidence]: [string, { selected: MappingCandidate; alternatives: MappingCandidate[] }]) => (
-                  <div key={field} className="evidence-item">
-                    <h3>{field}</h3>
-                    <div className="selected-mapping">
-                      <span className="label">Selected:</span>
-                      <span className="value">{evidence.selected?.value || '-'}</span>
-                      <span className="source">
-                        {evidence.selected?.metadata_column}
-                        ({(evidence.selected?.correlation * 100).toFixed(0)}%)
+                return (
+                  <div
+                    key={field}
+                    className={`field-card clickable ${isEditing ? 'editable' : ''} ${activeField === field ? 'active' : ''} ${pendingSelection ? 'pending-change' : ''}`}
+                    onClick={() => handleFieldClick(field)}
+                  >
+                    <div className="field-card-header">
+                      <span className="field-name">
+                        {field.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}
                       </span>
+                      {isFieldModified(field) && <span className="modified-badge">Modified</span>}
+                      {pendingSelection && <span className="pending-badge">Pending</span>}
                     </div>
-                    {evidence.alternatives?.length > 0 && (
-                      <div className="alternatives">
-                        <span className="label">Alternatives:</span>
-                        <ul>
-                          {evidence.alternatives.map((alt: MappingCandidate, i: number) => (
-                            <li key={i}>
-                              <span className="value">{alt.value || '(empty)'}</span>
-                              <span className="source">
-                                {alt.metadata_column} ({(alt.correlation * 100).toFixed(0)}%)
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
+                    <div className="field-card-value">
+                      {pendingSelection ? (
+                        <>
+                          <div className="pending-value">
+                            <span className="label">New:</span>
+                            <span className="value">{pendingValue || '-'}</span>
+                            <button
+                              className="clear-btn"
+                              onClick={(e) => { e.stopPropagation(); handleClearSelection(field); }}
+                            >
+                              ×
+                            </button>
+                          </div>
+                          <div className="current-value-small">
+                            Current: {getFieldValue(field)}
+                          </div>
+                        </>
+                      ) : (
+                        field === 'keyword' || field === 'theme' ? (
+                          draft[field]?.length ? (
+                            <div className="tag-list">
+                              {draft[field]!.map((item: string, i: number) => (
+                                <span key={i} className={`${field === 'keyword' ? 'keyword' : 'theme'}-tag`}>{item}</span>
+                              ))}
+                            </div>
+                          ) : <span className="empty">-</span>
+                        ) : (
+                          <span className={getFieldValue(field) === '-' ? 'empty' : ''}>{getFieldValue(field)}</span>
+                        )
+                      )}
+                    </div>
+                    {evidence?.decided && (
+                      <div className="field-card-source">
+                        <span className="schema">{evidence.decided.metadata_column}</span>
+                        {evidence.decided.correlation !== null && (
+                          <span className="correlation"><span className="score">{(evidence.decided.correlation * 100).toFixed(0)}%</span></span>
+                        )}
                       </div>
                     )}
                   </div>
-                ))}
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Column 2: Mapping Evidence */}
+          <div className="draft-column">
+            <h2>Mapping Evidence {activeField && <span className="active-field-label">({activeField})</span>}</h2>
+            {activeField && draft.mapping_evidence?.[activeField] ? (
+              <div className="evidence-detail">
+                {(() => {
+                  const evidence = draft.mapping_evidence[activeField]
+                  return (
+                    <>
+                      <div className="evidence-section">
+                        <h3>Decided</h3>
+                        <div className={`evidence-item-card ${evidence.decided?.out_of_candidates ? 'out-of-candidates' : ''}`}>
+                          <div className="evidence-schema">{evidence.decided?.metadata_column}</div>
+                          <div className="evidence-value">{evidence.decided?.value || '-'}</div>
+                          <div className="evidence-meta">
+                            {evidence.decided?.correlation !== null && (
+                              <span className="correlation">Correlation <span className="score">{(evidence.decided.correlation * 100).toFixed(0)}%</span></span>
+                            )}
+                            {evidence.decided?.out_of_candidates && (
+                              <span className="out-badge">Out of candidates</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      {evidence.recommended && (
+                        <div className="evidence-section">
+                          <h3>Recommended</h3>
+                          <div className="evidence-item-card recommended">
+                            <div className="evidence-schema">{evidence.recommended.metadata_column}</div>
+                            <div className="evidence-value">{evidence.recommended.value || '-'}</div>
+                            {evidence.recommended.correlation !== null && evidence.recommended.correlation !== undefined && (
+                              <div className="evidence-meta">
+                                <span className="correlation">Correlation <span className="score">{(evidence.recommended.correlation * 100).toFixed(0)}%</span></span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="evidence-section">
+                        <h3>Candidates ({evidence.candidates?.length || 0})</h3>
+                        <div className="candidates-list">
+                          {evidence.candidates?.map((candidate: MappingCandidate, i: number) => (
+                            <div
+                              key={i}
+                              className={`candidate-item ${candidate.metadata_column === evidence.decided?.metadata_column ? 'is-decided' : ''} ${candidate.metadata_column === evidence.recommended?.metadata_column ? 'is-recommended' : ''}`}
+                            >
+                              <div className="candidate-schema">{candidate.metadata_column}</div>
+                              <div className="candidate-value">{candidate.value || '(empty)'}</div>
+                              <div className="candidate-meta">
+                                <span className="correlation">Correlation <span className="score">{(candidate.correlation * 100).toFixed(0)}%</span></span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </>
+                  )
+                })()}
               </div>
             ) : (
-              <p className="no-evidence">No mapping evidence available</p>
+              <div className="evidence-placeholder">
+                {activeField
+                  ? `No mapping evidence for "${activeField.replace(/_/g, ' ')}"`
+                  : draft.mapping_evidence && Object.keys(draft.mapping_evidence).length > 0
+                    ? 'Click a field on the left to view its mapping evidence'
+                    : 'No mapping evidence available'
+                }
+              </div>
+            )}
+          </div>
+
+          {/* Column 3: Metadata Entries */}
+          <div className="draft-column">
+            <h2>Metadata Entries {metadataOptions.length > 0 && <span className="count">({metadataOptions.length})</span>}</h2>
+            {metadataOptions.length > 0 ? (
+              <div className="metadata-list">
+                {metadataOptions.map(opt => {
+                  const correlation = getCorrelationForSchema(activeField, opt.schema)
+                  const isCandidateForField = activeField ? isCandidate(activeField, opt.schema) : false
+                  const isSelected = activeField && isEditing && fieldSelections[activeField] === opt.schema
+                  const isCurrentDecided = activeField && draft.mapping_evidence?.[activeField]?.decided?.metadata_column === opt.schema
+
+                  return (
+                    <div
+                      key={opt.schema}
+                      className={`metadata-item ${isCandidateForField ? 'is-candidate' : ''} ${isSelected ? 'selected' : ''} ${isCurrentDecided ? 'is-current' : ''} ${!isEditing || !activeField ? 'readonly' : ''}`}
+                      onClick={() => isEditing && activeField && handleMetadataSelect(opt.schema)}
+                    >
+                      <div className="metadata-schema">
+                        {opt.schema}
+                        {isCandidateForField && <span className="candidate-badge">Candidate</span>}
+                        {isCurrentDecided && <span className="current-badge">Current</span>}
+                      </div>
+                      <div className="metadata-value">{opt.value || '(empty)'}</div>
+                      {correlation !== null && (
+                        <div className="metadata-correlation">Correlation <span className="score">{(correlation * 100).toFixed(0)}%</span></div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            ) : (
+              <div className="metadata-placeholder">No metadata entries available</div>
             )}
           </div>
         </div>
