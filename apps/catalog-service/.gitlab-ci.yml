@@ -60,6 +60,9 @@ pyright-lint:
     - echo "Running before_script tasks for $CI_JOB_NAME";
     - uv sync --group test
     - source .venv/bin/activate
+  rules:
+    - changes:
+        - $APP_DIR/**/*
 
 pytest:
   extends: .app-test
