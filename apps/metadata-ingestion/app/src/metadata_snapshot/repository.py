@@ -23,11 +23,13 @@ class MetadataSnapshotRepository:
 
     def find_latest_by_hash(self, db: Session, payload_sha256: str) -> Optional[MetadataSnapshot]:
         """Find most recent snapshot with matching content hash."""
-        # TODO: ingested_at만으로는 동일 시간 삽입 시 순서 보장 안됨. id로 secondary ordering 추가 필요
         stmt = (
             select(MetadataSnapshot)
             .where(MetadataSnapshot.payload_sha256 == payload_sha256)
-            .order_by(MetadataSnapshot.ingested_at.desc())  # type: ignore[union-attr]
+            .order_by(
+                MetadataSnapshot.ingested_at.desc(),  # type: ignore[union-attr]
+                MetadataSnapshot.snapshot_id.desc(),  # secondary: snapshot_id contains timestamp
+            )
             .limit(1)
         )
         return db.exec(stmt).first()
