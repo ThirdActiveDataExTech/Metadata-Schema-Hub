@@ -22,13 +22,18 @@ class MetadataSnapshotRepository:
         return db.exec(stmt).first()
 
     def find_latest_by_hash(self, db: Session, payload_sha256: str) -> Optional[MetadataSnapshot]:
-        """Find most recent snapshot with matching content hash."""
+        """Find most recent snapshot with matching content hash.
+
+        Order by:
+            1. ingested_at DESC (insertion timestamp)
+            2. snapshot_id DESC (tiebreaker: snapshot_id embeds unix timestamp)
+        """
         stmt = (
             select(MetadataSnapshot)
             .where(MetadataSnapshot.payload_sha256 == payload_sha256)
             .order_by(
                 MetadataSnapshot.ingested_at.desc(),  # type: ignore[union-attr]
-                MetadataSnapshot.snapshot_id.desc(),  # secondary: snapshot_id contains timestamp
+                MetadataSnapshot.snapshot_id.desc(),  # type: ignore[union-attr]
             )
             .limit(1)
         )
