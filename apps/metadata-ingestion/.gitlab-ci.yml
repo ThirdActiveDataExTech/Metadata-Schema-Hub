@@ -66,12 +66,11 @@ pytest:
   services:
     - name: postgres:17.4
       alias: postgres
-  variables:
-    POSTGRES_DB: test_db
-    POSTGRES_USER: postgres
-    POSTGRES_PASSWORD: $POSTGRES_TEST_PASSWORD
-    POSTGRES_HOST: postgres
   script:
+    - export POSTGRES_USER=${POSTGRES_USER:-postgres}
+    - export POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-postgres}
+    - export POSTGRES_DB=${POSTGRES_DB:-test_db}
+    - export POSTGRES_HOST=${POSTGRES_HOST:-postgres}
     - export PYTHONPATH=./app
     - pytest --cov --cov-report term --cov-report xml:coverage.xml --junitxml=report.xml -v tests
   parallel:
