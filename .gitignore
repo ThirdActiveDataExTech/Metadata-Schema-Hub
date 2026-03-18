@@ -36,3 +36,6 @@ archive.zip
 
 # macOS temporary files
 .DS_Store
+
+# Environment files
+.env

@@ -167,14 +167,12 @@ class TestColumnRelationService:
         assert all(r.catalog_column == "title" for r in saved_relations)
 
     def test_replace_catalog_relations_empty_predictions(self, column_relation_service, mock_db_session):
-        """Should handle empty predictions (delete only)."""
-        column_relation_service.repository.delete_relations_by_catalog_column.return_value = 2
-        column_relation_service.repository.save_bulk.return_value = []
-
+        """Should return empty list without modifying database when predictions empty."""
         result = column_relation_service.replace_catalog_relations(mock_db_session, "title", [])
 
-        column_relation_service.repository.delete_relations_by_catalog_column.assert_called_once()
-        column_relation_service.repository.save_bulk.assert_called_once()
+        # No database operations - safe no-op for empty input
+        column_relation_service.repository.delete_relations_by_catalog_column.assert_not_called()
+        column_relation_service.repository.save_bulk.assert_not_called()
         assert result == []
 
     def test_replace_catalog_relations_creates_correct_objects(self, column_relation_service, mock_db_session):

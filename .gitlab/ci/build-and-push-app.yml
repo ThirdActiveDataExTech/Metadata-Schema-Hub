@@ -15,10 +15,9 @@
     - cd $APP_DIR
     - apk add --no-cache tzdata
     - |
-      set -o allexport
-      source .env
+      MAJOR_VERSION=$(grep -E "^version\s*=" pyproject.toml | head -1 | cut -d'"' -f2)
+      STATUS=${STATUS:-dev}
       VERSION=${MAJOR_VERSION}.$(date +'%y%m.%d')-${STATUS}-$CI_COMMIT_SHORT_SHA
-      set +o allexport
     - IMAGE_TAG=$CI_REGISTRY_IMAGE/$APP_NAME:$VERSION
     - X_TOKEN=${X_TOKEN}
     - BUILD_DATE=$(date +'%Y-%m-%d %H:%M:%S')
