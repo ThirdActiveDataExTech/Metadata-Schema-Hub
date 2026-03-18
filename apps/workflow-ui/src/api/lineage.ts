@@ -1,6 +1,7 @@
 import type { APIResponse, EventListResponse, LineageGraph } from '../types'
+import { apiFetch } from './common'
 
-const API_BASE = '/api'
+const API_BASE = '/api/v1/catalog-service'
 
 export async function fetchLineageEvents(params?: {
   jobName?: string
@@ -15,13 +16,13 @@ export async function fetchLineageEvents(params?: {
   if (params?.offset) searchParams.set('offset', String(params.offset))
 
   const url = `${API_BASE}/lineage/events?${searchParams.toString()}`
-  const response = await fetch(url)
+  const response = await apiFetch(url)
   const data: APIResponse<EventListResponse> = await response.json()
   return data.result
 }
 
 export async function fetchLineageGraph(snapshotId: string): Promise<LineageGraph> {
-  const response = await fetch(`${API_BASE}/lineage/graph/${encodeURIComponent(snapshotId)}`)
+  const response = await apiFetch(`${API_BASE}/lineage/graph/${encodeURIComponent(snapshotId)}`)
   const data: APIResponse<LineageGraph> = await response.json()
   return data.result
 }

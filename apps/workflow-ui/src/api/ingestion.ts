@@ -1,12 +1,13 @@
 import type { APIResponse, StoreResult, DraftCreationResult, IngestionRun, IngestionRunListResponse, PublishResult, DiscardResult, MetadataEntryOption, DraftFieldsUpdatePayload, DraftDetail } from '../types'
+import { apiFetch } from './common'
 
-const INGESTION_API_BASE = '/ingestion-api'
+const INGESTION_API_BASE = '/api/v1/metadata-ingestion'
 
 export async function storeMetadata(file: File): Promise<StoreResult> {
   const formData = new FormData()
   formData.append('file', file)
 
-  const response = await fetch(`${INGESTION_API_BASE}/ingestion/store`, {
+  const response = await apiFetch(`${INGESTION_API_BASE}/ingestion/store`, {
     method: 'POST',
     body: formData,
   })
@@ -21,7 +22,7 @@ export async function storeMetadata(file: File): Promise<StoreResult> {
 }
 
 export async function createDraft(runId: number): Promise<DraftCreationResult> {
-  const response = await fetch(`${INGESTION_API_BASE}/ingestion/draft/${runId}`, {
+  const response = await apiFetch(`${INGESTION_API_BASE}/ingestion/draft/${runId}`, {
     method: 'POST',
   })
 
@@ -41,19 +42,19 @@ export async function listIngestionRuns(params?: { state?: string; limit?: numbe
   if (params?.offset) searchParams.set('offset', String(params.offset))
 
   const url = `${INGESTION_API_BASE}/ingestion/runs?${searchParams.toString()}`
-  const response = await fetch(url)
+  const response = await apiFetch(url)
   const data: APIResponse<IngestionRunListResponse> = await response.json()
   return data.result
 }
 
 export async function getIngestionRun(runId: number): Promise<IngestionRun> {
-  const response = await fetch(`${INGESTION_API_BASE}/ingestion/runs/${runId}`)
+  const response = await apiFetch(`${INGESTION_API_BASE}/ingestion/runs/${runId}`)
   const data: APIResponse<IngestionRun> = await response.json()
   return data.result
 }
 
 export async function publishDraft(draftId: number): Promise<PublishResult> {
-  const response = await fetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/publish`, {
+  const response = await apiFetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/publish`, {
     method: 'POST',
   })
 
@@ -67,7 +68,7 @@ export async function publishDraft(draftId: number): Promise<PublishResult> {
 }
 
 export async function discardDraft(draftId: number): Promise<DiscardResult> {
-  const response = await fetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/discard`, {
+  const response = await apiFetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/discard`, {
     method: 'POST',
   })
 
@@ -81,7 +82,7 @@ export async function discardDraft(draftId: number): Promise<DiscardResult> {
 }
 
 export async function getMetadataOptions(draftId: number): Promise<MetadataEntryOption[]> {
-  const response = await fetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/metadata-options`)
+  const response = await apiFetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/metadata-options`)
 
   if (!response.ok) {
     const error = await response.json()
@@ -93,7 +94,7 @@ export async function getMetadataOptions(draftId: number): Promise<MetadataEntry
 }
 
 export async function updateDraftFields(draftId: number, payload: DraftFieldsUpdatePayload): Promise<DraftDetail> {
-  const response = await fetch(`${INGESTION_API_BASE}/draft/entries/${draftId}`, {
+  const response = await apiFetch(`${INGESTION_API_BASE}/draft/entries/${draftId}`, {
     method: 'PATCH',
     headers: {
       'Content-Type': 'application/json',
