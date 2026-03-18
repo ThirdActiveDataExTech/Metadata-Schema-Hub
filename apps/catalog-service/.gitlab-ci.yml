@@ -71,6 +71,9 @@ pytest:
     POSTGRES_USER: postgres
     POSTGRES_PASSWORD: $POSTGRES_TEST_PASSWORD
     POSTGRES_HOST: postgres
+  script:
+    - export PYTHONPATH=./app
+    - pytest --cov --cov-report term --cov-report xml:coverage.xml --junitxml=report.xml -v tests
   parallel:
     matrix:
       - PYTHON_VERSION: ["3.11"]

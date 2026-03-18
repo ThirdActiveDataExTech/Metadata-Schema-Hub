@@ -1,0 +1,57 @@
+stages:
+  - lint
+  - build-and-push-app
+  - container_test
+  - push-to-github
+
+include:
+  - local: /.gitlab/ci/build-and-push-node-app.yml
+  - local: /.gitlab/ci/push-to-github-registry.yml
+  - project: wisenut-research/starter/templates/gitlab-ci-template
+    ref: main
+    file:
+      - templates/Security/Container-Scanning.gitlab-ci.yml
+
+variables:
+  APP_NAME: workflow-ui
+  APP_DIR: apps/workflow-ui
+
+default:
+  image: node:20-alpine
+  before_script:
+    - cd $APP_DIR
+    - npm ci
+
+typecheck:
+  stage: lint
+  script:
+    - npx tsc --noEmit
+  rules:
+    - changes:
+        - $APP_DIR/**/*
+
+build-check:
+  stage: lint
+  script:
+    - npm run build
+  rules:
+    - changes:
+        - $APP_DIR/**/*
+
+build-and-push-app:
+  extends: .build-and-push-node-app-monorepo
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - $APP_DIR/**/*
+
+container_scanning:
+  variables:
+    CS_IMAGE: "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
+
+push-to-github-registry:
+  extends: .push-to-github-registry
+  rules:
+    - if: $CI_COMMIT_BRANCH == "github"
+      changes:
+        - $APP_DIR/**/*
