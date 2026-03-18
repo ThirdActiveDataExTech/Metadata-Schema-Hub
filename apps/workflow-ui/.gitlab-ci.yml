@@ -1,4 +1,5 @@
 stages:
+  - lint
   - build-and-push-app
   - container_test
   - push-to-github
@@ -14,6 +15,28 @@ include:
 variables:
   APP_NAME: workflow-ui
   APP_DIR: apps/workflow-ui
+
+default:
+  image: node:20-alpine
+  before_script:
+    - cd $APP_DIR
+    - npm ci
+
+typecheck:
+  stage: lint
+  script:
+    - npx tsc --noEmit
+  rules:
+    - changes:
+        - $APP_DIR/**/*
+
+build-check:
+  stage: lint
+  script:
+    - npm run build
+  rules:
+    - changes:
+        - $APP_DIR/**/*
 
 build-and-push-app:
   extends: .build-and-push-node-app-monorepo
