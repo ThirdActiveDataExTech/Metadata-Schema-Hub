@@ -1,8 +1,7 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Body
-
 from active_metadata.models import ColumnRelationBase
+from fastapi import APIRouter, Body
 
 from app.dependencies import SessionDep
 from app.schemas.response import APIResponseModel
@@ -20,6 +19,10 @@ router = APIRouter(prefix="/relation", tags=["relation"])
     "/",
     summary="컬럼 관계 생성",
     response_model=APIResponseModel[ColumnRelationResponse],
+    responses={
+        409: {"description": "동일한 catalog_column과 metadata_column 조합이 이미 존재함"},
+        422: {"description": "요청 데이터 검증 실패 (correlation 범위 초과 등)"},
+    },
 )
 async def create_column_relation(
     session: SessionDep,
@@ -46,4 +49,4 @@ async def create_column_relation(
         ),
     )
 
-    return APIResponseModel(result=result, description="Created Relation.")
+    return APIResponseModel(result=result, description="컬럼 관계 생성 완료")

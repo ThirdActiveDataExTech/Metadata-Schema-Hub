@@ -10,9 +10,17 @@ from sqlmodel import Session
 
 from app.src.catalog_entry.model import CatalogEntry
 from app.src.catalog_entry.service import CatalogEntryService
+from app.src.catalog_entry_draft.exceptions import (
+    DraftFieldNotEditableError,
+    DraftMetadataSchemaNotFoundError,
+    DraftNotFoundError,
+    DraftNotPendingError,
+)
 from app.src.catalog_entry_draft.model import (
     CatalogEntryDraft,
     CatalogEntryDraftCreate,
+    DecidedMapping,
+    DraftFieldUpdate,
     MappingCandidate,
     MappingEvidence,
 )
@@ -50,10 +58,13 @@ class CatalogEntryDraftService:
         relations: list[ColumnRelation],
         top_k: int = 3,
     ) -> dict[str, MappingEvidence]:
-        """Build mapping evidence per catalog column.
+        """Build mapping evidence per catalog column (3-key structure).
 
         Returns:
-            Evidence map: catalog_column -> MappingEvidence (contains selected value + alternatives)
+            Evidence map: catalog_column -> MappingEvidence
+            - candidates: top-k candidates from column_relation
+            - recommended: algorithm's top-1 recommendation
+            - decided: initial value = recommended (editable by user)
         """
         # Build metadata lookup dict
         metadata_dict = {entry.metadata_schema: entry.value for entry in metadata_entries}
@@ -73,13 +84,19 @@ class CatalogEntryDraftService:
                     )
                 )
 
-        # Build evidence (top-k candidates per column)
+        # Build evidence (candidates + recommended + decided)
         evidence_map: dict[str, MappingEvidence] = {}
         for catalog_column, candidates in column_candidates.items():
             if candidates:
+                recommended = candidates[0]
                 evidence_map[catalog_column] = MappingEvidence(
-                    selected=candidates[0],
-                    alternatives=candidates[1:top_k] if len(candidates) > 1 else [],
+                    candidates=candidates[:top_k],
+                    recommended=recommended,
+                    decided=DecidedMapping(
+                        metadata_column=recommended.metadata_column,
+                        correlation=recommended.correlation,
+                        value=recommended.value,
+                    ),
                 )
 
         return evidence_map
@@ -96,7 +113,7 @@ class CatalogEntryDraftService:
         evidence_map = self.build_mapping_with_evidence(metadata_entries, relations)
 
         # Extract mapped fields from evidence (top-1 value)
-        mapped_fields = {col: ev.selected.value for col, ev in evidence_map.items()}
+        mapped_fields = {col: ev.decided.value for col, ev in evidence_map.items()}
 
         # Convert field types (str -> date, str -> list[str])
         typed_fields = convert_field_types(
@@ -140,17 +157,19 @@ class CatalogEntryDraftService:
         return None
 
     def _get_draft_or_raise(self, db: Session, draft_id: int) -> CatalogEntryDraft:
-        """Get draft by ID or raise ValueError."""
+        """Get draft by ID or raise DraftNotFoundError."""
         draft = self.repository.find_by_id(db, draft_id)
         if not draft:
-            raise ValueError(f"Draft not found: {draft_id}")
-        if draft.status != DraftStatus.PENDING:
-            raise ValueError(f"Draft {draft_id} is not in PENDING status: {draft.status}")
+            raise DraftNotFoundError(draft_id)
         return draft
 
     def discard(self, db: Session, draft_id: int) -> CatalogEntryDraft:
         """Discard a draft (change status to DISCARDED)."""
         draft = self._get_draft_or_raise(db, draft_id)
+
+        if draft.status != DraftStatus.PENDING:
+            raise DraftNotPendingError(draft.id, draft.status)  # type: ignore[arg-type]
+
         draft.status = DraftStatus.DISCARDED
         updated_draft = self.repository.update(db, draft)
         db.flush()
@@ -161,6 +180,9 @@ class CatalogEntryDraftService:
         """Publish draft to catalog entry."""
         # TODO: catalog_entry service 쪽으로 로직 이동
         draft = self._get_draft_or_raise(db, draft_id)
+
+        if draft.status != DraftStatus.PENDING:
+            raise DraftNotPendingError(draft.id, draft.status)  # type: ignore[arg-type]
 
         catalog_entry = CatalogEntry(
             title=draft.title,
@@ -185,6 +207,119 @@ class CatalogEntryDraftService:
             PublishCompleted(
                 draft_id=draft_id,
                 catalog_entry_id=saved_entry.id,  # type: ignore[arg-type]
+                recommendation_followed=self._is_recommendation_followed(draft),
             )
         )
         return saved_entry
+
+    def _is_recommendation_followed(self, draft: CatalogEntryDraft) -> bool:
+        """Check if all decided values match recommended."""
+        for evidence_dict in draft.mapping_evidence.values():
+            evidence = MappingEvidence.model_validate(evidence_dict)
+            if evidence.recommended is None:
+                continue
+            if evidence.decided.metadata_column != evidence.recommended.metadata_column:
+                return False
+        return True
+
+    def update_draft_fields(
+        self,
+        db: Session,
+        draft_id: int,
+        updates: list[DraftFieldUpdate],
+        metadata_entries: list[MetadataEntry],
+    ) -> CatalogEntryDraft:
+        """Update draft fields by selecting from metadata_entries.
+
+        Args:
+            db: Database session
+            draft_id: Draft ID to update
+            updates: List of field updates (catalog_field, metadata_schema)
+            metadata_entries: Available metadata entries for the draft's snapshot
+
+        Returns:
+            Updated draft with modified fields and evidence.decided
+
+        Raises:
+            DraftNotFoundError: If draft doesn't exist
+            DraftNotPendingError: If draft is not in PENDING status
+            DraftFieldNotEditableError: If catalog_field is not editable
+            DraftMetadataSchemaNotFoundError: If metadata_schema doesn't exist
+        """
+        draft = self._get_draft_or_raise(db, draft_id)
+
+        if draft.status != DraftStatus.PENDING:
+            raise DraftNotPendingError(draft_id, draft.status)  # type: ignore[arg-type]
+
+        # Build metadata lookup dict
+        metadata_dict = {e.metadata_schema: e.value for e in metadata_entries}
+
+        # TODO: catalog_entry.get_content_fields()
+        editable_fields = {
+            "title",
+            "description",
+            "issued",
+            "modified",
+            "publisher",
+            "keyword",
+            "theme",
+            "landing_page",
+            "access_url",
+        }
+
+        for update in updates:
+            # Validate catalog_field
+            if update.catalog_field not in editable_fields:
+                raise DraftFieldNotEditableError(update.catalog_field)
+
+            # Validate metadata_schema exists
+            if update.metadata_schema not in metadata_dict:
+                raise DraftMetadataSchemaNotFoundError(update.metadata_schema)
+
+            value = metadata_dict[update.metadata_schema]
+
+            # Convert field type (str -> date, str -> list[str])
+            typed_value = convert_field_types(
+                {update.catalog_field: value},
+                list_fields=CatalogEntryDraftBase.get_list_fields(),
+                date_fields=CatalogEntryDraftBase.get_date_fields(),
+            ).get(update.catalog_field, value)
+
+            # Update draft field
+            setattr(draft, update.catalog_field, typed_value)
+
+            # Update or create evidence.decided using Pydantic models
+            evidence_dict = draft.mapping_evidence.get(update.catalog_field)
+            if evidence_dict:
+                evidence = MappingEvidence.model_validate(evidence_dict)
+                candidate_schemas = [c.metadata_column for c in evidence.candidates]
+                is_out_of_candidates = update.metadata_schema not in candidate_schemas
+
+                # Find correlation from candidates
+                correlation = next(
+                    (c.correlation for c in evidence.candidates if c.metadata_column == update.metadata_schema),
+                    None,
+                )
+
+                evidence.decided = DecidedMapping(
+                    metadata_column=update.metadata_schema,
+                    correlation=correlation,
+                    value=value,
+                    out_of_candidates=is_out_of_candidates,
+                )
+            else:
+                # Create new evidence for field that had no candidates
+                evidence = MappingEvidence(
+                    candidates=[],
+                    recommended=None,
+                    decided=DecidedMapping(
+                        metadata_column=update.metadata_schema,
+                        correlation=None,
+                        value=value,
+                        out_of_candidates=True,
+                    ),
+                )
+
+            draft.mapping_evidence[update.catalog_field] = evidence.model_dump()
+
+        return self.repository.update(db, draft)
