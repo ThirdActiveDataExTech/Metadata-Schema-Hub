@@ -27,3 +27,13 @@ metadata-ingestion:
   rules:
     - changes:
         - apps/metadata-ingestion/**/*
+
+# Trigger child pipeline for workflow-ui
+workflow-ui:
+  stage: trigger
+  trigger:
+    include: apps/workflow-ui/.gitlab-ci.yml
+    strategy: depend
+  rules:
+    - changes:
+        - apps/workflow-ui/**/*

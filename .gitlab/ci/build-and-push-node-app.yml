@@ -1,0 +1,36 @@
+.build-and-push-node-app-monorepo:
+  stage: build-and-push-app
+  image: docker:24.0.5
+  services:
+    - docker:24.0.5-dind
+  variables:
+    PIPELINE_SEQUENCE: $CI_PIPELINE_IID
+    TZ: "Asia/Seoul"
+    FF_TIMESTAMPS: true
+    IMAGE_TAG_LATEST: "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
+    DOCKER_HOST: tcp://docker:2376
+    DOCKER_TLS_CERTDIR: "/certs"
+  before_script:
+    - cd $APP_DIR
+    - apk add --no-cache tzdata jq
+    - |
+      MAJOR_VERSION=$(jq -r '.version' package.json)
+      STATUS=${STATUS:-dev}
+      VERSION=${MAJOR_VERSION}.$(date +'%y%m.%d')-${STATUS}-$CI_COMMIT_SHORT_SHA
+    - IMAGE_TAG=$CI_REGISTRY_IMAGE/$APP_NAME:$VERSION
+    - BUILD_DATE=$(date +'%Y-%m-%d %H:%M:%S')
+    - |
+      echo "export const versionInfo = {" > src/version-info.ts
+      echo "  version: '$VERSION'," >> src/version-info.ts
+      echo "  gitBranch: '$CI_COMMIT_BRANCH'," >> src/version-info.ts
+      echo "  gitRevision: '$CI_COMMIT_SHA'," >> src/version-info.ts
+      echo "  gitShortRevision: '$CI_COMMIT_SHORT_SHA'," >> src/version-info.ts
+      echo "  buildDate: '$BUILD_DATE'," >> src/version-info.ts
+      echo "};" >> src/version-info.ts
+    - cd $CI_PROJECT_DIR
+  script:
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY || exit 1
+    - docker pull $IMAGE_TAG_LATEST || true
+    - docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $IMAGE_TAG_LATEST -f $APP_DIR/Dockerfile -t $IMAGE_TAG -t $IMAGE_TAG_LATEST .
+    - docker push $IMAGE_TAG
+    - docker push $IMAGE_TAG_LATEST
