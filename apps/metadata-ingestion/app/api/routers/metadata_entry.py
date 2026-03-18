@@ -1,5 +1,5 @@
-import pathlib
 import json
+import pathlib
 from collections import defaultdict
 from datetime import datetime
 from typing import Annotated, Any, Dict, List, Optional, Tuple
@@ -52,7 +52,8 @@ async def get_metadata_filter_keys(
     """메타데이터 검색 시 사용 가능한 필터 스키마 목록을 조회합니다.
 
     DB에 저장된 모든 고유한 `metadata_schema` 값을 반환합니다.
-    이 목록은 메타데이터 필터 UI 구성이나 검색 옵션 제공에 활용됩니다."""
+    이 목록은 메타데이터 필터 UI 구성이나 검색 옵션 제공에 활용됩니다.
+    """
     filters = service.get_all_metadata_schemas(db=session)
     return APIResponseModel(result={"filters": filters}, description=f"필터 스키마 목록 조회 완료. 총 {len(filters)}개")
 
@@ -120,12 +121,7 @@ async def search_metadata_entries(
     조건이 없으면 전체 목록을 반환합니다.
 
     메타데이터는 원본 파일에서 추출된 `key-value` 쌍으로 저장되어 있으며,
-    동일한 `metadata_id`를 가진 엔트리들은 하나의 원본 파일에서 추출된 것입니다.
-
-    **사용 사례:**
-    1. 전체 목록 조회: 조건 없이 호출
-    2. 메타데이터 검색: `query`, `schema`, `metadata_id` 조건 제공
-    3. 필터 value 조회: `schema`만 지정하여 특정 key의 value 목록 조회"""
+    동일한 `metadata_id`를 가진 엔트리들은 하나의 원본 파일에서 추출된 것입니다."""
 
     # 검색 조건 존재 여부 확인
     has_search_params = bool(query or schema or metadata_id)
@@ -273,9 +269,7 @@ async def ingest_metadata(
         ),
     )
 
-    catalog_result = transform_service.transform_catalog_entry(
-        db=session, catalog_entry_id=catalog_draft.id
-    )
+    catalog_result = transform_service.transform_catalog_entry(db=session, catalog_entry_id=catalog_draft.id)
 
     return APIResponseModel(
         result={"catalog_result": catalog_result, "metadata_result": metadata_result},
@@ -427,7 +421,7 @@ async def get_metadata_entry(
     하나의 원본 파일에서 추출된 모든 메타데이터 항목을 확인할 수 있습니다."""
     result = service.select_metadata(session, metadata_id=metadata_id)
 
-    return APIResponseModel(result=result, description="Metadata Found.")
+    return APIResponseModel(result=result, description="메타데이터 조회 완료")
 
 
 @router.post(
@@ -568,9 +562,7 @@ async def ingest_form(
         ),
     )
 
-    catalog_result = transform_service.transform_catalog_entry(
-        db=session, catalog_entry_id=catalog_draft.id
-    )
+    catalog_result = transform_service.transform_catalog_entry(db=session, catalog_entry_id=catalog_draft.id)
 
     return APIResponseModel(
         result={"catalog_result": catalog_result, "metadata_result": metadata_result},

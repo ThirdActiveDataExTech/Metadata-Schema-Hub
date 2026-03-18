@@ -3,10 +3,10 @@ import json
 from datetime import date
 from typing import Annotated, Any, Dict, List, Literal, Optional
 
+from active_metadata.types import SnapshotIdentifier
 from fastapi import APIRouter, Path, Query
 from starlette.responses import StreamingResponse
 
-from active_metadata.types import SnapshotIdentifier
 from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
@@ -22,9 +22,7 @@ router = APIRouter(prefix="/catalog", tags=["catalog"], route_class=ExceptionHan
     "/entries/{catalog_entry_id}",
     summary="카탈로그 엔트리 조회",
     response_model=APIResponseModel[CatalogEntryResponse],
-    responses={
-        404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}
-    },
+    responses={404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}},
 )
 async def get_catalog_entry(
     session: SessionDep,
@@ -40,7 +38,7 @@ async def get_catalog_entry(
 
     DCAT 표준 기반의 카탈로그 엔트리 정보를 반환합니다."""
     catalog_entry = service.get_catalog_entry(db=session, catalog_entry_id=catalog_entry_id)
-    return APIResponseModel(result=catalog_entry, description="Entry Found.")
+    return APIResponseModel(result=catalog_entry, description="카탈로그 엔트리 조회 완료")
 
 
 @router.get(
@@ -89,9 +87,7 @@ async def get_raw_metadata(
     "/entries/{catalog_entry_id}/rdf",
     summary="RDF 표현 조회",
     response_model=APIResponseModel[Dict[str, Any]],
-    responses={
-        404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}
-    },
+    responses={404: {"description": "해당 ID의 카탈로그 엔트리가 존재하지 않음"}},
 )
 async def get_rdf_representation(
     session: SessionDep,
@@ -347,5 +343,3 @@ async def export_catalog_entries_csv(
         media_type="text/csv",
         headers={"Content-Disposition": "attachment; filename=catalog_entries.csv"},
     )
-
-

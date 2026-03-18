@@ -16,6 +16,9 @@ router = APIRouter(prefix="/relation", tags=["relation"])
     "/catalog-column",
     summary="카탈로그 컬럼 기반 관계 조회",
     response_model=APIResponseModel[List[ColumnRelationResponse]],
+    responses={
+        404: {"description": "해당 카탈로그 컬럼에 매핑된 관계가 존재하지 않음"},
+    },
 )
 async def get_relations_by_catalog_column(
     session: SessionDep,
@@ -37,16 +40,18 @@ async def get_relations_by_catalog_column(
 
     주어진 카탈로그 컬럼에 연관된 모든 메타데이터 스키마와
     각각의 연관성 점수를 반환합니다. 결과는 연관성 점수 기준으로 내림차순 정렬됩니다."""
-
     result = service.get_relations_by_catalog_column(db=session, catalog_column=catalog_column)
 
-    return APIResponseModel(result=result, description="Found related Relations by catalog_column.")
+    return APIResponseModel(result=result, description=f"카탈로그 컬럼 '{catalog_column}' 관계 {len(result)}건 조회")
 
 
 @router.get(
     "/metadata-column",
     summary="메타데이터 컬럼 기반 관계 조회",
     response_model=APIResponseModel[List[ColumnRelationResponse]],
+    responses={
+        404: {"description": "해당 메타데이터 스키마에 매핑된 관계가 존재하지 않음"},
+    },
 )
 async def get_relations_by_metadata_column(
     session: SessionDep,
@@ -70,4 +75,4 @@ async def get_relations_by_metadata_column(
     각각의 연관성 점수를 반환합니다. 결과는 연관성 점수 기준으로 내림차순 정렬됩니다."""
     result = service.get_relations_by_metadata_column(db=session, metadata_column=metadata_column)
 
-    return APIResponseModel(result=result, description="Found related Relations by metadata_column.")
+    return APIResponseModel(result=result, description=f"메타데이터 컬럼 '{metadata_column}' 관계 {len(result)}건 조회")
