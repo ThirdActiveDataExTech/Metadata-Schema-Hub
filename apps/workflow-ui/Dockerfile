@@ -13,14 +13,17 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# Install production dependencies only
-RUN npm install express http-proxy-middleware
+# Install production dependencies and gettext for envsubst
+RUN apk add --no-cache gettext && npm install express
 
 # Copy built assets, server, and package.json for "type": "module"
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.js ./
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/entrypoint.sh ./
+
+RUN chmod +x entrypoint.sh
 
 EXPOSE 3000
 
-CMD ["node", "server.js"]
+CMD ["./entrypoint.sh"]

@@ -1,7 +1,7 @@
 import type { APIResponse, CatalogEntrySummary, CatalogEntryDetail, SearchParams, DraftDetail, DraftListResponse } from '../types'
-import { apiFetch } from './common'
+import { apiFetch, CATALOG_SERVICE_URL } from './common'
 
-const API_BASE = '/api/v1/catalog-service'
+const API_BASE = CATALOG_SERVICE_URL
 
 export async function searchCatalogEntries(params?: SearchParams): Promise<CatalogEntrySummary[]> {
   const searchParams = new URLSearchParams()

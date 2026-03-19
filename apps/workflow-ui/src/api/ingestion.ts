@@ -1,7 +1,7 @@
 import type { APIResponse, StoreResult, DraftCreationResult, IngestionRun, IngestionRunListResponse, PublishResult, DiscardResult, MetadataEntryOption, DraftFieldsUpdatePayload, DraftDetail } from '../types'
-import { apiFetch } from './common'
+import { apiFetch, INGESTION_SERVICE_URL } from './common'
 
-const INGESTION_API_BASE = '/api/v1/metadata-ingestion'
+const INGESTION_API_BASE = INGESTION_SERVICE_URL
 
 export async function storeMetadata(file: File): Promise<StoreResult> {
   const formData = new FormData()

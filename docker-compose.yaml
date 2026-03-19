@@ -15,6 +15,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-datagokr}
       SNAPSHOT_STORAGE_PATH: /data/snapshots
+      BACKEND_CORS_ORIGINS: "http://localhost:3000"
     ports:
       - 8084:8084
     volumes:
@@ -38,6 +39,7 @@ services:
       POSTGRES_PORT: ${POSTGRES_PORT:-5432}
       POSTGRES_DB: ${POSTGRES_DB:-datagokr}
       SNAPSHOT_STORAGE_PATH: /data/snapshots
+      BACKEND_CORS_ORIGINS: "http://localhost:3000"
     ports:
       - 8085:8085
     volumes:
@@ -77,6 +79,9 @@ services:
     restart: unless-stopped
     environment:
       TZ: Asia/Seoul
+      CATALOG_SERVICE_URL: http://localhost:8084
+      INGESTION_SERVICE_URL: http://localhost:8085
+      API_TOKEN: wisenut
     ports:
       - 3000:3000
     depends_on:
