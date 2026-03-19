@@ -78,11 +78,10 @@ services:
     environment:
       TZ: Asia/Seoul
     ports:
-      - 3000:80
-    volumes:
-      - ./apps/workflow-ui/nginx.local.conf:/etc/nginx/conf.d/default.conf:ro
+      - 3000:3000
     depends_on:
       - catalog-service
+      - metadata-ingestion
 
   # DB client tool 이 없을 경우, 웹에서 간편하게 사용
   adminer:

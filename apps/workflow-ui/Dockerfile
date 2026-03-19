@@ -8,12 +8,19 @@ RUN npm install
 COPY apps/workflow-ui/ ./
 RUN npm run build
 
-# Production stage with nginx
-FROM nginx:alpine
+# Production stage
+FROM node:20-alpine
 
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY apps/workflow-ui/nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-EXPOSE 80
+# Install production dependencies only
+RUN npm install express http-proxy-middleware
 
-CMD ["nginx", "-g", "daemon off;"]
+# Copy built assets, server, and package.json for "type": "module"
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/server.js ./
+COPY --from=builder /app/package.json ./
+
+EXPOSE 3000
+
+CMD ["node", "server.js"]
