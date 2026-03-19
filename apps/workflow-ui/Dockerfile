@@ -8,12 +8,22 @@ RUN npm install
 COPY apps/workflow-ui/ ./
 RUN npm run build
 
-# Production stage with nginx
-FROM nginx:alpine
+# Production stage
+FROM node:20-alpine
 
-COPY --from=builder /app/dist /usr/share/nginx/html
-COPY apps/workflow-ui/nginx.conf /etc/nginx/conf.d/default.conf
+WORKDIR /app
 
-EXPOSE 80
+# Install production dependencies and gettext for envsubst
+RUN apk add --no-cache gettext && npm install express
 
-CMD ["nginx", "-g", "daemon off;"]
+# Copy built assets, server, and package.json for "type": "module"
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/server.js ./
+COPY --from=builder /app/package.json ./
+COPY --from=builder /app/entrypoint.sh ./
+
+RUN chmod +x entrypoint.sh
+
+EXPOSE 3000
+
+CMD ["./entrypoint.sh"]
