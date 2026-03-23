@@ -14,12 +14,11 @@
     - docker login -u "$CI_REGISTRY_USER" -p "$CI_REGISTRY_PASSWORD" "$CI_REGISTRY"
     - docker pull "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
 
-    # 이미지에서 VERSION 추출
+    # 이미지 LABEL에서 VERSION 추출
     - |
-      VERSION=$(docker run --rm "$CI_REGISTRY_IMAGE/$APP_NAME:latest" \
-        sh -c "cat version_info.py | grep '^version:' | cut -d \"'\" -f2" || echo "")
-      if [ -z "$VERSION" ]; then
-        echo "Error: Failed to extract version from container"
+      VERSION=$(docker inspect --format='{{index .Config.Labels "app.version"}}' "$CI_REGISTRY_IMAGE/$APP_NAME:latest" || echo "")
+      if [ -z "$VERSION" ] || [ "$VERSION" = "<no value>" ]; then
+        echo "Error: Failed to extract version from image label"
         exit 1
       fi
       echo "Extracted version: $VERSION"
