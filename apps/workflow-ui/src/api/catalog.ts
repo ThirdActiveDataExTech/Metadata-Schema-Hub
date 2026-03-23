@@ -1,6 +1,7 @@
 import type { APIResponse, CatalogEntrySummary, CatalogEntryDetail, SearchParams, DraftDetail, DraftListResponse } from '../types'
+import { apiFetch, CATALOG_SERVICE_URL } from './common'
 
-const API_BASE = '/api'
+const API_BASE = CATALOG_SERVICE_URL
 
 export async function searchCatalogEntries(params?: SearchParams): Promise<CatalogEntrySummary[]> {
   const searchParams = new URLSearchParams()
@@ -16,19 +17,19 @@ export async function searchCatalogEntries(params?: SearchParams): Promise<Catal
   if (params?.sort_order) searchParams.set('sort_order', params.sort_order)
 
   const url = `${API_BASE}/catalog/entries?${searchParams.toString()}`
-  const response = await fetch(url)
+  const response = await apiFetch(url)
   const data: APIResponse<CatalogEntrySummary[]> = await response.json()
   return data.result
 }
 
 export async function getCatalogEntry(id: number): Promise<CatalogEntryDetail> {
-  const response = await fetch(`${API_BASE}/catalog/entries/${id}`)
+  const response = await apiFetch(`${API_BASE}/catalog/entries/${id}`)
   const data: APIResponse<CatalogEntryDetail> = await response.json()
   return data.result
 }
 
 export async function getCatalogEntryRdf(id: number): Promise<Record<string, unknown>> {
-  const response = await fetch(`${API_BASE}/catalog/entries/${id}/rdf`)
+  const response = await apiFetch(`${API_BASE}/catalog/entries/${id}/rdf`)
   const data: APIResponse<Record<string, unknown>> = await response.json()
   return data.result
 }
@@ -50,13 +51,13 @@ export async function listDrafts(params?: { snapshot_id?: string; limit?: number
   if (params?.offset) searchParams.set('offset', String(params.offset))
 
   const url = `${API_BASE}/draft/entries?${searchParams.toString()}`
-  const response = await fetch(url)
+  const response = await apiFetch(url)
   const data: APIResponse<DraftListResponse> = await response.json()
   return data.result
 }
 
 export async function getDraft(id: number): Promise<DraftDetail> {
-  const response = await fetch(`${API_BASE}/draft/entries/${id}`)
+  const response = await apiFetch(`${API_BASE}/draft/entries/${id}`)
   const data: APIResponse<DraftDetail> = await response.json()
   return data.result
 }

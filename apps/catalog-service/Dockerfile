@@ -46,7 +46,7 @@ USER $APP_USER
 
 # Copy necessary files and directory
 COPY --from=builder-base /app/.venv $VIRTUAL_ENV
-COPY apps/catalog-service/pyproject.toml apps/catalog-service/version_info.py ./
+COPY apps/catalog-service/pyproject.toml ./
 COPY apps/catalog-service/static ./static/
 COPY apps/catalog-service/app ./app/
 

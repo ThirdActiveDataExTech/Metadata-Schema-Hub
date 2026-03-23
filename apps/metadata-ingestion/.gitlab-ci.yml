@@ -60,6 +60,9 @@ pyright-lint:
     - echo "Running before_script tasks for $CI_JOB_NAME";
     - uv sync --group test
     - source .venv/bin/activate
+  rules:
+    - changes:
+        - $APP_DIR/**/*
 
 pytest:
   extends: .app-test
@@ -67,10 +70,14 @@ pytest:
     - name: postgres:17.4
       alias: postgres
   variables:
-    POSTGRES_DB: test_db
-    POSTGRES_USER: postgres
-    POSTGRES_PASSWORD: $POSTGRES_TEST_PASSWORD
-    POSTGRES_HOST: postgres
+    # CI/CD Variables 가 반드시 존재해야 함
+    POSTGRES_DB: $TEST_POSTGRES_DB
+    POSTGRES_USER: $TEST_POSTGRES_USER
+    POSTGRES_PASSWORD: $TEST_POSTGRES_PASSWORD
+    POSTGRES_HOST: $TEST_POSTGRES_HOST
+  script:
+    - export PYTHONPATH=./app
+    - pytest --cov --cov-report term --cov-report xml:coverage.xml --junitxml=report.xml -q tests
   parallel:
     matrix:
       - PYTHON_VERSION: ["3.11"]

@@ -80,10 +80,24 @@ def make_version_info():
 
 
 def get_version_info():
-    BUILD_DATE = get_current_datetime()
-    FULL_VERSION, GIT_REVISION, GIT_SHORT_REVISION, GIT_BRANCH = "Unknown", "Unknown", "Unknown", "Unknown"
-
-    return FULL_VERSION, GIT_REVISION, GIT_SHORT_REVISION, GIT_BRANCH, BUILD_DATE
+    """CI가 생성한 version_info.py가 있으면 사용하고, 없으면 Unknown 반환."""
+    try:
+        import version_info
+        return (
+            version_info.version,
+            version_info.git_revision,
+            version_info.git_short_revision,
+            version_info.git_branch,
+            version_info.build_date,
+        )
+    except ImportError:
+        return (
+            "Unknown",
+            "Unknown",
+            "Unknown",
+            "Unknown",
+            get_current_datetime(),
+        )
 
 
 VERSION, GIT_REVISION, GIT_SHORT_REVISION, GIT_BRANCH, BUILD_DATE = get_version_info()
