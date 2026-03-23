@@ -20,15 +20,11 @@
     - IMAGE_TAG=$CI_REGISTRY_IMAGE/$APP_NAME:$VERSION
     - BUILD_DATE=$(date +'%Y-%m-%d %H:%M:%S')
     - |
-      cat > src/version-info.ts << EOF
-      export const versionInfo = {
-        version: '$VERSION',
-        gitBranch: '$CI_COMMIT_BRANCH',
-        gitRevision: '$CI_COMMIT_SHA',
-        gitShortRevision: '$CI_COMMIT_SHORT_SHA',
-        buildDate: '$BUILD_DATE',
-      };
-      EOF
+      echo "VITE_VERSION=$VERSION" > .env
+      echo "VITE_GIT_BRANCH=$CI_COMMIT_BRANCH" >> .env
+      echo "VITE_GIT_REVISION=$CI_COMMIT_SHA" >> .env
+      echo "VITE_GIT_SHORT_REVISION=$CI_COMMIT_SHORT_SHA" >> .env
+      echo "VITE_BUILD_DATE=$BUILD_DATE" >> .env
     - cd $CI_PROJECT_DIR
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY || exit 1

@@ -46,7 +46,7 @@ USER $APP_USER
 
 # Copy necessary files and directory
 COPY --from=builder-base /app/.venv $VIRTUAL_ENV
-COPY apps/metadata-ingestion/pyproject.toml ./
+COPY apps/metadata-ingestion/pyproject.toml apps/metadata-ingestion/version_info.py* ./
 COPY apps/metadata-ingestion/static ./static/
 COPY apps/metadata-ingestion/app ./app/
 
