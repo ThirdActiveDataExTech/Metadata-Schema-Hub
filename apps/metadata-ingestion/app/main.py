@@ -27,7 +27,7 @@ from app.constants import DESCRIPTION, LICENSE_INFO, SUMMARY, TAGS_METADATA
 from app.dependencies import get_token_header
 from app.exceptions.base import ApplicationError
 from app.log import setup_logging
-from app.version import BUILD_DATE, GIT_BRANCH, GIT_REVISION, GIT_SHORT_REVISION, VERSION, get_current_datetime
+from app.version import BUILD_DATE, VERSION, STARTED_AT, get_uptime
 
 # 앱 구동 성공 여부와 상관없이 앱 정보 출력
 print(json.dumps(
@@ -39,7 +39,7 @@ print(json.dumps(
 @asynccontextmanager
 async def lifespan(lifespan_app: FastAPI):
     # startup event
-    logging.info(f"uptime: {get_current_datetime()}")
+    logging.info(f"started_at: {STARTED_AT}")
     logging.debug(f"Working Directory: {repr(os.getcwd())}")
     logging.info(f"Start {settings.SERVICE_NAME} {VERSION}")
     yield
@@ -155,7 +155,7 @@ async def redoc_html():
 def health():
     return {
         "status": "UP", "service": settings.SERVICE_NAME, "version": VERSION, "home_path": os.getcwd(),
-        "command": f"{' '.join(sys.argv)}", "build_date": BUILD_DATE, "uptime": get_current_datetime()
+        "command": f"{' '.join(sys.argv)}", "build_date": BUILD_DATE, "started_at": get_uptime()
     }
 
 
@@ -165,8 +165,8 @@ async def info():
     if 'Unknown' in version:
         version = version.split('.')[0]
     return {
-        "service": settings.SERVICE_NAME, "version": version, "git_branch": GIT_BRANCH, "git_revision": GIT_REVISION,
-        "git_short_revision": GIT_SHORT_REVISION, "build_date": BUILD_DATE, "uptime": get_current_datetime()
+        "service": settings.SERVICE_NAME, "version": version,
+        "build_date": BUILD_DATE, "started_at": get_uptime()
     }
 
 

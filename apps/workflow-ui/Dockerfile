@@ -6,14 +6,21 @@ COPY apps/workflow-ui/package.json apps/workflow-ui/package-lock.json* ./
 RUN npm install
 
 COPY apps/workflow-ui/ ./
+
+# CI에서 .env(VITE_* 변수)를 생성하여 전달, 로컬 빌드 시 빈 파일로 대체
+RUN test -f .env || touch .env
 RUN npm run build
 
 # Production stage
 FROM node:20-alpine
 
+# Version label (injected by CI via --build-arg)
+ARG APP_VERSION=Unknown
+LABEL app.version=$APP_VERSION
+
 WORKDIR /app
 
-# Install production dependencies and gettext for envsubst
+# gettext: entrypoint.sh에서 envsubst로 config.js 내 K8s 런타임 변수 치환
 RUN apk add --no-cache gettext && npm install express
 
 # Copy built assets, server, and package.json for "type": "module"

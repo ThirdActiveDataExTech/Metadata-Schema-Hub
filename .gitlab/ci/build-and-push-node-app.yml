@@ -16,23 +16,23 @@
     - |
       MAJOR_VERSION=$(jq -r '.version' package.json)
       STATUS=${STATUS:-dev}
+
       VERSION=${MAJOR_VERSION}.$(date +'%y%m.%d')-${STATUS}-$CI_COMMIT_SHORT_SHA
     - IMAGE_TAG=$CI_REGISTRY_IMAGE/$APP_NAME:$VERSION
     - BUILD_DATE=$(date +'%Y-%m-%d %H:%M:%S')
     - |
-      cat > src/version-info.ts << EOF
-      export const versionInfo = {
-        version: '$VERSION',
-        gitBranch: '$CI_COMMIT_BRANCH',
-        gitRevision: '$CI_COMMIT_SHA',
-        gitShortRevision: '$CI_COMMIT_SHORT_SHA',
-        buildDate: '$BUILD_DATE',
-      };
-      EOF
+      echo "VITE_VERSION=$VERSION" > .env
+      echo "VITE_BUILD_DATE=$BUILD_DATE" >> .env
     - cd $CI_PROJECT_DIR
   script:
     - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY || exit 1
     - docker pull $IMAGE_TAG_LATEST || true
-    - docker build --build-arg BUILDKIT_INLINE_CACHE=1 --cache-from $IMAGE_TAG_LATEST -f $APP_DIR/Dockerfile -t $IMAGE_TAG -t $IMAGE_TAG_LATEST .
+    - >-
+      docker build
+      --build-arg BUILDKIT_INLINE_CACHE=1
+      --build-arg APP_VERSION=$VERSION
+      --cache-from $IMAGE_TAG_LATEST
+      -f $APP_DIR/Dockerfile
+      -t $IMAGE_TAG -t $IMAGE_TAG_LATEST .
     - docker push $IMAGE_TAG
     - docker push $IMAGE_TAG_LATEST
