@@ -34,11 +34,19 @@ RUN groupadd -r $GROUP_NAME && \
     mkdir -p $SNAPSHOT_STORAGE_PATH && \
     chown -R $APP_USER:$GROUP_NAME $SNAPSHOT_STORAGE_PATH
 
+# Version info (injected by CI via --build-arg)
+ARG APP_VERSION=Unknown
+ARG BUILD_DATE=Unknown
+
+LABEL app.version=$APP_VERSION
+
 # Set environment variables
 ENV TZ=Asia/Seoul \
     PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=utf-8 \
-    VIRTUAL_ENV=/app/.venv
+    VIRTUAL_ENV=/app/.venv \
+    APP_VERSION=$APP_VERSION \
+    BUILD_DATE=$BUILD_DATE
 ENV PATH="$VIRTUAL_ENV/bin:$PATH"
 
 # Switch to the non-root user
@@ -46,7 +54,7 @@ USER $APP_USER
 
 # Copy necessary files and directory
 COPY --from=builder-base /app/.venv $VIRTUAL_ENV
-COPY apps/catalog-service/pyproject.toml apps/catalog-service/version_info.py* ./
+COPY apps/catalog-service/pyproject.toml ./
 COPY apps/catalog-service/static ./static/
 COPY apps/catalog-service/app ./app/
 

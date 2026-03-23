@@ -7,12 +7,16 @@ RUN npm install
 
 COPY apps/workflow-ui/ ./
 
-# CI에서 .env(VITE_* 버전 정보)를 생성하여 전달, 로컬 빌드 시 빈 파일로 대체
+# CI에서 .env(VITE_* 변수)를 생성하여 전달, 로컬 빌드 시 빈 파일로 대체
 RUN test -f .env || touch .env
 RUN npm run build
 
 # Production stage
 FROM node:20-alpine
+
+# Version label (injected by CI via --build-arg)
+ARG APP_VERSION=Unknown
+LABEL app.version=$APP_VERSION
 
 WORKDIR /app
 
@@ -24,9 +28,6 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/server.js ./
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/entrypoint.sh ./
-
-# push-to-github 파이프라인에서 버전 추출용
-COPY --from=builder /app/.env ./
 
 RUN chmod +x entrypoint.sh
 

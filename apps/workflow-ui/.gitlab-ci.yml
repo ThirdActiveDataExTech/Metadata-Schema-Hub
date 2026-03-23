@@ -50,7 +50,7 @@ container_scanning:
     CS_IMAGE: "$CI_REGISTRY_IMAGE/$APP_NAME:latest"
 
 push-to-github-registry:
-  extends: .push-to-github-node-registry
+  extends: .push-to-github-registry
   rules:
     - if: $CI_COMMIT_BRANCH == "github"
       changes:
