@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import { getCatalogEntry, getCatalogEntryRdf, getCatalogEntryRdfDownloadUrl } from '../../api'
+import { TagList } from '../../components'
 import type { CatalogEntryDetail } from '../../types'
 
 export default function CatalogDetailPage() {
@@ -113,37 +114,13 @@ export default function CatalogDetailPage() {
             <h2>Classification</h2>
             <dl>
               <dt>Keywords</dt>
-              <dd>
-                {entry.keyword?.length ? (
-                  <div className="tag-list">
-                    {entry.keyword.map((kw: string, i: number) => (
-                      <span key={i} className="keyword-tag">{kw}</span>
-                    ))}
-                  </div>
-                ) : '-'}
-              </dd>
+              <dd><TagList items={entry.keyword} variant="keyword" /></dd>
 
               <dt>Themes</dt>
-              <dd>
-                {entry.theme?.length ? (
-                  <div className="tag-list">
-                    {entry.theme.map((t: string, i: number) => (
-                      <span key={i} className="theme-tag">{t}</span>
-                    ))}
-                  </div>
-                ) : '-'}
-              </dd>
+              <dd><TagList items={entry.theme} variant="theme" /></dd>
 
               <dt>External IDs</dt>
-              <dd>
-                {entry.external_ids?.length ? (
-                  <div className="tag-list">
-                    {entry.external_ids.map((eid: string, i: number) => (
-                      <code key={i} className="external-id-tag">{eid}</code>
-                    ))}
-                  </div>
-                ) : '-'}
-              </dd>
+              <dd><TagList items={entry.external_ids} variant="external-id" /></dd>
             </dl>
           </div>
 

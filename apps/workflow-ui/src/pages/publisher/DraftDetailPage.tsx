@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getDraft, publishDraft, discardDraft, getMetadataOptions, updateDraftFields } from '../../api'
-import { StatusBadge } from '../../components'
+import { StatusBadge, TagList } from '../../components'
 import type { DraftDetail, MetadataEntryOption, MappingCandidate } from '../../types'
 
 const EDITABLE_FIELDS = [
@@ -281,15 +281,10 @@ export default function DraftDetailPage() {
                         </>
                       ) : (
                         field === 'keyword' || field === 'theme' || field === 'external_ids' ? (
-                          draft[field]?.length ? (
-                            <div className="tag-list">
-                              {draft[field]!.map((item: string, i: number) => (
-                                field === 'external_ids'
-                                  ? <code key={i} className="external-id-tag">{item}</code>
-                                  : <span key={i} className={`${field === 'keyword' ? 'keyword' : 'theme'}-tag`}>{item}</span>
-                              ))}
-                            </div>
-                          ) : <span className="empty">-</span>
+                          <TagList
+                            items={draft[field]}
+                            variant={field === 'keyword' ? 'keyword' : field === 'theme' ? 'theme' : 'external-id'}
+                          />
                         ) : (
                           <span className={getFieldValue(field) === '-' ? 'empty' : ''}>{getFieldValue(field)}</span>
                         )
