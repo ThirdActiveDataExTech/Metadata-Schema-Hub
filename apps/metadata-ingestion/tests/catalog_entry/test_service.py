@@ -156,11 +156,11 @@ class TestCatalogEntryService:
     # ========================================================================
 
     def test_get_catalog_entry_summary_by_identifier(self, catalog_entry_service, mock_db_session):
-        """Should get summaries by identifiers."""
-        expected = [MagicMock(), MagicMock()]
-        catalog_entry_service.repository.select_summaries_by_identifiers.return_value = expected
+        """Should get summary by identifier."""
+        expected = MagicMock()
+        catalog_entry_service.repository.select_summary_by_identifier.return_value = expected
 
-        result = catalog_entry_service.get_catalog_entry_summary_by_identifier(mock_db_session, ["id-1"])
+        result = catalog_entry_service.get_catalog_entry_summary_by_identifier(mock_db_session, "id-1")
 
         assert result == expected
 

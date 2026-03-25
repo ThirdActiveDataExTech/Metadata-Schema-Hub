@@ -6,7 +6,7 @@ import type { DraftDetail, MetadataEntryOption, MappingCandidate } from '../../t
 
 const EDITABLE_FIELDS = [
   'title', 'description', 'publisher', 'issued', 'modified',
-  'keyword', 'theme', 'landing_page', 'access_url'
+  'keyword', 'theme', 'landing_page', 'access_url', 'external_ids'
 ] as const
 
 type EditableField = typeof EDITABLE_FIELDS[number]
@@ -280,11 +280,13 @@ export default function DraftDetailPage() {
                           </div>
                         </>
                       ) : (
-                        field === 'keyword' || field === 'theme' ? (
+                        field === 'keyword' || field === 'theme' || field === 'external_ids' ? (
                           draft[field]?.length ? (
                             <div className="tag-list">
                               {draft[field]!.map((item: string, i: number) => (
-                                <span key={i} className={`${field === 'keyword' ? 'keyword' : 'theme'}-tag`}>{item}</span>
+                                field === 'external_ids'
+                                  ? <code key={i} className="external-id-tag">{item}</code>
+                                  : <span key={i} className={`${field === 'keyword' ? 'keyword' : 'theme'}-tag`}>{item}</span>
                               ))}
                             </div>
                           ) : <span className="empty">-</span>

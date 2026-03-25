@@ -21,6 +21,9 @@ CREATE TABLE IF NOT EXISTS catalog_entry
     -- distribution 필드
     access_url     TEXT,                      -- 배포판에 접근할 수 있는 URL (dcat:accessURL)
 
+    -- 외부 식별자 (adms:identifier)
+    external_ids   TEXT[],                    -- 외부 식별자 목록 (adms:identifier notation 값)
+
     -- 추적 컬럼 (스냅샷 연결 - 원본 메타데이터는 FilesystemStorage에 저장)
     latest_snapshot_id TEXT,                  -- 최신 스냅샷 참조 (원본 메타데이터 접근용)
 
@@ -58,6 +61,8 @@ COMMENT
 ON COLUMN catalog_entry.theme IS '주제 분류 URI/코드 배열. dcat:theme.';
 COMMENT
 ON COLUMN catalog_entry.access_url IS '배포판에 접근할 수 있는 URL. dcat:accessURL.';
+COMMENT
+ON COLUMN catalog_entry.external_ids IS '외부 식별자 목록. adms:identifier notation 값 배열.';
 COMMENT
 ON COLUMN catalog_entry.ingested_at IS '데이터가 수집되어 저장된 시간.';
 COMMENT

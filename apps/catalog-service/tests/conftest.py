@@ -19,6 +19,7 @@ from tests.constants import (
     METADATA_ID_2,
     SNAPSHOT_ID_VALID,
     SNAPSHOT_ID_VALID_ALT,
+    TEST_EXTERNAL_ID_URL,
     TEST_MAPPING_VERSION,
     TEST_MAPPING_VERSION_ALT,
     TEST_SHA256,
@@ -361,6 +362,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
             publisher="Publisher A",
             keyword=["science", "data"],
             theme=["research"],
+            external_ids=[TEST_EXTERNAL_ID_URL],
             issued=date(2024, 1, 1),
             modified=date(2024, 6, 1),
             latest_snapshot_id=SNAPSHOT_ID_VALID,
@@ -457,6 +459,7 @@ def sample_catalog_entry_drafts(db: Session) -> list[CatalogEntryDraft]:
             title="Draft Title 1",
             description="Draft Description 1",
             keyword=["draft", "test"],
+            external_ids=[TEST_EXTERNAL_ID_URL],
             mapping_evidence={"title": [{"schema": "dct:title", "score": 0.9}]},
         ),
         CatalogEntryDraft(

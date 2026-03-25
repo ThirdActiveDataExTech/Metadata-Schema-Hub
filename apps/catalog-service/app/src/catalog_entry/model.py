@@ -23,5 +23,6 @@ class CatalogEntrySummary(BaseModel):
     landing_page: Optional[str] = None
     theme: Optional[List[str]] = None
     access_url: Optional[str] = None
+    external_ids: Optional[List[str]] = None
     ingested_at: Optional[str] = None
     updated_at: Optional[str] = None

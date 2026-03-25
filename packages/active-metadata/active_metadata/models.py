@@ -69,13 +69,19 @@ class CatalogEntryBase(SQLModel):
     landing_page: str | None = None
     theme: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
     access_url: str | None = None
+    external_ids: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
     # Traceability field - links to original metadata in FilesystemStorage
     latest_snapshot_id: str | None = None
 
     @classmethod
     def get_list_fields(cls) -> list[str]:
-        """Return field names that are list[str] type."""
+        """Return field names that are list[str] type (separator-split)."""
         return ["keyword", "theme"]
+
+    @classmethod
+    def get_atomic_list_fields(cls) -> list[str]:
+        """Return field names that are list[str] but each value is a single atomic entry (no split)."""
+        return ["external_ids"]
 
     @classmethod
     def get_date_fields(cls) -> list[str]:
@@ -169,6 +175,12 @@ class CatalogEntryBase(SQLModel):
                 "dcat:accessURL": {"@type": "@id", "@id": self.access_url},
             }
 
+        # External identifiers (adms:identifier)
+        if self.external_ids:
+            dataset["adms:identifier"] = [
+                {"@type": "adms:Identifier", "skos:notation": eid} for eid in self.external_ids
+            ]
+
         # 2. CatalogRecord (catalog system management info)
         catalog_record: dict[str, Any] = {
             "@type": "dcat:CatalogRecord",
@@ -188,6 +200,8 @@ class CatalogEntryBase(SQLModel):
                 "dct": "http://purl.org/dc/terms/",
                 "foaf": "http://xmlns.com/foaf/0.1/",
                 "xsd": "http://www.w3.org/2001/XMLSchema#",
+                "adms": "http://www.w3.org/ns/adms#",
+                "skos": "http://www.w3.org/2004/02/skos/core#",
             },
             "@graph": [dataset, catalog_record],
         }
@@ -305,13 +319,19 @@ class CatalogEntryDraftBase(SQLModel):
     theme: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
     landing_page: str | None = None
     access_url: str | None = None
+    external_ids: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
     # Mapping evidence (top-k candidates with scores)
     mapping_evidence: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
 
     @classmethod
     def get_list_fields(cls) -> list[str]:
-        """Return field names that are list[str] type."""
+        """Return field names that are list[str] type (separator-split)."""
         return ["keyword", "theme"]
+
+    @classmethod
+    def get_atomic_list_fields(cls) -> list[str]:
+        """Return field names that are list[str] but each value is a single atomic entry (no split)."""
+        return ["external_ids"]
 
     @classmethod
     def get_date_fields(cls) -> list[str]:

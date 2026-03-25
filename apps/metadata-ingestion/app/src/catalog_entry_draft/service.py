@@ -120,6 +120,7 @@ class CatalogEntryDraftService:
             mapped_fields,
             list_fields=CatalogEntryDraftBase.get_list_fields(),
             date_fields=CatalogEntryDraftBase.get_date_fields(),
+            atomic_list_fields=CatalogEntryDraftBase.get_atomic_list_fields(),
         )
 
         # Convert evidence to dict for JSONB storage
@@ -194,6 +195,7 @@ class CatalogEntryDraftService:
             theme=draft.theme,
             landing_page=draft.landing_page,
             access_url=draft.access_url,
+            external_ids=draft.external_ids,
             latest_snapshot_id=draft.snapshot_id,
         )
 
@@ -265,6 +267,7 @@ class CatalogEntryDraftService:
             "theme",
             "landing_page",
             "access_url",
+            "external_ids",
         }
 
         for update in updates:
@@ -283,9 +286,11 @@ class CatalogEntryDraftService:
                 {update.catalog_field: value},
                 list_fields=CatalogEntryDraftBase.get_list_fields(),
                 date_fields=CatalogEntryDraftBase.get_date_fields(),
+                atomic_list_fields=CatalogEntryDraftBase.get_atomic_list_fields(),
             ).get(update.catalog_field, value)
 
-            # Update draft field
+            # TODO: list형 필드(keyword, theme, external_ids)는 동일 catalog_field에 대해
+            #  여러 metadata_schema를 선택하여 값을 누적할 수 있어야 함. 현재는 덮어쓰기.
             setattr(draft, update.catalog_field, typed_value)
 
             # Update or create evidence.decided using Pydantic models

@@ -23,6 +23,7 @@ class CatalogEntryResponse(BaseModel):
     landing_page: Optional[str] = Field(None, description="웹 페이지 URL", examples=["https://example.com"])
     theme: Optional[List[str]] = Field(None, description="주제 분류", examples=[["TRAN", "ENVI"]])
     access_url: Optional[str] = Field(None, description="접근 URL", examples=["https://api.example.com/data"])
+    external_ids: Optional[List[str]] = Field(None, description="외부 식별자 목록 (adms:identifier notation)")
     latest_snapshot_id: Optional[str] = Field(None, description="원본 메타데이터 스냅샷 ID")
     ingested_at: Optional[datetime] = Field(None, description="데이터 수집 시각")
     updated_at: Optional[datetime] = Field(None, description="후처리/재매핑 갱신 시각")

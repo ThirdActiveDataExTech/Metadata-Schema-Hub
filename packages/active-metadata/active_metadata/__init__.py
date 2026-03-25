@@ -15,7 +15,7 @@ from active_metadata.models import (
     MetadataBase,
     MetadataSnapshotBase,
 )
-from active_metadata.parsing import convert_field_types, detect_extension, parse_date, to_str_list
+from active_metadata.parsing import convert_field_types, detect_extension, parse_date, to_atomic_list, to_str_list
 from active_metadata.types import EntityURI, SnapshotIdentifier
 
 __all__ = [
@@ -32,5 +32,6 @@ __all__ = [
     "detect_extension",
     "parse_date",
     "to_str_list",
+    "to_atomic_list",
     "convert_field_types",
 ]

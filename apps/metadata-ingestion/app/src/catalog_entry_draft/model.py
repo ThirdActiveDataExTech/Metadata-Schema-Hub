@@ -78,4 +78,5 @@ class CatalogEntryDraftCreate(BaseModel):
     theme: list[str] | None = None
     landing_page: str | None = None
     access_url: str | None = None
+    external_ids: list[str] | None = None
     mapping_evidence: dict[str, Any] = {}

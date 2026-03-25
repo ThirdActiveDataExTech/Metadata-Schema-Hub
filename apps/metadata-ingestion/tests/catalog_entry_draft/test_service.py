@@ -11,6 +11,7 @@ from tests.constants import (
     CORRELATION_MEDIUM,
     NONEXISTENT_ID,
     SNAPSHOT_ID_VALID,
+    TEST_EXTERNAL_IDS,
     TEST_MAPPING_VERSION,
 )
 from app.src.catalog_entry_draft.exceptions import DraftNotFoundError, DraftNotPendingError
@@ -295,6 +296,7 @@ class TestCatalogEntryDraftService:
         mock_draft.theme = None
         mock_draft.landing_page = None
         mock_draft.access_url = None
+        mock_draft.external_ids = None
         mock_draft.snapshot_id = SNAPSHOT_ID_VALID
         service.repository.find_by_id.return_value = mock_draft
         service.repository.update.side_effect = lambda db, d: d
@@ -304,6 +306,41 @@ class TestCatalogEntryDraftService:
         assert result.title == "Test Title"
         mock_catalog_service.create_catalog_entry.assert_called_once()
         assert mock_draft.status == DraftStatus.PUBLISHED
+
+    def test_publish_copies_external_ids(
+        self, mock_catalog_entry_draft_repository, mock_catalog_entry_repository, mock_event_bus, mock_db_session
+    ):
+        """Should copy external_ids from draft to catalog entry."""
+        created_entries = []
+        mock_catalog_service = MagicMock(spec=CatalogEntryService)
+        mock_catalog_service.create_catalog_entry.side_effect = lambda db, e: (created_entries.append(e), e)[1]
+
+        service = CatalogEntryDraftService(
+            repository=mock_catalog_entry_draft_repository,
+            event_bus=mock_event_bus,
+            catalog_entry_service=mock_catalog_service,
+        )
+
+        mock_draft = MagicMock(spec=CatalogEntryDraft)
+        mock_draft.status = DraftStatus.PENDING
+        mock_draft.title = "Test"
+        mock_draft.description = None
+        mock_draft.issued = None
+        mock_draft.modified = None
+        mock_draft.publisher = None
+        mock_draft.keyword = None
+        mock_draft.theme = None
+        mock_draft.landing_page = None
+        mock_draft.access_url = None
+        mock_draft.external_ids = TEST_EXTERNAL_IDS
+        mock_draft.snapshot_id = SNAPSHOT_ID_VALID
+        service.repository.find_by_id.return_value = mock_draft
+        service.repository.update.side_effect = lambda db, d: d
+
+        service.publish(mock_db_session, mock_draft.id)
+
+        assert len(created_entries) == 1
+        assert created_entries[0].external_ids == TEST_EXTERNAL_IDS
 
     def test_publish_not_pending_raises(
         self, mock_catalog_entry_draft_repository, mock_catalog_entry_repository, mock_event_bus, mock_db_session

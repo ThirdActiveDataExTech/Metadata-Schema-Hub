@@ -133,6 +133,17 @@ export default function CatalogDetailPage() {
                   </div>
                 ) : '-'}
               </dd>
+
+              <dt>External IDs</dt>
+              <dd>
+                {entry.external_ids?.length ? (
+                  <div className="tag-list">
+                    {entry.external_ids.map((eid: string, i: number) => (
+                      <code key={i} className="external-id-tag">{eid}</code>
+                    ))}
+                  </div>
+                ) : '-'}
+              </dd>
             </dl>
           </div>
 

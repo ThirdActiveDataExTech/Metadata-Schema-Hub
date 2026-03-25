@@ -4,7 +4,7 @@ from datetime import date
 
 import pytest
 
-from active_metadata.parsing import detect_extension, parse_date, to_str_list
+from active_metadata.parsing import convert_field_types, detect_extension, parse_date, to_str_list
 
 
 class TestParseDate:
@@ -126,3 +126,84 @@ class TestDetectExtension:
         """Test that filename takes priority over content detection."""
         json_content = '{"key": "value"}'
         assert detect_extension(json_content, "data.xml") == "xml"
+
+
+class TestConvertFieldTypes:
+    """Tests for convert_field_types with atomic_list_fields."""
+
+    def test_list_fields_split_by_separator(self):
+        """list_fields는 구분자로 분리되어야 함."""
+        result = convert_field_types(
+            {"keyword": "에너지,태양광,전기사업"},
+            list_fields=["keyword"],
+            date_fields=[],
+        )
+        assert result["keyword"] == ["에너지", "태양광", "전기사업"]
+
+    def test_atomic_list_fields_url_not_split(self):
+        """atomic_list_fields는 URL을 분리하지 않아야 함."""
+        url = "https://www.data.go.kr/data/15107742/standard.do"
+        result = convert_field_types(
+            {"external_ids": url},
+            list_fields=[],
+            date_fields=[],
+            atomic_list_fields=["external_ids"],
+        )
+        assert result["external_ids"] == [url]
+
+    def test_atomic_list_fields_already_list(self):
+        """atomic_list_fields에 이미 list가 들어오면 그대로 유지."""
+        urls = ["https://example.com/1", "https://example.com/2"]
+        result = convert_field_types(
+            {"external_ids": urls},
+            list_fields=[],
+            date_fields=[],
+            atomic_list_fields=["external_ids"],
+        )
+        assert result["external_ids"] == urls
+
+    def test_atomic_list_fields_empty(self):
+        """atomic_list_fields에 빈 값이면 None."""
+        result = convert_field_types(
+            {"external_ids": ""},
+            list_fields=[],
+            date_fields=[],
+            atomic_list_fields=["external_ids"],
+        )
+        assert result["external_ids"] is None
+
+    def test_atomic_list_fields_none(self):
+        """atomic_list_fields에 None이면 None."""
+        result = convert_field_types(
+            {"external_ids": None},
+            list_fields=[],
+            date_fields=[],
+            atomic_list_fields=["external_ids"],
+        )
+        assert result["external_ids"] is None
+
+    def test_mixed_fields(self):
+        """list_fields, date_fields, atomic_list_fields 혼합."""
+        result = convert_field_types(
+            {
+                "keyword": "a,b,c",
+                "issued": "2024-01-15",
+                "external_ids": "https://example.com/dataset/123",
+            },
+            list_fields=["keyword"],
+            date_fields=["issued"],
+            atomic_list_fields=["external_ids"],
+        )
+        assert result["keyword"] == ["a", "b", "c"]
+        assert result["issued"] == date(2024, 1, 15)
+        assert result["external_ids"] == ["https://example.com/dataset/123"]
+
+    def test_backward_compatible_without_atomic(self):
+        """atomic_list_fields 미전달 시 기존 동작 유지."""
+        result = convert_field_types(
+            {"keyword": "a,b", "title": "test"},
+            list_fields=["keyword"],
+            date_fields=[],
+        )
+        assert result["keyword"] == ["a", "b"]
+        assert result["title"] == "test"

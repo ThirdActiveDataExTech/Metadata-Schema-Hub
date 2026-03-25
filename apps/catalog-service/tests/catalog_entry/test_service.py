@@ -104,22 +104,21 @@ class TestGetCatalogEntriesByIdentifier:
 class TestGetCatalogEntrySummaryByIdentifier:
     """Tests for get_catalog_entry_summary_by_identifier method."""
 
-    def test_returns_summaries_by_identifiers(
+    def test_returns_summary_by_identifier(
         self,
         catalog_entry_service: CatalogEntryService,
         mock_catalog_entry_repository: MagicMock,
         mock_db: MagicMock,
         sample_catalog_entry_summary: CatalogEntrySummary,
     ) -> None:
-        """Should return summaries when found by identifiers."""
-        summaries = [sample_catalog_entry_summary]
-        mock_catalog_entry_repository.select_summaries_by_identifiers.return_value = summaries
+        """Should return summary when found by identifier."""
+        mock_catalog_entry_repository.select_summary_by_identifier.return_value = sample_catalog_entry_summary
 
-        result = catalog_entry_service.get_catalog_entry_summary_by_identifier(mock_db, [ENTRY_ID_1])
+        result = catalog_entry_service.get_catalog_entry_summary_by_identifier(mock_db, ENTRY_ID_1)
 
-        assert result == summaries
-        mock_catalog_entry_repository.select_summaries_by_identifiers.assert_called_once_with(
-            mock_db, [ENTRY_ID_1]
+        assert result == sample_catalog_entry_summary
+        mock_catalog_entry_repository.select_summary_by_identifier.assert_called_once_with(
+            mock_db, ENTRY_ID_1
         )
 
 

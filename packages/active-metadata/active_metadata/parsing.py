@@ -9,7 +9,7 @@ from datetime import date, datetime
 from pathlib import Path
 from typing import Any
 
-__all__ = ["parse_date", "to_str_list", "convert_field_types", "detect_extension"]
+__all__ = ["parse_date", "to_str_list", "to_atomic_list", "convert_field_types", "detect_extension"]
 
 # Supported separators for list parsing
 LIST_SEPARATORS = [",", ";", "/", "|", "@"]
@@ -102,23 +102,44 @@ def to_str_list(value: Any) -> list[str]:
         return []
 
 
+def to_atomic_list(value: Any) -> list[str] | None:
+    """Convert value to string list without separator splitting.
+
+    Unlike to_str_list, treats each value as a single atomic entry.
+    URLs and other separator-containing strings are preserved intact.
+
+    Returns:
+        list[str] or None (for DB nullable)
+    """
+    if not value:
+        return None
+    if isinstance(value, list):
+        result = [str(v).strip() for v in value if str(v).strip()]
+        return result if result else None
+    stripped = str(value).strip()
+    return [stripped] if stripped else None
+
+
 def convert_field_types(
     mapped_fields: dict[str, Any],
     list_fields: set[str] | list[str],
     date_fields: set[str] | list[str],
+    atomic_list_fields: set[str] | list[str] | None = None,
 ) -> dict[str, Any]:
     """Convert field values to their expected types.
 
     Args:
         mapped_fields: Raw field values
-        list_fields: Field names that should be list[str]
+        list_fields: Field names that should be list[str] (separator-split)
         date_fields: Field names that should be date
+        atomic_list_fields: Field names that are list[str] but each value is atomic (no split)
 
     Returns:
         Dict with converted field values
     """
     list_fields_set = set(list_fields)
     date_fields_set = set(date_fields)
+    atomic_list_fields_set = set(atomic_list_fields) if atomic_list_fields else set()
 
     result = {}
     for field, value in mapped_fields.items():
@@ -127,6 +148,8 @@ def convert_field_types(
         elif field in list_fields_set:
             parsed = to_str_list(value)
             result[field] = parsed if parsed else None  # [] -> None for DB nullable
+        elif field in atomic_list_fields_set:
+            result[field] = to_atomic_list(value)
         else:
             result[field] = value
     return result
