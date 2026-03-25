@@ -102,22 +102,21 @@ def to_str_list(value: Any) -> list[str]:
         return []
 
 
-def to_atomic_list(value: Any) -> list[str] | None:
+def to_atomic_list(value: Any) -> list[str]:
     """Convert value to string list without separator splitting.
 
     Unlike to_str_list, treats each value as a single atomic entry.
     URLs and other separator-containing strings are preserved intact.
 
     Returns:
-        list[str] or None (for DB nullable)
+        list[str] (empty list if no valid values)
     """
     if not value:
-        return None
+        return []
     if isinstance(value, list):
-        result = [str(v).strip() for v in value if str(v).strip()]
-        return result if result else None
+        return [str(v).strip() for v in value if str(v).strip()]
     stripped = str(value).strip()
-    return [stripped] if stripped else None
+    return [stripped] if stripped else []
 
 
 def convert_field_types(

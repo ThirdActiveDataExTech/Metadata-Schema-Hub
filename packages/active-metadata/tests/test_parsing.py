@@ -163,24 +163,24 @@ class TestConvertFieldTypes:
         assert result["external_ids"] == urls
 
     def test_atomic_list_fields_empty(self):
-        """atomic_list_fields에 빈 값이면 None."""
+        """atomic_list_fields에 빈 값이면 빈 리스트."""
         result = convert_field_types(
             {"external_ids": ""},
             list_fields=[],
             date_fields=[],
             atomic_list_fields=["external_ids"],
         )
-        assert result["external_ids"] is None
+        assert result["external_ids"] == []
 
     def test_atomic_list_fields_none(self):
-        """atomic_list_fields에 None이면 None."""
+        """atomic_list_fields에 None이면 빈 리스트."""
         result = convert_field_types(
             {"external_ids": None},
             list_fields=[],
             date_fields=[],
             atomic_list_fields=["external_ids"],
         )
-        assert result["external_ids"] is None
+        assert result["external_ids"] == []
 
     def test_mixed_fields(self):
         """list_fields, date_fields, atomic_list_fields 혼합."""
