@@ -55,6 +55,7 @@ class CatalogEntryRepository:
             CatalogEntry.landing_page,
             CatalogEntry.theme,
             CatalogEntry.access_url,
+            CatalogEntry.external_ids,
             CatalogEntry.ingested_at,
             CatalogEntry.updated_at,
         ).where(CatalogEntry.identifier == catalog_entry_identifier)  # pyright: ignore
@@ -75,6 +76,7 @@ class CatalogEntryRepository:
             landing_page=row.landing_page,
             theme=row.theme,
             access_url=row.access_url,
+            external_ids=row.external_ids,
             ingested_at=str(row.ingested_at) if row.ingested_at else None,
             updated_at=str(row.updated_at) if row.updated_at else None,
         )
@@ -140,6 +142,7 @@ class CatalogEntryRepository:
             CatalogEntry.landing_page,
             CatalogEntry.theme,
             CatalogEntry.access_url,
+            CatalogEntry.external_ids,
             CatalogEntry.ingested_at,
             CatalogEntry.updated_at,
         )
@@ -161,6 +164,7 @@ class CatalogEntryRepository:
                 landing_page=row.landing_page,
                 theme=row.theme,
                 access_url=row.access_url,
+                external_ids=row.external_ids,
                 ingested_at=str(row.ingested_at) if row.ingested_at else None,
                 updated_at=str(row.updated_at) if row.updated_at else None,
             )
