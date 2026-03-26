@@ -70,6 +70,14 @@ NONEXISTENT_SNAPSHOT_ID = "urn:wisenut:metadata:9999999999-nonexistent"
 NONEXISTENT_UUID = UUID("00000000-0000-0000-0000-000000000000")
 
 # =============================================================================
+# External IDs
+# =============================================================================
+
+TEST_EXTERNAL_ID_URL = "https://www.data.go.kr/data/15107742/standard.do"
+TEST_EXTERNAL_ID_CODE = "DT_1EI10122"
+TEST_EXTERNAL_IDS = [TEST_EXTERNAL_ID_URL, TEST_EXTERNAL_ID_CODE]
+
+# =============================================================================
 # Correlation Thresholds
 # =============================================================================
 

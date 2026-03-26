@@ -142,23 +142,34 @@ class TestSelectByIdentifiers:
         assert len(result) == len(target_entries)
 
 
-class TestSelectSummariesByIdentifiers:
-    """Tests for select_summaries_by_identifiers method."""
+class TestSelectSummaryByIdentifier:
+    """Tests for select_summary_by_identifier method."""
 
-    def test_returns_summaries(
+    def test_returns_summary(
         self,
         db: Session,
         catalog_entry_repository: CatalogEntryRepository,
         sample_catalog_entries: list[CatalogEntry],
     ) -> None:
-        """Should return summary objects."""
+        """Should return summary object."""
         entry = sample_catalog_entries[0]
-        result = catalog_entry_repository.select_summaries_by_identifiers(
-            db, [entry.identifier]
+        result = catalog_entry_repository.select_summary_by_identifier(
+            db, entry.identifier
         )
 
-        assert len(result) == 1
-        assert result[0].identifier == entry.identifier
+        assert result is not None
+        assert result.identifier == entry.identifier
+
+    def test_returns_none_for_nonexistent(
+        self,
+        db: Session,
+        catalog_entry_repository: CatalogEntryRepository,
+    ) -> None:
+        """Should return None for non-existent identifier."""
+        result = catalog_entry_repository.select_summary_by_identifier(
+            db, NONEXISTENT_IDENTIFIER
+        )
+        assert result is None
 
 
 class TestListCatalogSummary:

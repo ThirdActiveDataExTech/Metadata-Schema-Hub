@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getDraft, publishDraft, discardDraft, getMetadataOptions, updateDraftFields } from '../../api'
-import { StatusBadge } from '../../components'
+import { StatusBadge, TagList } from '../../components'
 import type { DraftDetail, MetadataEntryOption, MappingCandidate } from '../../types'
 
 const EDITABLE_FIELDS = [
   'title', 'description', 'publisher', 'issued', 'modified',
-  'keyword', 'theme', 'landing_page', 'access_url'
+  'keyword', 'theme', 'landing_page', 'access_url', 'external_ids'
 ] as const
 
 type EditableField = typeof EDITABLE_FIELDS[number]
@@ -280,14 +280,11 @@ export default function DraftDetailPage() {
                           </div>
                         </>
                       ) : (
-                        field === 'keyword' || field === 'theme' ? (
-                          draft[field]?.length ? (
-                            <div className="tag-list">
-                              {draft[field]!.map((item: string, i: number) => (
-                                <span key={i} className={`${field === 'keyword' ? 'keyword' : 'theme'}-tag`}>{item}</span>
-                              ))}
-                            </div>
-                          ) : <span className="empty">-</span>
+                        field === 'keyword' || field === 'theme' || field === 'external_ids' ? (
+                          <TagList
+                            items={draft[field]}
+                            variant={field === 'keyword' ? 'keyword' : field === 'theme' ? 'theme' : 'external-id'}
+                          />
                         ) : (
                           <span className={getFieldValue(field) === '-' ? 'empty' : ''}>{getFieldValue(field)}</span>
                         )

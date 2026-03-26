@@ -33,10 +33,10 @@ class CatalogEntryService:
         return self.repository.select_by_identifiers(db, catalog_entry_identifiers)
 
     def get_catalog_entry_summary_by_identifier(
-        self, db: Session, catalog_entry_identifiers: List[str]
-    ) -> List[CatalogEntrySummary]:
+        self, db: Session, catalog_entry_identifier: str
+    ) -> Optional[CatalogEntrySummary]:
         """Get CatalogEntrySummary."""
-        return self.repository.select_summaries_by_identifiers(db, catalog_entry_identifiers)
+        return self.repository.select_summary_by_identifier(db, catalog_entry_identifier)
 
     def export_to_csv_stream(self, db: Session, limit: int = 100) -> io.StringIO:
         """메모리에서 CSV 스트림 생성"""

@@ -486,6 +486,18 @@ body {
   color: #553c9a;
 }
 
+.external-id-tag {
+  display: inline-block;
+  padding: 0.125rem 0.5rem;
+  border-radius: 3px;
+  font-size: 0.75rem;
+  font-family: monospace;
+  margin-right: 0.25rem;
+  margin-bottom: 0.25rem;
+  background: #bee3f8;
+  color: #2a4365;
+}
+
 .keyword-more {
   font-size: 0.75rem;
   color: #a0aec0;

@@ -56,6 +56,7 @@ export interface DraftDetail extends DraftSummary {
   theme: string[] | null
   landing_page: string | null
   access_url: string | null
+  external_ids: string[] | null
   mapping_evidence: MappingEvidence
   updated_at: string
 }

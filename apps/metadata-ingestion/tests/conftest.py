@@ -20,6 +20,7 @@ from tests.constants import (
     METADATA_ID_2,
     SNAPSHOT_ID_VALID,
     SNAPSHOT_ID_VALID_ALT,
+    TEST_EXTERNAL_ID_URL,
     TEST_MAPPING_VERSION,
     TEST_MAPPING_VERSION_ALT,
     TEST_RUN_UUID_1,
@@ -196,7 +197,7 @@ def mock_catalog_entry_repository() -> MagicMock:
     repo.select_by_identifier = MagicMock()
     repo.select_by_ids = MagicMock(return_value=[])
     repo.select_by_identifiers = MagicMock(return_value=[])
-    repo.select_summaries_by_identifiers = MagicMock(return_value=[])
+    repo.select_summary_by_identifier = MagicMock(return_value=None)
     repo.export_data_list = MagicMock(return_value=[])
     repo.list_catalog_summary = MagicMock(return_value=[])
     repo.search_catalog = MagicMock(return_value=[])
@@ -443,6 +444,7 @@ def sample_catalog_entries(db: Session) -> list[CatalogEntry]:
             publisher="Publisher A",
             keyword=["science", "data"],
             theme=["research"],
+            external_ids=[TEST_EXTERNAL_ID_URL],
             issued=date(2024, 1, 1),
             modified=date(2024, 6, 1),
             latest_snapshot_id=SNAPSHOT_ID_VALID,

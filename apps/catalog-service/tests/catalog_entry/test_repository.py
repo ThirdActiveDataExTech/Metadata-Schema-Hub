@@ -130,26 +130,63 @@ class TestSelectByIdentifiers:
         assert result == []
 
 
-class TestSelectSummariesByIdentifiers:
-    """Tests for select_summaries_by_identifiers method."""
+class TestSelectSummaryByIdentifier:
+    """Tests for select_summary_by_identifier method."""
 
-    def test_returns_summaries(
+    def test_returns_summary(
         self,
         db: Session,
         catalog_entry_repository: CatalogEntryRepository,
         sample_catalog_entries: list[CatalogEntry],
     ) -> None:
-        """Should return CatalogEntrySummary objects."""
+        """Should return CatalogEntrySummary object."""
         entry = sample_catalog_entries[0]
-        result = catalog_entry_repository.select_summaries_by_identifiers(
-            db, [entry.identifier]
+        result = catalog_entry_repository.select_summary_by_identifier(
+            db, entry.identifier
         )
 
-        assert len(result) == 1
-        summary = result[0]
-        assert summary.identifier == entry.identifier
-        assert summary.title == entry.title
-        assert summary.issued == str(entry.issued)
+        assert result is not None
+        assert result.identifier == entry.identifier
+        assert result.title == entry.title
+        assert result.issued == str(entry.issued)
+        assert result.external_ids == entry.external_ids
+
+    def test_returns_none_for_nonexistent(
+        self,
+        db: Session,
+        catalog_entry_repository: CatalogEntryRepository,
+    ) -> None:
+        """Should return None for non-existent identifier."""
+        result = catalog_entry_repository.select_summary_by_identifier(
+            db, NONEXISTENT_IDENTIFIER
+        )
+        assert result is None
+
+    def test_returns_summary_with_external_ids(
+        self,
+        db: Session,
+        catalog_entry_repository: CatalogEntryRepository,
+        sample_catalog_entries: list[CatalogEntry],
+    ) -> None:
+        """Should include external_ids in summary."""
+        entry = sample_catalog_entries[0]  # has external_ids in fixture
+        result = catalog_entry_repository.select_summary_by_identifier(db, entry.identifier)
+
+        assert result is not None
+        assert result.external_ids == entry.external_ids
+
+    def test_returns_summary_without_external_ids(
+        self,
+        db: Session,
+        catalog_entry_repository: CatalogEntryRepository,
+        sample_catalog_entries: list[CatalogEntry],
+    ) -> None:
+        """Should return None for external_ids when not set."""
+        entry = sample_catalog_entries[1]  # no external_ids in fixture
+        result = catalog_entry_repository.select_summary_by_identifier(db, entry.identifier)
+
+        assert result is not None
+        assert result.external_ids is None
 
 
 class TestListCatalogSummary:
