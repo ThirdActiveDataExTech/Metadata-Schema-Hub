@@ -22,7 +22,7 @@ export default function TagList({ items, variant, fallback = '-' }: TagListProps
   return (
     <div className="tag-list">
       {items.map((item, i) => (
-        <Element key={i} className={className}>{item}</Element>
+        <Element key={`${variant}-${item}-${i}`} className={className}>{item}</Element>
       ))}
     </div>
   )
