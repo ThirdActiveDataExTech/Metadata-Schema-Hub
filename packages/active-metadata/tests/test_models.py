@@ -326,6 +326,7 @@ class TestCatalogContentFields:
         )
         result = entry.to_api_dict()
         assert result["title"] == entry.title
+        assert entry.issued is not None
         assert result["issued"] == entry.issued.isoformat()
 
     def test_to_api_dict_with_none_date(self):
