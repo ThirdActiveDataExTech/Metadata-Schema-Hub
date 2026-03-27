@@ -6,6 +6,7 @@ Provides shared database models and utilities for metadata management apps.
 __version__ = "0.1.0"
 
 from active_metadata.models import (
+    CatalogContentFields,
     CatalogEntryBase,
     CatalogEntryDraftBase,
     ColumnRelationBase,
@@ -20,6 +21,7 @@ from active_metadata.types import EntityURI, SnapshotIdentifier
 
 __all__ = [
     "MetadataBase",
+    "CatalogContentFields",
     "CatalogEntryBase",
     "CatalogEntryDraftBase",
     "ColumnRelationBase",
