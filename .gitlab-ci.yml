@@ -8,6 +8,16 @@ include:
     file:
       - templates/Security/Secret-Detection.gitlab-ci.yml
 
+# Trigger child pipeline for active-metadata
+active-metadata:
+  stage: trigger
+  trigger:
+    include: packages/active-metadata/.gitlab-ci.yml
+    strategy: depend
+  rules:
+    - changes:
+        - packages/active-metadata/**/*
+
 # Trigger child pipeline for catalog-service
 catalog-service:
   stage: trigger
