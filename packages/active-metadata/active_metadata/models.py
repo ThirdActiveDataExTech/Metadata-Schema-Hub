@@ -18,6 +18,7 @@ from active_metadata.types import EntityURI, SnapshotIdentifier
 
 __all__ = [
     "MetadataBase",
+    "CatalogContentFields",
     "CatalogEntryBase",
     "ColumnRelationBase",
     "MetadataSnapshotBase",
@@ -47,31 +48,45 @@ class MetadataBase(SQLModel):
     )
 
 
-class CatalogEntryBase(SQLModel):
-    """DCAT-based catalog fields - base for CatalogEntry table."""
+class CatalogContentFields(SQLModel):
+    """DCAT content fields shared by CatalogEntry and CatalogEntryDraft.
 
-    id: int | None = Field(default=None, primary_key=True)
-    ingested_at: datetime | None = Field(
-        default=None,
-        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),
-    )
-    updated_at: datetime | None = Field(
-        default=None,
-        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False),
-    )
+    Content fields represent the actual metadata about a dataset,
+    as opposed to management fields (id, timestamps, status, etc.).
+    """
+
     title: str | None = None
     description: str | None = None
     issued: date | None = None
     modified: date | None = None
-    identifier: str = Field(nullable=False, default_factory=lambda: str(uuid4()))
     publisher: str | None = None
-    keyword: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
+    keyword: list[str] | None = Field(
+        default=None, sa_type=ARRAY(String)  # pyright: ignore[reportArgumentType]
+    )
+    theme: list[str] | None = Field(
+        default=None, sa_type=ARRAY(String)  # pyright: ignore[reportArgumentType]
+    )
     landing_page: str | None = None
-    theme: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
     access_url: str | None = None
-    external_ids: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
-    # Traceability field - links to original metadata in FilesystemStorage
-    latest_snapshot_id: str | None = None
+    external_ids: list[str] | None = Field(
+        default=None, sa_type=ARRAY(String)  # pyright: ignore[reportArgumentType]
+    )
+
+    @classmethod
+    def get_content_fields(cls) -> set[str]:
+        """Return the set of editable content field names."""
+        return {
+            "title",
+            "description",
+            "issued",
+            "modified",
+            "publisher",
+            "keyword",
+            "theme",
+            "landing_page",
+            "access_url",
+            "external_ids",
+        }
 
     @classmethod
     def get_list_fields(cls) -> list[str]:
@@ -96,7 +111,6 @@ class CatalogEntryBase(SQLModel):
     def to_api_dict(self) -> dict[str, Any]:
         """Convert to API response dictionary with automatic date/datetime serialization."""
         result = {}
-        # Use model_dump() for SQLModel compatibility (works for both table=True and regular models)
         data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
         for field_name, value in data.items():
             if isinstance(value, (date, datetime)):
@@ -116,7 +130,6 @@ class CatalogEntryBase(SQLModel):
         """
         long_text_fields = self.get_long_text_fields()
         result = {}
-        # Use model_dump() for SQLModel compatibility
         data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
         for field_name, value in data.items():
             if field_name in long_text_fields and value and len(value) > max_text_length:
@@ -126,6 +139,23 @@ class CatalogEntryBase(SQLModel):
             else:
                 result[field_name] = value
         return result
+
+
+class CatalogEntryBase(CatalogContentFields):
+    """DCAT-based catalog fields - base for CatalogEntry table."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    ingested_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False),
+    )
+    identifier: str = Field(nullable=False, default_factory=lambda: str(uuid4()))
+    # Traceability field - links to original metadata in FilesystemStorage
+    latest_snapshot_id: str | None = None
 
     def get_rdf_dict(self) -> dict[str, Any]:
         """Convert catalog_entry to DCAT-based JSON-LD format.
@@ -294,7 +324,7 @@ class IngestionRunBase(SQLModel):
     draft_id: int | None = None
 
 
-class CatalogEntryDraftBase(SQLModel):
+class CatalogEntryDraftBase(CatalogContentFields):
     """Catalog entry draft with mapping evidence - base model."""
 
     id: int | None = Field(default=None, primary_key=True)
@@ -309,73 +339,8 @@ class CatalogEntryDraftBase(SQLModel):
         default=None,
         sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False),
     )
-    # Draft fields (mirrors catalog_entry)
-    title: str | None = None
-    description: str | None = None
-    issued: date | None = None
-    modified: date | None = None
-    publisher: str | None = None
-    keyword: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
-    theme: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
-    landing_page: str | None = None
-    access_url: str | None = None
-    external_ids: list[str] | None = Field(default=None, sa_column=Column(ARRAY(String)))
     # Mapping evidence (top-k candidates with scores)
     mapping_evidence: dict[str, Any] = Field(default_factory=dict, sa_column=Column(JSONB, nullable=False))
-
-    @classmethod
-    def get_list_fields(cls) -> list[str]:
-        """Return field names that are list[str] type (separator-split)."""
-        return ["keyword", "theme"]
-
-    @classmethod
-    def get_atomic_list_fields(cls) -> list[str]:
-        """Return field names that are list[str] but each value is a single atomic entry (no split)."""
-        return ["external_ids"]
-
-    @classmethod
-    def get_date_fields(cls) -> list[str]:
-        """Return field names that are date type."""
-        return ["issued", "modified"]
-
-    @classmethod
-    def get_long_text_fields(cls) -> list[str]:
-        """Return field names that should be truncated in summary views."""
-        return ["description"]
-
-    def to_api_dict(self) -> dict[str, Any]:
-        """Convert to API response dictionary with automatic date/datetime serialization."""
-        result = {}
-        # Use model_dump() for SQLModel compatibility (works for both table=True and regular models)
-        data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
-        for field_name, value in data.items():
-            if isinstance(value, (date, datetime)):
-                result[field_name] = value.isoformat()
-            else:
-                result[field_name] = value
-        return result
-
-    def to_summary_dict(self, max_text_length: int = 100) -> dict[str, Any]:
-        """Convert to summary dictionary with truncated long text fields.
-
-        Args:
-            max_text_length: Maximum length for long text fields before truncation
-
-        Returns:
-            Dict with all fields, long text fields truncated if needed
-        """
-        long_text_fields = self.get_long_text_fields()
-        result = {}
-        # Use model_dump() for SQLModel compatibility
-        data = self.model_dump() if hasattr(self, "model_dump") else dict(self)
-        for field_name, value in data.items():
-            if field_name in long_text_fields and value and len(value) > max_text_length:
-                result[field_name] = value[:max_text_length] + "..."
-            elif isinstance(value, (date, datetime)):
-                result[field_name] = value.isoformat()
-            else:
-                result[field_name] = value
-        return result
 
 
 class LineageEventType(StrEnum):

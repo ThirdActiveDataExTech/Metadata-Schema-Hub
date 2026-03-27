@@ -256,23 +256,9 @@ class CatalogEntryDraftService:
         # Build metadata lookup dict
         metadata_dict = {e.metadata_schema: e.value for e in metadata_entries}
 
-        # TODO: catalog_entry.get_content_fields()
-        editable_fields = {
-            "title",
-            "description",
-            "issued",
-            "modified",
-            "publisher",
-            "keyword",
-            "theme",
-            "landing_page",
-            "access_url",
-            "external_ids",
-        }
-
         for update in updates:
             # Validate catalog_field
-            if update.catalog_field not in editable_fields:
+            if update.catalog_field not in CatalogEntryDraftBase.get_content_fields():
                 raise DraftFieldNotEditableError(update.catalog_field)
 
             # Validate metadata_schema exists
