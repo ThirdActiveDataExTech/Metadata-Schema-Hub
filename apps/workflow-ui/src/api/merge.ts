@@ -1,0 +1,75 @@
+import type { APIResponse, MergeDetail, MergeListResponse } from '../types'
+import { apiFetch, INGESTION_SERVICE_URL } from './common'
+
+const BASE = INGESTION_SERVICE_URL
+
+export async function createMergeFromDraft(draftId: number): Promise<MergeDetail> {
+  const response = await apiFetch(`${BASE}/merge/entries/create-from-draft/${draftId}`, {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.description || 'Failed to create merge from draft')
+  }
+
+  const data: APIResponse<MergeDetail> = await response.json()
+  return data.result
+}
+
+export async function listMerges(params?: { limit?: number; offset?: number }): Promise<MergeListResponse> {
+  const sp = new URLSearchParams()
+  if (params?.limit) sp.set('limit', String(params.limit))
+  if (params?.offset) sp.set('offset', String(params.offset))
+
+  const response = await apiFetch(`${BASE}/merge/entries?${sp.toString()}`)
+  const data: APIResponse<MergeListResponse> = await response.json()
+  return data.result
+}
+
+export async function getMerge(mergeId: number): Promise<MergeDetail> {
+  const response = await apiFetch(`${BASE}/merge/entries/${mergeId}`)
+  const data: APIResponse<MergeDetail> = await response.json()
+  return data.result
+}
+
+export async function getMergeByDraft(draftId: number): Promise<MergeDetail> {
+  const response = await apiFetch(`${BASE}/merge/entries/by-draft/${draftId}`)
+  const data: APIResponse<MergeDetail> = await response.json()
+  return data.result
+}
+
+export async function approveMerge(mergeId: number, decidedBy: string, targetEntryId?: number): Promise<MergeDetail> {
+  const body: Record<string, unknown> = { decided_by: decidedBy }
+  if (targetEntryId !== undefined) body.target_entry_id = targetEntryId
+
+  const response = await apiFetch(`${BASE}/merge/entries/${mergeId}/approve`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.description || 'Failed to approve merge')
+  }
+
+  const data: APIResponse<MergeDetail> = await response.json()
+  return data.result
+}
+
+export async function rejectMerge(mergeId: number, decidedBy: string): Promise<MergeDetail> {
+  const response = await apiFetch(`${BASE}/merge/entries/${mergeId}/reject`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ decided_by: decidedBy }),
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.description || 'Failed to reject merge')
+  }
+
+  const data: APIResponse<MergeDetail> = await response.json()
+  return data.result
+}

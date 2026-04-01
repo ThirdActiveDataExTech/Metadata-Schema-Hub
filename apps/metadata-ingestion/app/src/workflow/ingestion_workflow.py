@@ -10,10 +10,17 @@ from sqlmodel import Session
 
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
 from app.src.column_relation.service import ColumnRelationService
+from active_metadata.models import DraftStatus, MergeDecision
+
+from app.config import settings
+from app.src.catalog_merge.service import CatalogMergeService
 from app.src.events import (
     DraftPhaseCompleted,
     DraftPhaseFailed,
     EventBus,
+    MergePhaseCompleted,
+    MergePhaseFailed,
+    PublishCompleted,
     StorePhaseCompleted,
     StorePhaseFailed,
 )
@@ -49,6 +56,7 @@ class IngestionWorkflowService:
         column_relation_service: ColumnRelationService,
         file_storage: FilesystemStorage,
         event_bus: EventBus,
+        catalog_merge_service: CatalogMergeService,
     ):
         """Initialize with all required services."""
         self.snapshot_service = snapshot_service
@@ -58,6 +66,7 @@ class IngestionWorkflowService:
         self.column_relation_service = column_relation_service
         self.file_storage = file_storage
         self.event_bus = event_bus
+        self.catalog_merge_service = catalog_merge_service
 
     def get_mapping_version(self) -> str:
         """Get current mapping version from app version."""
@@ -190,7 +199,22 @@ class IngestionWorkflowService:
                 relations=relations,
             )
 
-            # Step 5: Update run state
+            # Step 5: Compute mapping_score (merge 생성 여부 판단용)
+            mapping_score = self.catalog_merge_service.compute_mapping_score(
+                draft.mapping_evidence
+            )
+
+            # Step 6: Auto-merge only if score >= threshold
+            merge = None
+            catalog_entry = None
+            if mapping_score >= settings.AUTO_PUBLISH_THRESHOLD:
+                merge = self.catalog_merge_service.create_merge(db, draft)
+                # Auto-publish if auto-approved (score high + candidates exist)
+                if merge.decision == MergeDecision.APPROVED and merge.decided_by == "system_auto":
+                    catalog_entry = self.catalog_merge_service.apply_merge(db, merge, draft)
+                    draft.status = DraftStatus.PUBLISHED
+
+            # Step 7: Update run state
             self.ingestion_run_service.mark_drafted(db, run_id, draft.id)  # type: ignore[arg-type]
 
             # TX2 flush
@@ -198,7 +222,7 @@ class IngestionWorkflowService:
             db.refresh(draft)
             db.refresh(run)
 
-            # Publish COMPLETE event
+            # Publish Draft COMPLETE event
             self.event_bus.publish(
                 DraftPhaseCompleted(
                     snapshot_id=run.snapshot_id,
@@ -206,9 +230,36 @@ class IngestionWorkflowService:
                 )
             )
 
+            # Publish Merge events only if merge was created
+            if merge:
+                self.event_bus.publish(
+                    MergePhaseCompleted(
+                        snapshot_id=run.snapshot_id,
+                        draft_id=draft.id,  # type: ignore[arg-type]
+                        merge_id=merge.id,  # type: ignore[arg-type]
+                        mapping_score=merge.mapping_score,
+                        decided_by=merge.decided_by,
+                    )
+                )
+
+            # Publish auto-publish event if applicable
+            if catalog_entry:
+                self.event_bus.publish(
+                    PublishCompleted(
+                        draft_id=draft.id,  # type: ignore[arg-type]
+                        merge_id=merge.id,  # type: ignore[arg-type]
+                        catalog_entry_id=catalog_entry.id,  # type: ignore[arg-type]
+                        recommendation_followed=True,
+                        decided_by="system_auto",
+                    )
+                )
+
             return DraftPhaseResult(
                 draft=draft,
                 mapping_version=run.mapping_version,
+                merge=merge,
+                auto_published=(catalog_entry is not None),
+                catalog_entry_id=catalog_entry.id if catalog_entry else None,  # type: ignore[union-attr]
             )
 
         except Exception as e:

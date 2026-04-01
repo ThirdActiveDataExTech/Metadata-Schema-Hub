@@ -10,6 +10,7 @@ from tests.constants import NONEXISTENT_UUID, SNAPSHOT_ID_VALID, SNAPSHOT_ID_VAL
 
 from app.src.catalog_entry.service import CatalogEntryService
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
+from app.src.catalog_merge.service import CatalogMergeService
 from app.src.column_relation.service import ColumnRelationService
 from app.src.ingestion_run.exceptions import (
     IngestionRunNotFoundError,
@@ -38,6 +39,8 @@ class TestIngestionWorkflowService:
     ):
         """Create IngestionWorkflowService with all mocked dependencies."""
         mock_catalog_entry_service = MagicMock(spec=CatalogEntryService)
+        mock_catalog_merge_service = MagicMock(spec=CatalogMergeService)
+        mock_catalog_merge_service.compute_mapping_score = MagicMock(return_value=0.5)
         return IngestionWorkflowService(
             snapshot_service=MetadataSnapshotService(mock_metadata_snapshot_repository),
             metadata_entry_service=MetadataEntryService(mock_metadata_entry_repository),
@@ -48,6 +51,7 @@ class TestIngestionWorkflowService:
             column_relation_service=ColumnRelationService(mock_column_relation_repository),
             file_storage=mock_file_storage,
             event_bus=mock_event_bus,
+            catalog_merge_service=mock_catalog_merge_service,
         )
 
     # ========================================================================
@@ -364,6 +368,8 @@ class TestExecuteStorePhaseWithSamples:
     ):
         """Create IngestionWorkflowService with all mocked dependencies."""
         mock_catalog_entry_service = MagicMock(spec=CatalogEntryService)
+        mock_catalog_merge_service = MagicMock(spec=CatalogMergeService)
+        mock_catalog_merge_service.compute_mapping_score = MagicMock(return_value=0.5)
         return IngestionWorkflowService(
             snapshot_service=MetadataSnapshotService(mock_metadata_snapshot_repository),
             metadata_entry_service=MetadataEntryService(mock_metadata_entry_repository),
@@ -374,6 +380,7 @@ class TestExecuteStorePhaseWithSamples:
             column_relation_service=ColumnRelationService(mock_column_relation_repository),
             file_storage=mock_file_storage,
             event_bus=mock_event_bus,
+            catalog_merge_service=mock_catalog_merge_service,
         )
 
     def test_store_phase_with_sample_json(self, workflow_service, mock_db_session, sample_schema_org_json):

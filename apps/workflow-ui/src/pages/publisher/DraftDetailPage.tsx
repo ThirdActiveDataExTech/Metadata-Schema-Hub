@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getDraft, publishDraft, discardDraft, getMetadataOptions, updateDraftFields } from '../../api'
+import { getDraft, discardDraft, getMetadataOptions, updateDraftFields, getMergeByDraft, createMergeFromDraft } from '../../api'
 import { StatusBadge, TagList } from '../../components'
 import type { DraftDetail, MetadataEntryOption, MappingCandidate } from '../../types'
 
@@ -16,8 +16,9 @@ export default function DraftDetailPage() {
   const navigate = useNavigate()
   const [draft, setDraft] = useState<DraftDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [publishing, setPublishing] = useState(false)
   const [discarding, setDiscarding] = useState(false)
+  const [creatingMerge, setCreatingMerge] = useState(false)
+  const [mergeId, setMergeId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
   // Edit mode state
@@ -43,6 +44,13 @@ export default function DraftDetailPage() {
       ])
       setDraft(draftData)
       setMetadataOptions(options)
+      // Load linked merge
+      try {
+        const mergeData = await getMergeByDraft(draftId)
+        setMergeId(mergeData.id)
+      } catch {
+        // Merge may not exist yet
+      }
     } catch (err) {
       console.error('Failed to load draft:', err)
     } finally {
@@ -105,23 +113,6 @@ export default function DraftDetailPage() {
     }
   }
 
-  const handlePublish = async () => {
-    if (!id || !confirm('Are you sure you want to publish this draft?')) return
-
-    setPublishing(true)
-    setError(null)
-
-    try {
-      const result = await publishDraft(Number(id))
-      alert(`Published successfully! Catalog Entry ID: ${result.catalog_entry_id}`)
-      navigate(`/catalog/${result.catalog_entry_id}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to publish')
-    } finally {
-      setPublishing(false)
-    }
-  }
-
   const handleDiscard = async () => {
     if (!id || !confirm('Are you sure you want to discard this draft?')) return
 
@@ -136,6 +127,22 @@ export default function DraftDetailPage() {
       setError(err instanceof Error ? err.message : 'Failed to discard')
     } finally {
       setDiscarding(false)
+    }
+  }
+
+  const handleSendToMerge = async () => {
+    if (!id) return
+
+    setCreatingMerge(true)
+    setError(null)
+    try {
+      const merge = await createMergeFromDraft(Number(id))
+      setMergeId(merge.id)
+      navigate(`/admin/merges/${merge.id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create merge')
+    } finally {
+      setCreatingMerge(false)
     }
   }
 
@@ -213,13 +220,19 @@ export default function DraftDetailPage() {
                 >
                   {discarding ? 'Discarding...' : 'Discard'}
                 </button>
-                <button
-                  onClick={handlePublish}
-                  disabled={publishing}
-                  className="btn btn-primary"
-                >
-                  {publishing ? 'Publishing...' : 'Publish'}
-                </button>
+                {mergeId ? (
+                  <Link to={`/admin/merges/${mergeId}`} className="btn btn-primary">
+                    Merge Review
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleSendToMerge}
+                    disabled={creatingMerge}
+                    className="btn btn-primary"
+                  >
+                    {creatingMerge ? 'Creating Merge...' : 'Send to Merge'}
+                  </button>
+                )}
               </>
             )}
           </div>

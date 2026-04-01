@@ -225,45 +225,6 @@ async def update_draft_fields(
 
 
 @router.post(
-    "/entries/{draft_id}/publish",
-    summary="드래프트 발행",
-    response_model=APIResponseModel,
-    responses={
-        400: {"description": "발행 조건 미충족 (필수 필드 누락, 이미 발행됨 등)"},
-        404: {"description": "해당 ID의 드래프트가 존재하지 않음"},
-    },
-)
-async def publish_draft(
-    session: SessionDep,
-    draft_service: CatalogEntryDraftServiceDep,
-    draft_id: int = Path(
-        title="드래프트 ID",
-        description="발행할 드래프트의 고유 식별 번호",
-        example=1,
-        ge=1,
-    ),
-) -> APIResponseModel:
-    """드래프트를 발행하여 카탈로그 엔트리를 생성합니다.
-
-    드래프트 상태가 PUBLISHED로 변경되고 새로운 카탈로그 엔트리가 생성됩니다.
-    이미 발행된 드래프트는 다시 발행할 수 없습니다."""
-    try:
-        catalog_entry = draft_service.publish(session, draft_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    return APIResponseModel(
-        result={
-            "catalog_entry_id": catalog_entry.id,
-            "identifier": catalog_entry.identifier,
-            "title": catalog_entry.title,
-            "latest_snapshot_id": catalog_entry.latest_snapshot_id,
-        },
-        description=f"드래프트 {draft_id} 발행 완료, 카탈로그 엔트리 {catalog_entry.id} 생성",
-    )
-
-
-@router.post(
     "/entries/{draft_id}/discard",
     summary="드래프트 폐기",
     response_model=APIResponseModel,

@@ -358,6 +358,15 @@ body {
   background: #f56565;
 }
 
+.btn-success {
+  background: #48bb78;
+  color: white;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #38a169;
+}
+
 .btn-sm {
   padding: 0.375rem 0.75rem;
   font-size: 0.8125rem;
@@ -1621,4 +1630,256 @@ body {
   font-size: 0.875rem;
   text-align: center;
   padding: 2rem 1rem;
+}
+
+/* =============================================================================
+   Merge Pages
+   ============================================================================= */
+
+.score-text.high { color: #48bb78; font-weight: 600; }
+.score-text.medium { color: #ecc94b; font-weight: 600; }
+.score-text.low { color: #fc8181; font-weight: 600; }
+
+/* Merge Detail */
+.merge-detail-page .merge-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.merge-detail-page .merge-header h1 {
+  margin: 0;
+}
+
+.merge-two-column {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+}
+
+.merge-column h2 {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+/* Score bar */
+.merge-score-section {
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.score-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.5rem;
+}
+
+.score-bar-container {
+  position: relative;
+  height: 0.75rem;
+  background: #edf2f7;
+  border-radius: 0.375rem;
+  overflow: visible;
+}
+
+.score-bar-fill {
+  height: 100%;
+  border-radius: 0.375rem;
+  transition: width 0.3s ease;
+}
+
+.score-bar-fill.above-threshold { background: #48bb78; }
+.score-bar-fill.below-threshold { background: #ecc94b; }
+
+.threshold-line {
+  position: absolute;
+  top: -0.25rem;
+  width: 2px;
+  height: 1.25rem;
+  background: #e53e3e;
+}
+
+.score-values {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.threshold-label {
+  color: #a0aec0;
+  font-size: 0.75rem;
+}
+
+/* Evidence section */
+.merge-evidence-section {
+  margin-bottom: 1.5rem;
+}
+
+.merge-evidence-section h3 {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #4a5568;
+  margin: 0 0 0.75rem 0;
+}
+
+.evidence-field {
+  margin-bottom: 1rem;
+}
+
+.evidence-label {
+  display: block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #718096;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-bottom: 0.375rem;
+}
+
+/* Candidate items */
+.merge-candidates-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.merge-candidate-item {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.375rem;
+  padding: 0.75rem;
+  font-size: 0.875rem;
+}
+
+.merge-candidate-item.is-recommended {
+  border-color: #4299e1;
+  background: #ebf8ff;
+}
+
+.merge-candidate-item.is-decided {
+  border-color: #48bb78;
+  background: #f0fff4;
+}
+
+.candidate-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.25rem;
+}
+
+.candidate-header .badge {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 0.125rem 0.375rem;
+  border-radius: 0.25rem;
+}
+
+.badge.recommended { background: #bee3f8; color: #2b6cb0; }
+.badge.decided { background: #c6f6d5; color: #276749; }
+
+.candidate-overlap, .candidate-date {
+  font-size: 0.75rem;
+  color: #718096;
+}
+
+.decided-info {
+  font-size: 0.875rem;
+  color: #2d3748;
+  background: #f0fff4;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  border: 1px solid #c6f6d5;
+}
+
+/* Linked draft card */
+.linked-draft-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.draft-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: #f7fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.draft-card-body {
+  padding: 1rem;
+}
+
+.draft-card-body dl {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.375rem 1rem;
+  margin: 0;
+  font-size: 0.875rem;
+}
+
+.draft-card-body dt {
+  font-weight: 600;
+  color: #718096;
+}
+
+.draft-card-body dd {
+  margin: 0;
+  color: #2d3748;
+}
+
+.description-text {
+  max-height: 3rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Merge meta */
+.merge-meta dl {
+  display: grid;
+  grid-template-columns: 8rem 1fr;
+  gap: 0.375rem 1rem;
+  margin: 1.5rem 0 0 0;
+  font-size: 0.875rem;
+  padding: 1rem;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+}
+
+.merge-meta dt {
+  font-weight: 600;
+  color: #718096;
+}
+
+.merge-meta dd {
+  margin: 0;
+  color: #2d3748;
+}
+
+/* StatusBadge additions for merge decisions */
+.status-badge.approved {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.status-badge.rejected {
+  background: #fed7d7;
+  color: #9b2c2c;
 }
