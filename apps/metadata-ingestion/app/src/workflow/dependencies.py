@@ -53,6 +53,7 @@ def get_ingestion_workflow_service(
     file_storage: Annotated[FilesystemStorage, Depends(get_filesystem_storage)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
     catalog_merge_service: Annotated[CatalogMergeService, Depends(get_catalog_merge_service)],
+    catalog_entry_service: Annotated[CatalogEntryService, Depends(get_catalog_entry_service)],
 ) -> IngestionWorkflowService:
     """IngestionWorkflowService dependency injection."""
     return IngestionWorkflowService(
@@ -64,6 +65,7 @@ def get_ingestion_workflow_service(
         file_storage=file_storage,
         event_bus=event_bus,
         catalog_merge_service=catalog_merge_service,
+        catalog_entry_service=catalog_entry_service,
     )
 
 

@@ -8,8 +8,8 @@ from pydantic import BaseModel
 from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
-from app.src.catalog_entry_draft.dependencies import CatalogEntryDraftServiceDep
 from app.src.catalog_merge.dependencies import CatalogMergeServiceDep
+from app.src.workflow.dependencies import IngestionWorkflowServiceDep
 
 router = APIRouter(
     prefix="/merge",
@@ -35,39 +35,6 @@ class MergeRejectRequest(BaseModel):
 
 
 # --- Endpoints ---
-
-
-@router.post(
-    "/entries/create-from-draft/{draft_id}",
-    summary="드래프트에서 머지 수동 생성",
-    response_model=APIResponseModel,
-    responses={
-        400: {"description": "이미 머지가 존재함"},
-        404: {"description": "드래프트를 찾을 수 없음"},
-    },
-)
-async def create_merge_from_draft(
-    session: SessionDep,
-    merge_service: CatalogMergeServiceDep,
-    draft_service: CatalogEntryDraftServiceDep,
-    draft_id: int = Path(title="드래프트 ID", ge=1),
-) -> APIResponseModel:
-    """드래프트에서 수동으로 머지를 생성합니다. (score < threshold일 때 사용)"""
-    # 이미 merge 존재 확인
-    existing = merge_service.get_merge_by_draft(session, draft_id)
-    if existing:
-        raise HTTPException(status_code=400, detail=f"Merge already exists for draft {draft_id} (merge_id={existing.id})")
-
-    draft = draft_service.get_draft(session, draft_id)
-    if not draft:
-        raise HTTPException(status_code=404, detail=f"Draft {draft_id} not found")
-
-    merge = merge_service.create_merge(session, draft)
-
-    return APIResponseModel(
-        result=merge.model_dump(),
-        description=f"드래프트 {draft_id}에서 머지 {merge.id} 생성 완료",
-    )
 
 
 @router.get(
@@ -158,14 +125,13 @@ async def get_merge_by_draft(
 )
 async def approve_merge(
     session: SessionDep,
-    merge_service: CatalogMergeServiceDep,
-    draft_service: CatalogEntryDraftServiceDep,
+    workflow_service: IngestionWorkflowServiceDep,
     request: MergeApproveRequest,
     merge_id: int = Path(title="머지 ID", ge=1),
 ) -> APIResponseModel:
     """머지를 승인하고 CatalogEntry를 생성/갱신합니다. (승인 = 승인 + 발행)"""
-    merge, catalog_entry = merge_service.approve(
-        session, merge_id, request.decided_by, draft_service, request.target_entry_id
+    merge, catalog_entry = workflow_service.execute_merge_approve(
+        session, merge_id, request.decided_by, request.target_entry_id
     )
 
     return APIResponseModel(

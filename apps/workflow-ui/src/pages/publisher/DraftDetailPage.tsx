@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getDraft, discardDraft, getMetadataOptions, updateDraftFields, getMergeByDraft, createMergeFromDraft } from '../../api'
+import { getDraft, discardDraft, getMetadataOptions, updateDraftFields, getMergeByDraft, executeMergePhase } from '../../api'
 import { StatusBadge, TagList } from '../../components'
 import type { DraftDetail, MetadataEntryOption, MappingCandidate } from '../../types'
 
@@ -136,9 +136,9 @@ export default function DraftDetailPage() {
     setCreatingMerge(true)
     setError(null)
     try {
-      const merge = await createMergeFromDraft(Number(id))
-      setMergeId(merge.id)
-      navigate(`/admin/merges/${merge.id}`)
+      const result = await executeMergePhase(Number(id))
+      setMergeId(result.merge.id)
+      navigate(`/admin/merges/${result.merge.id}`)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to create merge')
     } finally {

@@ -39,6 +39,12 @@ export interface MergeDetail {
   catalog_entry_identifier?: string
 }
 
+export interface MergeCreateResponse {
+  merge: MergeDetail
+  auto_published: boolean
+  catalog_entry_id: number | null
+}
+
 export interface MergeListResponse {
   merges: MergeDetail[]
   count: number

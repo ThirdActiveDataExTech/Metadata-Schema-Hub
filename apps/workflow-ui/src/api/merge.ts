@@ -1,19 +1,19 @@
-import type { APIResponse, MergeDetail, MergeListResponse } from '../types'
+import type { APIResponse, MergeCreateResponse, MergeDetail, MergeListResponse } from '../types'
 import { apiFetch, INGESTION_SERVICE_URL } from './common'
 
 const BASE = INGESTION_SERVICE_URL
 
-export async function createMergeFromDraft(draftId: number): Promise<MergeDetail> {
-  const response = await apiFetch(`${BASE}/merge/entries/create-from-draft/${draftId}`, {
+export async function executeMergePhase(draftId: number): Promise<MergeCreateResponse> {
+  const response = await apiFetch(`${BASE}/ingestion/merge/${draftId}`, {
     method: 'POST',
   })
 
   if (!response.ok) {
     const error = await response.json()
-    throw new Error(error.description || 'Failed to create merge from draft')
+    throw new Error(error.description || 'Failed to execute merge phase')
   }
 
-  const data: APIResponse<MergeDetail> = await response.json()
+  const data: APIResponse<MergeCreateResponse> = await response.json()
   return data.result
 }
 
