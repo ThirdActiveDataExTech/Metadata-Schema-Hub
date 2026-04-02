@@ -1,6 +1,7 @@
 stages:
   - lint
   - test
+  - publish
 
 include:
   - project: wisenut-research/starter/templates/gitlab-ci-template
@@ -64,3 +65,23 @@ pytest:
   parallel:
     matrix:
       - PYTHON_VERSION: ["3.11"]
+
+publish-package:
+  stage: publish
+  extends: .uv
+  before_script:
+    - cd $PKG_DIR
+  script:
+    - |
+      MAJOR_VERSION=$(grep -E "^version\s*=" pyproject.toml | head -1 | cut -d'"' -f2)
+      VERSION=${MAJOR_VERSION}.dev${CI_PIPELINE_IID}
+      sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+    - uv build
+    - uv publish
+        --publish-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi
+        --token ${CI_JOB_TOKEN}
+        --username gitlab-ci-token
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - $PKG_DIR/**/*
