@@ -25,6 +25,8 @@ __all__ = [
     "IngestionRunState",
     "IngestionRunBase",
     "DraftStatus",
+    "MergeDecision",
+    "CatalogMergeBase",
     "CatalogEntryDraftBase",
     "LineageEventType",
     "LineageEventBase",
@@ -296,6 +298,14 @@ class DraftStatus(StrEnum):
     DISCARDED = "DISCARDED"  # Discarded by user
 
 
+class MergeDecision(StrEnum):
+    """Merge workflow states. Auto vs manual은 decided_by로 구분."""
+
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    REJECTED = "REJECTED"
+
+
 class IngestionRunBase(SQLModel):
     """Workflow state machine for ingestion process monitoring.
 
@@ -322,6 +332,30 @@ class IngestionRunBase(SQLModel):
     )
     error: str | None = None
     draft_id: int | None = None
+
+
+class CatalogMergeBase(SQLModel):
+    """Entity merge 결과. 단일 모델 (match + merge 통합)."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    draft_id: int = Field(nullable=False)  # catalog_entry_draft.id
+    target_entry_id: int | None = None  # catalog_entry.id (null=신규)
+    merge_evidence: dict[str, Any] = Field(
+        default_factory=dict,
+        sa_column=Column(JSONB, nullable=False),
+    )
+    mapping_score: float = Field(default=0.0)
+    decision: MergeDecision = Field(default=MergeDecision.PENDING, nullable=False)
+    decided_at: datetime | None = None
+    decided_by: str | None = None  # "system_auto" or user ID
+    created_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), nullable=False),
+    )
+    updated_at: datetime | None = Field(
+        default=None,
+        sa_column=Column(TIMESTAMP(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False),
+    )
 
 
 class CatalogEntryDraftBase(CatalogContentFields):

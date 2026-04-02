@@ -1,4 +1,4 @@
-import type { APIResponse, StoreResult, DraftCreationResult, IngestionRun, IngestionRunListResponse, PublishResult, DiscardResult, MetadataEntryOption, DraftFieldsUpdatePayload, DraftDetail } from '../types'
+import type { APIResponse, StoreResult, DraftCreationResult, IngestionRun, IngestionRunListResponse, DiscardResult, MetadataEntryOption, DraftFieldsUpdatePayload, DraftDetail } from '../types'
 import { apiFetch, INGESTION_SERVICE_URL } from './common'
 
 const INGESTION_API_BASE = INGESTION_SERVICE_URL
@@ -53,19 +53,8 @@ export async function getIngestionRun(runId: number): Promise<IngestionRun> {
   return data.result
 }
 
-export async function publishDraft(draftId: number): Promise<PublishResult> {
-  const response = await apiFetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/publish`, {
-    method: 'POST',
-  })
-
-  if (!response.ok) {
-    const error = await response.json()
-    throw new Error(error.description || 'Failed to publish draft')
-  }
-
-  const data: APIResponse<PublishResult> = await response.json()
-  return data.result
-}
+// publishDraft removed — publish는 반드시 merge를 거침
+// POST /merge/entries/{merge_id}/publish 사용 (api/merge.ts)
 
 export async function discardDraft(draftId: number): Promise<DiscardResult> {
   const response = await apiFetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/discard`, {

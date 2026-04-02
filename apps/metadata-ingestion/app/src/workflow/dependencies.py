@@ -8,6 +8,8 @@ from app.src.catalog_entry.dependencies import get_catalog_entry_service
 from app.src.catalog_entry.service import CatalogEntryService
 from app.src.catalog_entry_draft.dependencies import get_catalog_entry_draft_service
 from app.src.catalog_entry_draft.service import CatalogEntryDraftService
+from app.src.catalog_merge.dependencies import get_catalog_merge_service
+from app.src.catalog_merge.service import CatalogMergeService
 from app.src.column_relation.dependencies import get_column_relation_service
 from app.src.column_relation.service import ColumnRelationService
 from app.src.events import EventBus
@@ -50,6 +52,8 @@ def get_ingestion_workflow_service(
     column_relation_service: Annotated[ColumnRelationService, Depends(get_column_relation_service)],
     file_storage: Annotated[FilesystemStorage, Depends(get_filesystem_storage)],
     event_bus: Annotated[EventBus, Depends(get_event_bus)],
+    catalog_merge_service: Annotated[CatalogMergeService, Depends(get_catalog_merge_service)],
+    catalog_entry_service: Annotated[CatalogEntryService, Depends(get_catalog_entry_service)],
 ) -> IngestionWorkflowService:
     """IngestionWorkflowService dependency injection."""
     return IngestionWorkflowService(
@@ -60,6 +64,8 @@ def get_ingestion_workflow_service(
         column_relation_service=column_relation_service,
         file_storage=file_storage,
         event_bus=event_bus,
+        catalog_merge_service=catalog_merge_service,
+        catalog_entry_service=catalog_entry_service,
     )
 
 

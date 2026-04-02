@@ -64,6 +64,30 @@ class DraftPhaseFailed(DomainEvent):
 
 
 # =============================================================================
+# Merge Phase Events
+# =============================================================================
+
+
+@dataclass
+class MergePhaseCompleted(DomainEvent):
+    """Emitted when merge phase completes successfully."""
+
+    snapshot_id: str = ""
+    draft_id: int = 0
+    merge_id: int = 0
+    mapping_score: float = 0.0
+    decided_by: str | None = None  # "system_auto" or None (manual pending)
+
+
+@dataclass
+class MergePhaseFailed(DomainEvent):
+    """Emitted when merge phase fails."""
+
+    snapshot_id: str = ""
+    error_message: str = ""
+
+
+# =============================================================================
 # Publish Events
 # =============================================================================
 
@@ -73,8 +97,10 @@ class PublishCompleted(DomainEvent):
     """Emitted when publish completes successfully."""
 
     draft_id: int = 0
+    merge_id: int = 0
     catalog_entry_id: int = 0
     recommendation_followed: bool = True
+    decided_by: str | None = None  # "system_auto" for auto-publish, user ID for manual
 
 
 @dataclass

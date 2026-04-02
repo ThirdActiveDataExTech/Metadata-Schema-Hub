@@ -45,6 +45,14 @@ export default function Sidebar() {
             </NavLink>
           </li>
           <li>
+            <NavLink to="/admin/merges" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13.19 8.688a4.5 4.5 0 0 1 1.242 7.244l-4.5 4.5a4.5 4.5 0 0 1-6.364-6.364l1.757-1.757m9.86-2.04a4.5 4.5 0 0 0-1.242-7.244l-4.5-4.5a4.5 4.5 0 0 0-6.364 6.364L4.757 8.757" />
+              </svg>
+              Merge Review
+            </NavLink>
+          </li>
+          <li>
             <NavLink to="/admin/lineage" className={({ isActive }) => isActive ? 'nav-link active' : 'nav-link'}>
               <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M7.5 21 3 16.5m0 0L7.5 12M3 16.5h13.5m0-13.5L21 7.5m0 0L16.5 12M21 7.5H7.5" />

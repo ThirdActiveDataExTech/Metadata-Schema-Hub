@@ -16,6 +16,8 @@ from app.src.events.domain_events import (
     DiscardCompleted,
     DraftPhaseCompleted,
     DraftPhaseFailed,
+    MergePhaseCompleted,
+    MergePhaseFailed,
     PublishCompleted,
     StorePhaseCompleted,
     StorePhaseFailed,
@@ -92,6 +94,31 @@ class LineageEventHandler:
         self.writer.save(lineage_event)
 
     # ========================================================================
+    # Merge Phase Handlers
+    # ========================================================================
+
+    def on_merge_completed(self, event: MergePhaseCompleted) -> None:
+        """Handle MergePhaseCompleted event."""
+        lineage_event = LineageEvent(
+            event_type=LineageEventType.COMPLETE,
+            job_name="merge-phase",
+            input_refs=[EntityURI.draft(event.draft_id)],
+            output_refs=[EntityURI.merge(event.merge_id)],
+        )
+        self.writer.save(lineage_event)
+
+    def on_merge_failed(self, event: MergePhaseFailed) -> None:
+        """Handle MergePhaseFailed event."""
+        lineage_event = LineageEvent(
+            event_type=LineageEventType.FAIL,
+            job_name="merge-phase",
+            input_refs=[EntityURI.snapshot(event.snapshot_id)],
+            output_refs=[],
+            error_message=event.error_message,
+        )
+        self.writer.save(lineage_event)
+
+    # ========================================================================
     # Publish Handlers
     # ========================================================================
 
@@ -100,7 +127,7 @@ class LineageEventHandler:
         lineage_event = LineageEvent(
             event_type=LineageEventType.COMPLETE,
             job_name="publish",
-            input_refs=[EntityURI.draft(event.draft_id)],
+            input_refs=[EntityURI.merge(event.merge_id)],
             output_refs=[EntityURI.catalog(event.catalog_entry_id)],
         )
         self.writer.save(lineage_event)
@@ -130,10 +157,14 @@ def register_lineage_handlers(bus: EventBus, handler: LineageEventHandler) -> No
     bus.subscribe(DraftPhaseCompleted, handler.on_draft_completed)
     bus.subscribe(DraftPhaseFailed, handler.on_draft_failed)
 
+    # Merge phase (COMPLETE/FAIL)
+    bus.subscribe(MergePhaseCompleted, handler.on_merge_completed)
+    bus.subscribe(MergePhaseFailed, handler.on_merge_failed)
+
     # Publish (COMPLETE only - approval action)
     bus.subscribe(PublishCompleted, handler.on_publish_completed)
 
     # Discard (COMPLETE only - approval action)
     bus.subscribe(DiscardCompleted, handler.on_discard_completed)
 
-    logger.info("Registered 6 lineage event handlers")
+    logger.info("Registered 8 lineage event handlers")

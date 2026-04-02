@@ -44,6 +44,10 @@ class CatalogEntryService:
 
         return self.repository.save(db, catalog_entry)
 
+    def find_by_external_ids(self, db: Session, external_ids: List[str]) -> List[CatalogEntry]:
+        """Find catalog entries with overlapping external_ids."""
+        return self.repository.find_by_external_ids(db, external_ids)
+
     def get_catalog_entry(self, db: Session, catalog_entry_id: int) -> CatalogEntry:
         """Get Catalog Entry."""
         return self.repository.select(db, catalog_entry_id)

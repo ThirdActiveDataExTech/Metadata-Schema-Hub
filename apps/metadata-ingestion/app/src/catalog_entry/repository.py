@@ -1,7 +1,8 @@
 import json
 from typing import Any, Dict, List, Optional, Sequence
 
-from sqlalchemy import and_, or_
+from sqlalchemy import Text, and_, cast, or_
+from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from sqlmodel import Session, select
 
 from app.src.catalog_entry.exceptions import CatalogEntryNotFoundError
@@ -40,6 +41,17 @@ class CatalogEntryRepository:
     def select_by_identifiers(self, db: Session, catalog_entry_identifiers: List[str]) -> List[CatalogEntry]:
         """Select catalog entries by identifiers."""
         stmt = select(CatalogEntry).where(CatalogEntry.identifier.in_(catalog_entry_identifiers))  # pyright: ignore
+        return list(db.exec(stmt).all())
+
+    def find_by_external_ids(self, db: Session, external_ids: List[str]) -> List[CatalogEntry]:
+        """Find catalog entries with overlapping external_ids (PostgreSQL array overlap &&)."""
+        if not external_ids:
+            return []
+        stmt = (
+            select(CatalogEntry)
+            .where(CatalogEntry.external_ids.op("&&")(cast(external_ids, PG_ARRAY(Text))))  # type: ignore
+            .order_by(CatalogEntry.updated_at.desc())  # type: ignore[union-attr]
+        )
         return list(db.exec(stmt).all())
 
     def select_summary_by_identifier(self, db: Session, catalog_entry_identifier: str) -> Optional[CatalogEntrySummary]:

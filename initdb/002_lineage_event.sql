@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS lineage_event
     created_at       TIMESTAMPTZ DEFAULT now(),
 
     CONSTRAINT chk_event_type CHECK (event_type IN ('START', 'COMPLETE', 'FAIL')),
-    CONSTRAINT chk_job_name CHECK (job_name IN ('store-phase', 'draft-phase', 'publish', 'discard'))
+    CONSTRAINT chk_job_name CHECK (job_name IN ('store-phase', 'draft-phase', 'merge-phase', 'publish', 'discard'))
 );
 
 -- GIN 인덱스 (배열 검색용)
@@ -33,7 +33,7 @@ COMMENT ON TABLE lineage_event IS '데이터 출처 추적 이벤트. Upstream/D
 COMMENT ON COLUMN lineage_event.id IS '고유 식별키 (Primary Key)';
 COMMENT ON COLUMN lineage_event.event_time IS '이벤트 발생 시각';
 COMMENT ON COLUMN lineage_event.event_type IS '이벤트 타입: START(시작), COMPLETE(완료), FAIL(실패)';
-COMMENT ON COLUMN lineage_event.job_name IS '작업 이름: store-phase, draft-phase, publish, discard';
+COMMENT ON COLUMN lineage_event.job_name IS '작업 이름: store-phase, draft-phase, merge-phase, publish, discard';
 COMMENT ON COLUMN lineage_event.input_refs IS '입력 엔티티 URI 배열 ({schema}.{table}/{id} 형식)';
 COMMENT ON COLUMN lineage_event.output_refs IS '출력 엔티티 URI 배열 ({schema}.{table}/{id} 형식)';
 COMMENT ON COLUMN lineage_event.error_message IS '실패 시 에러 메시지';

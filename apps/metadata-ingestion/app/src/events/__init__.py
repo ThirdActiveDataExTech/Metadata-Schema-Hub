@@ -6,6 +6,8 @@ from app.src.events.domain_events import (
     DomainEvent,
     DraftPhaseCompleted,
     DraftPhaseFailed,
+    MergePhaseCompleted,
+    MergePhaseFailed,
     PublishCompleted,
     StorePhaseCompleted,
     StorePhaseFailed,
@@ -18,6 +20,8 @@ __all__ = [
     "StorePhaseFailed",
     "DraftPhaseCompleted",
     "DraftPhaseFailed",
+    "MergePhaseCompleted",
+    "MergePhaseFailed",
     "PublishCompleted",
     "DiscardCompleted",
 ]

@@ -92,6 +92,43 @@ async def create_draft(
     )
 
 
+@router.post(
+    "/merge/{draft_id}",
+    summary="Merge Phase: 엔티티 매칭 + 자동 발행 판단",
+    response_model=APIResponseModel,
+    responses={
+        404: {"description": "해당 draft_id의 드래프트가 존재하지 않음"},
+    },
+)
+async def execute_merge(
+    session: SessionDep,
+    workflow_service: IngestionWorkflowServiceDep,
+    draft_id: int = Path(
+        title="드래프트 ID",
+        description="머지를 실행할 드래프트의 ID",
+        ge=1,
+    ),
+) -> APIResponseModel:
+    """드래프트에 대해 머지 단계를 실행합니다 (Merge Phase).
+
+    엔티티 매칭, 스코어링을 수행하고 score >= threshold이면 자동 발행합니다.
+    score < threshold이면 PENDING 상태로 수동 리뷰를 대기합니다.
+    """
+    result = workflow_service.execute_merge_phase(session, draft_id)
+
+    return APIResponseModel(
+        result={
+            "merge": result.merge.model_dump(),
+            "auto_published": result.auto_published,
+            "catalog_entry_id": result.catalog_entry_id,
+        },
+        description=(
+            f"Merge Phase 완료: 머지 {result.merge.id} 생성"
+            + (f", 카탈로그 엔트리 {result.catalog_entry_id} 자동 발행" if result.auto_published else ", 수동 리뷰 대기")
+        ),
+    )
+
+
 @router.get(
     "/runs",
     summary="수집 실행 목록 조회",

@@ -171,6 +171,11 @@ class EntityURI:
         return f"{schema}.catalog_entry_draft/{draft_id}"
 
     @classmethod
+    def merge(cls, merge_id: int, schema: str = SCHEMA) -> str:
+        """CatalogMerge URI 생성."""
+        return f"{schema}.catalog_merge/{merge_id}"
+
+    @classmethod
     def catalog(cls, catalog_id: int, schema: str = SCHEMA) -> str:
         """CatalogEntry URI 생성."""
         return f"{schema}.catalog_entry/{catalog_id}"
