@@ -1,6 +1,6 @@
 """Merge API endpoints."""
 
-from typing import Annotated, Optional
+from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import BaseModel
@@ -46,7 +46,7 @@ async def list_merges(
     session: SessionDep,
     merge_service: CatalogMergeServiceDep,
     draft_id: Annotated[
-        Optional[int],
+        int | None,
         Query(title="드래프트 ID", description="특정 드래프트 ID로 필터링"),
     ] = None,
     limit: Annotated[int, Query(ge=1, le=500)] = 100,
@@ -56,17 +56,20 @@ async def list_merges(
     if draft_id:
         merge = merge_service.get_merge_by_draft(session, draft_id)
         merges = [merge] if merge else []
+        total = len(merges)
     else:
         merges = merge_service.get_all_merges(session, limit, offset)
+        total = merge_service.count_merges(session)
 
     return APIResponseModel(
         result={
             "merges": [m.model_dump() for m in merges],
+            "total": total,
             "count": len(merges),
             "limit": limit,
             "offset": offset,
         },
-        description=f"총 {len(merges)}건 조회",
+        description=f"총 {total}건 중 {len(merges)}건 조회",
     )
 
 

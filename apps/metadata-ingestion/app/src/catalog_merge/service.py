@@ -104,6 +104,10 @@ class CatalogMergeService:
         """Get merge by draft ID."""
         return self.repository.find_by_draft_id(db, draft_id)
 
+    def count_merges(self, db: Session) -> int:
+        """Count total merges."""
+        return self.repository.count(db)
+
     def get_all_merges(self, db: Session, limit: int = 100, offset: int = 0) -> list[CatalogMerge]:
         """Get all merges with pagination."""
         return self.repository.find_all(db, limit, offset)

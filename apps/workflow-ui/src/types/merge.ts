@@ -47,6 +47,7 @@ export interface MergeCreateResponse {
 
 export interface MergeListResponse {
   merges: MergeDetail[]
+  total: number
   count: number
   limit: number
   offset: number

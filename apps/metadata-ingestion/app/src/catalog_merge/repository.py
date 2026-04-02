@@ -1,8 +1,7 @@
 """Database operations for CatalogMerge."""
 
-from typing import Optional
-
 from sqlalchemy.orm.attributes import flag_modified
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.src.catalog_merge.model import CatalogMerge
@@ -17,15 +16,20 @@ class CatalogMergeRepository:
         db.flush()
         return merge
 
-    def find_by_id(self, db: Session, merge_id: int) -> Optional[CatalogMerge]:
+    def find_by_id(self, db: Session, merge_id: int) -> CatalogMerge | None:
         """Find merge by id."""
         stmt = select(CatalogMerge).where(CatalogMerge.id == merge_id)
         return db.exec(stmt).first()
 
-    def find_by_draft_id(self, db: Session, draft_id: int) -> Optional[CatalogMerge]:
+    def find_by_draft_id(self, db: Session, draft_id: int) -> CatalogMerge | None:
         """Find merge by draft id."""
         stmt = select(CatalogMerge).where(CatalogMerge.draft_id == draft_id)
         return db.exec(stmt).first()
+
+    def count(self, db: Session) -> int:
+        """Count all merges."""
+        stmt = select(func.count()).select_from(CatalogMerge)
+        return db.exec(stmt).one()
 
     def find_all(self, db: Session, limit: int = 100, offset: int = 0) -> list[CatalogMerge]:
         """Find all merges with pagination."""

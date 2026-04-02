@@ -20,7 +20,7 @@ export default function MergeListPage() {
     try {
       const result = await listMerges({ limit, offset })
       setMerges(result.merges)
-      setTotal(result.count)
+      setTotal(result.total)
     } catch (err) {
       console.error('Failed to load merges:', err)
     } finally {
