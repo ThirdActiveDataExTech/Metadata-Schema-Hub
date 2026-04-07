@@ -30,6 +30,7 @@ class AgentClient:
     """
 
     def __init__(self, base_url: str, timeout: int, x_token: str) -> None:
+        """Initialise client with base URL, timeout, and auth token."""
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
         self._headers = {
