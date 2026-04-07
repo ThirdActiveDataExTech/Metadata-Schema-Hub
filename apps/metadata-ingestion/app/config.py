@@ -111,6 +111,11 @@ class Settings(BaseSettings):
     # Snapshot Storage
     SNAPSHOT_STORAGE_PATH: str = "./snapshots"
 
+    # Agent Integration
+    AGENT_SERVICE_URL: str = ""  # e.g. "http://langgraph-agent:8090"
+    AGENT_REQUEST_TIMEOUT: int = 120  # seconds
+    AGENT_ENABLED: bool = False  # feature flag — must be True to enable /regen endpoints
+
 
 settings = Settings()  # type: ignore
 print(settings.model_dump_json())

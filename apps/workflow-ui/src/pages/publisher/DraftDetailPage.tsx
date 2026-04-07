@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getDraft, discardDraft, getMetadataOptions, updateDraftFields, getMergeByDraft, executeMergePhase } from '../../api'
+import { getDraft, discardDraft, getMetadataOptions, updateDraftFields, getMergeByDraft, executeMergePhase, getDraftEvidence, regenDraftMapping } from '../../api'
 import { StatusBadge, TagList } from '../../components'
-import type { DraftDetail, MetadataEntryOption, MappingCandidate } from '../../types'
+import type { DraftDetail, MetadataEntryOption, MappingCandidate, DraftEvidenceResponse } from '../../types'
 
 const EDITABLE_FIELDS = [
   'title', 'description', 'publisher', 'issued', 'modified',
@@ -21,6 +21,12 @@ export default function DraftDetailPage() {
   const [mergeId, setMergeId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
+  // Agent regen state
+  const [evidence, setEvidence] = useState<DraftEvidenceResponse | null>(null)
+  const [regenning, setRegenning] = useState(false)
+  const [regenResult, setRegenResult] = useState<{ changedFields: string[]; newScore: number } | null>(null)
+  const [agentUpdatedFields, setAgentUpdatedFields] = useState<Set<string>>(new Set())
+
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false)
   const [saving, setSaving] = useState(false)
@@ -37,13 +43,20 @@ export default function DraftDetailPage() {
   const loadDraftAndMetadata = async (draftId: number) => {
     setLoading(true)
     try {
-      // Load draft and metadata options in parallel
+      // Load draft, metadata options, and evidence in parallel
       const [draftData, options] = await Promise.all([
         getDraft(draftId),
         getMetadataOptions(draftId)
       ])
       setDraft(draftData)
       setMetadataOptions(options)
+      // Load evidence (best-effort)
+      try {
+        const evidenceData = await getDraftEvidence(draftId)
+        setEvidence(evidenceData)
+      } catch {
+        // Evidence may not be available
+      }
       // Load linked merge
       try {
         const mergeData = await getMergeByDraft(draftId)
@@ -146,6 +159,38 @@ export default function DraftDetailPage() {
     }
   }
 
+  const handleRegen = async () => {
+    if (!id || !draft) return
+    setRegenning(true)
+    setError(null)
+    setRegenResult(null)
+    const prevEvidence = draft.mapping_evidence
+    try {
+      const updatedDraft = await regenDraftMapping(Number(id))
+      // Detect changed fields by comparing decided.metadata_column + value
+      const changed = EDITABLE_FIELDS.filter(field => {
+        const prev = prevEvidence?.[field]?.decided
+        const next = updatedDraft.mapping_evidence?.[field]?.decided
+        if (!prev && !next) return false
+        return prev?.metadata_column !== next?.metadata_column || prev?.value !== next?.value
+      })
+      setDraft(updatedDraft)
+      setAgentUpdatedFields(new Set(changed))
+      // Refresh evidence after regen
+      let newScore = evidence?.mapping_score ?? 0
+      try {
+        const evidenceData = await getDraftEvidence(Number(id))
+        setEvidence(evidenceData)
+        newScore = evidenceData.mapping_score
+      } catch { /* ignore */ }
+      setRegenResult({ changedFields: changed, newScore })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Agent regen failed')
+    } finally {
+      setRegenning(false)
+    }
+  }
+
   const getFieldValue = (field: EditableField): string => {
     if (!draft) return '-'
     const value = draft[field]
@@ -214,6 +259,14 @@ export default function DraftDetailPage() {
                   Edit
                 </button>
                 <button
+                  onClick={handleRegen}
+                  disabled={regenning}
+                  className={`btn ${evidence?.is_low_confidence ? 'btn-warning' : 'btn-secondary'}`}
+                  title={evidence?.is_low_confidence ? 'Low confidence mapping — agent regen recommended' : 'Re-run agent mapping'}
+                >
+                  {regenning ? 'Regenerating...' : 'Agent Regen'}
+                </button>
+                <button
                   onClick={handleDiscard}
                   disabled={discarding}
                   className="btn btn-danger"
@@ -243,10 +296,38 @@ export default function DraftDetailPage() {
         <div className="error-message">{error}</div>
       )}
 
+      {regenResult && (
+        <div className={`agent-result-card ${regenResult.changedFields.length > 0 ? 'agent-result-approve' : 'agent-result-defer'}`}>
+          <div className="agent-result-header">
+            <span className="agent-result-label">Agent Regen 완료</span>
+            <span className={`agent-decision-badge ${regenResult.changedFields.length > 0 ? 'decision-approve' : 'decision-defer'}`}>
+              {regenResult.changedFields.length > 0 ? `${regenResult.changedFields.length}개 필드 변경` : '변경 없음'}
+            </span>
+            <span className="agent-result-score">
+              Mapping Score: {(regenResult.newScore * 100).toFixed(1)}%
+            </span>
+          </div>
+          {regenResult.changedFields.length > 0 && (
+            <div className="agent-result-reason">
+              변경된 필드: {regenResult.changedFields.join(', ')}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="draft-detail">
         <div className="draft-header">
           <h1>{draft.title || '(No title)'}</h1>
           <StatusBadge status={draft.status} />
+          {evidence && (
+            <div className={`mapping-score-badge ${evidence.is_low_confidence ? 'low-confidence' : 'high-confidence'}`}
+              title={`Mapping Score: ${(evidence.mapping_score * 100).toFixed(1)}%`}
+            >
+              <span className="score-label">Mapping</span>
+              <span className="score-value">{(evidence.mapping_score * 100).toFixed(1)}%</span>
+              {evidence.is_low_confidence && <span className="confidence-tag">Low Confidence</span>}
+            </div>
+          )}
         </div>
 
         {/* 3-Column Layout */}
@@ -265,7 +346,7 @@ export default function DraftDetailPage() {
                 return (
                   <div
                     key={field}
-                    className={`field-card clickable ${isEditing ? 'editable' : ''} ${activeField === field ? 'active' : ''} ${pendingSelection ? 'pending-change' : ''}`}
+                    className={`field-card clickable ${isEditing ? 'editable' : ''} ${activeField === field ? 'active' : ''} ${pendingSelection ? 'pending-change' : ''} ${agentUpdatedFields.has(field) ? 'agent-updated' : ''}`}
                     onClick={() => handleFieldClick(field)}
                   >
                     <div className="field-card-header">
@@ -274,6 +355,7 @@ export default function DraftDetailPage() {
                       </span>
                       {isFieldModified(field) && <span className="modified-badge">Modified</span>}
                       {pendingSelection && <span className="pending-badge">Pending</span>}
+                      {agentUpdatedFields.has(field) && <span className="agent-badge">Agent</span>}
                     </div>
                     <div className="field-card-value">
                       {pendingSelection ? (

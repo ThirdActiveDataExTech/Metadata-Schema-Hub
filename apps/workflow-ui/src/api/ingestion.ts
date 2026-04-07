@@ -1,4 +1,4 @@
-import type { APIResponse, StoreResult, DraftCreationResult, IngestionRun, IngestionRunListResponse, DiscardResult, MetadataEntryOption, DraftFieldsUpdatePayload, DraftDetail } from '../types'
+import type { APIResponse, StoreResult, DraftCreationResult, IngestionRun, IngestionRunListResponse, DiscardResult, MetadataEntryOption, DraftFieldsUpdatePayload, DraftDetail, DraftEvidenceResponse } from '../types'
 import { apiFetch, INGESTION_SERVICE_URL } from './common'
 
 const INGESTION_API_BASE = INGESTION_SERVICE_URL
@@ -94,6 +94,32 @@ export async function updateDraftFields(draftId: number, payload: DraftFieldsUpd
   if (!response.ok) {
     const error = await response.json()
     throw new Error(error.description || 'Failed to update draft')
+  }
+
+  const data: APIResponse<DraftDetail> = await response.json()
+  return data.result
+}
+
+export async function getDraftEvidence(draftId: number): Promise<DraftEvidenceResponse> {
+  const response = await apiFetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/evidence`)
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.description || 'Failed to get draft evidence')
+  }
+
+  const data: APIResponse<DraftEvidenceResponse> = await response.json()
+  return data.result
+}
+
+export async function regenDraftMapping(draftId: number): Promise<DraftDetail> {
+  const response = await apiFetch(`${INGESTION_API_BASE}/draft/entries/${draftId}/regen`, {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || 'Agent regen failed')
   }
 
   const data: APIResponse<DraftDetail> = await response.json()

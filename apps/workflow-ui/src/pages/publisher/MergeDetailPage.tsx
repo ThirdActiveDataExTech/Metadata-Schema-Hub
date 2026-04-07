@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getMerge, approveMerge, rejectMerge, getDraft } from '../../api'
+import { getMerge, approveMerge, rejectMerge, getDraft, regenMergeAnalysis } from '../../api'
 import { StatusBadge, TagList } from '../../components'
-import type { MergeDetail, DraftDetail } from '../../types'
+import type { MergeDetail, DraftDetail, MergeRegenResult } from '../../types'
 
 const AUTO_PUBLISH_THRESHOLD = 0.90
 
@@ -13,6 +13,8 @@ export default function MergeDetailPage() {
   const [loading, setLoading] = useState(true)
   const [approving, setApproving] = useState(false)
   const [rejecting, setRejecting] = useState(false)
+  const [regenning, setRegenning] = useState(false)
+  const [agentResult, setAgentResult] = useState<MergeRegenResult | null>(null)
   const [catalogEntryId, setCatalogEntryId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -75,6 +77,27 @@ export default function MergeDetailPage() {
     }
   }
 
+  const handleAgentRegen = async () => {
+    if (!merge) return
+    setRegenning(true)
+    setError(null)
+    setAgentResult(null)
+    try {
+      const result = await regenMergeAnalysis(merge.id)
+      setAgentResult(result)
+      // Reload merge if decision changed (approve/reject)
+      if (result.agent_decision !== 'defer') {
+        const updated = await getMerge(merge.id)
+        setMerge(updated)
+        if (updated.catalog_entry_id) setCatalogEntryId(updated.catalog_entry_id)
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Agent analysis failed')
+    } finally {
+      setRegenning(false)
+    }
+  }
+
   const formatScore = (score: number) => `${(score * 100).toFixed(1)}%`
 
   if (loading) {
@@ -103,6 +126,14 @@ export default function MergeDetailPage() {
           {isPending && (
             <>
               <button
+                onClick={handleAgentRegen}
+                disabled={regenning}
+                className="btn btn-warning"
+                title="Request agent to analyse and decide on merge"
+              >
+                {regenning ? 'Analysing...' : 'Agent Analysis'}
+              </button>
+              <button
                 onClick={handleReject}
                 disabled={rejecting}
                 className="btn btn-danger"
@@ -127,6 +158,18 @@ export default function MergeDetailPage() {
       </div>
 
       {error && <div className="error-message">{error}</div>}
+
+      {agentResult && (
+        <div className={`agent-result-card agent-result-${agentResult.agent_decision}`}>
+          <div className="agent-result-header">
+            <span className="agent-result-label">Agent Decision</span>
+            <span className={`agent-decision-badge decision-${agentResult.agent_decision}`}>
+              {agentResult.agent_decision.toUpperCase()}
+            </span>
+          </div>
+          <div className="agent-result-reason">{agentResult.agent_reason}</div>
+        </div>
+      )}
 
       <div className="merge-detail">
         <div className="merge-header">

@@ -79,3 +79,10 @@ export interface DiscardResult {
   id: number
   status: 'DISCARDED'
 }
+
+export interface DraftEvidenceResponse {
+  draft_id: number
+  mapping_evidence: MappingEvidence
+  mapping_score: number
+  is_low_confidence: boolean
+}

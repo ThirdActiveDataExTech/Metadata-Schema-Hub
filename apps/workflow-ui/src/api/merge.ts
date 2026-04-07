@@ -1,4 +1,4 @@
-import type { APIResponse, MergeCreateResponse, MergeDetail, MergeListResponse } from '../types'
+import type { APIResponse, MergeCreateResponse, MergeDetail, MergeListResponse, MergeRegenResult } from '../types'
 import { apiFetch, INGESTION_SERVICE_URL } from './common'
 
 const BASE = INGESTION_SERVICE_URL
@@ -71,5 +71,19 @@ export async function rejectMerge(mergeId: number, decidedBy: string): Promise<M
   }
 
   const data: APIResponse<MergeDetail> = await response.json()
+  return data.result
+}
+
+export async function regenMergeAnalysis(mergeId: number): Promise<MergeRegenResult> {
+  const response = await apiFetch(`${BASE}/merge/entries/${mergeId}/regen`, {
+    method: 'POST',
+  })
+
+  if (!response.ok) {
+    const error = await response.json()
+    throw new Error(error.message || error.description || 'Agent merge analysis failed')
+  }
+
+  const data: APIResponse<MergeRegenResult> = await response.json()
   return data.result
 }
