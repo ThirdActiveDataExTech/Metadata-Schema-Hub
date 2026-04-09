@@ -367,6 +367,15 @@ body {
   background: #38a169;
 }
 
+.btn-warning {
+  background: #ed8936;
+  color: white;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #dd6b20;
+}
+
 .btn-sm {
   padding: 0.375rem 0.75rem;
   font-size: 0.8125rem;
@@ -1288,6 +1297,21 @@ body {
   text-transform: uppercase;
 }
 
+.agent-badge {
+  font-size: 0.625rem;
+  background: #6b46c1;
+  color: white;
+  padding: 0.125rem 0.375rem;
+  border-radius: 3px;
+  font-weight: 500;
+  text-transform: uppercase;
+}
+
+.field-card.agent-updated {
+  border-left: 3px solid #6b46c1;
+  background: #faf5ff;
+}
+
 .field-card-value {
   font-size: 0.8125rem;
   color: #4a5568;
@@ -1882,4 +1906,391 @@ body {
 .status-badge.rejected {
   background: #fed7d7;
   color: #9b2c2c;
+}
+
+/* ==================== Mapping Score Badge (Draft) ==================== */
+.mapping-score-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.625rem;
+  border-radius: 9999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid transparent;
+}
+
+.mapping-score-badge .score-label {
+  opacity: 0.75;
+}
+
+.mapping-score-badge .score-value {
+  font-weight: 700;
+}
+
+.mapping-score-badge .confidence-tag {
+  font-size: 0.6875rem;
+  opacity: 0.85;
+}
+
+.mapping-score-badge.high-confidence {
+  background: #c6f6d5;
+  color: #276749;
+  border-color: #9ae6b4;
+}
+
+.mapping-score-badge.low-confidence {
+  background: #feebc8;
+  color: #7b341e;
+  border-color: #fbd38d;
+}
+
+/* ==================== Agent Result Card (Merge) ==================== */
+.agent-result-card {
+  margin: 0 0 1rem 0;
+  padding: 0.875rem 1rem;
+  border-radius: 0.5rem;
+  border-left: 4px solid;
+  font-size: 0.875rem;
+}
+
+.agent-result-card.agent-result-approve {
+  background: #f0fff4;
+  border-left-color: #48bb78;
+}
+
+.agent-result-card.agent-result-reject {
+  background: #fff5f5;
+  border-left-color: #fc8181;
+}
+
+.agent-result-card.agent-result-defer {
+  background: #fffaf0;
+  border-left-color: #ed8936;
+}
+
+.agent-result-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.agent-result-label {
+  font-weight: 600;
+  color: #4a5568;
+}
+
+.agent-decision-badge {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.agent-decision-badge.decision-approve {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.agent-decision-badge.decision-reject {
+  background: #fed7d7;
+  color: #9b2c2c;
+}
+
+.agent-decision-badge.decision-defer {
+  background: #feebc8;
+  color: #7b341e;
+}
+
+.agent-result-reason {
+  color: #4a5568;
+  line-height: 1.5;
+}
+
+.agent-result-score {
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: #718096;
+  font-weight: 500;
+}
+
+/* ==================== Agent Sidebar ==================== */
+
+.agent-sidebar {
+  position: fixed;
+  top: 0;
+  right: 0;
+  height: 100vh;
+  width: 380px;
+  background: white;
+  border-left: 1px solid #e2e8f0;
+  box-shadow: -4px 0 12px rgba(0, 0, 0, 0.08);
+  transform: translateX(100%);
+  transition: transform 0.3s ease;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.agent-sidebar.visible {
+  transform: translateX(0);
+}
+
+.agent-sidebar-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+  background: #1a202c;
+  color: white;
+  flex-shrink: 0;
+}
+
+.agent-sidebar-title {
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.agent-sidebar-close {
+  background: none;
+  border: none;
+  color: white;
+  cursor: pointer;
+  font-size: 1.5rem;
+  padding: 0.125rem 0.375rem;
+  line-height: 1;
+  opacity: 0.7;
+  transition: opacity 0.15s;
+}
+
+.agent-sidebar-close:hover {
+  opacity: 1;
+}
+
+.agent-sidebar-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1.25rem;
+}
+
+/* Run button inside sidebar */
+.agent-sidebar-run-btn {
+  display: block;
+  width: 100%;
+  padding: 0.625rem 1rem;
+  margin-bottom: 1rem;
+  background: #4299e1;
+  color: white;
+  border: none;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.agent-sidebar-run-btn:hover:not(:disabled) {
+  background: #3182ce;
+}
+
+.agent-sidebar-run-btn:disabled {
+  background: #a0aec0;
+  cursor: not-allowed;
+}
+
+/* Empty state */
+.agent-sidebar-empty {
+  color: #a0aec0;
+  font-size: 0.8125rem;
+  text-align: center;
+  padding: 2rem 0;
+}
+
+/* Status banner */
+.agent-status-banner {
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  margin-bottom: 1rem;
+}
+
+.agent-status-banner.success {
+  background: #f0fff4;
+  color: #276749;
+  border: 1px solid #c6f6d5;
+}
+
+.agent-status-banner.error {
+  background: #fff5f5;
+  color: #9b2c2c;
+  border: 1px solid #fed7d7;
+}
+
+/* Timeline */
+.agent-timeline {
+  position: relative;
+}
+
+.agent-step {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 0;
+  min-height: 3.5rem;
+}
+
+.agent-step-track {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex-shrink: 0;
+  width: 28px;
+}
+
+.agent-step-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  background: #edf2f7;
+  color: #a0aec0;
+  border: 2px solid #e2e8f0;
+  transition: all 0.3s ease;
+}
+
+.agent-step-icon.completed {
+  background: #c6f6d5;
+  color: #276749;
+  border-color: #48bb78;
+}
+
+.agent-step-icon.in-progress {
+  background: #ebf8ff;
+  color: #3182ce;
+  border-color: #4299e1;
+  animation: agent-pulse 1.5s ease-in-out infinite;
+}
+
+.agent-step-connector {
+  width: 2px;
+  flex: 1;
+  min-height: 1rem;
+  background: #e2e8f0;
+  transition: background 0.3s ease;
+}
+
+.agent-step-connector.completed {
+  background: #48bb78;
+}
+
+.agent-step-content {
+  padding-bottom: 1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.agent-step-label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #2d3748;
+  line-height: 28px;
+}
+
+.agent-step.completed .agent-step-label {
+  color: #276749;
+}
+
+.agent-step.in-progress .agent-step-label {
+  color: #3182ce;
+}
+
+.agent-step-summary {
+  font-size: 0.75rem;
+  color: #718096;
+  margin-top: 0.25rem;
+  line-height: 1.4;
+}
+
+.agent-step-time {
+  font-size: 0.6875rem;
+  color: #a0aec0;
+  margin-left: 0.5rem;
+}
+
+.agent-step-detail {
+  font-size: 0.6875rem;
+  font-family: 'SF Mono', Menlo, monospace;
+  color: #718096;
+  margin-top: 0.25rem;
+  padding: 0.25rem 0.5rem;
+  background: #f7fafc;
+  border-radius: 0.25rem;
+  border-left: 2px solid #e2e8f0;
+  line-height: 1.5;
+}
+
+/* Active toggle button */
+.btn.active {
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15);
+  opacity: 0.9;
+}
+
+/* Result card inside sidebar */
+.agent-sidebar-result {
+  margin-top: 1rem;
+  padding: 0.875rem;
+  background: #f7fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.agent-sidebar-result-title {
+  font-weight: 600;
+  color: #2d3748;
+  margin-bottom: 0.5rem;
+}
+
+.agent-sidebar-result-decision {
+  margin-bottom: 0.375rem;
+}
+
+.agent-sidebar-result-decision .decision-tag {
+  padding: 0.125rem 0.5rem;
+  border-radius: 9999px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.decision-tag.decision-approve {
+  background: #c6f6d5;
+  color: #276749;
+}
+
+.decision-tag.decision-reject {
+  background: #fed7d7;
+  color: #9b2c2c;
+}
+
+.decision-tag.decision-defer {
+  background: #feebc8;
+  color: #7b341e;
+}
+
+.agent-sidebar-result-reason {
+  color: #4a5568;
+  line-height: 1.5;
+}
+
+@keyframes agent-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
 }

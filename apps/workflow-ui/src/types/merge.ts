@@ -52,3 +52,18 @@ export interface MergeListResponse {
   limit: number
   offset: number
 }
+
+export type AgentDecision = 'approve' | 'reject' | 'defer'
+
+export interface MergeRegenResult {
+  agent_decision: AgentDecision
+  agent_reason: string
+  // approve/reject 시 merge 필드 포함
+  id?: number
+  decision?: MergeDecision
+  decided_by?: string | null
+  decided_at?: string | null
+  target_entry_id?: number | null
+  merge_id?: number
+  catalog_entry_id?: number
+}

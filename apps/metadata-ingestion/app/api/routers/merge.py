@@ -2,12 +2,21 @@
 
 from typing import Annotated
 
+from active_metadata.agent_schemas import MappingEvidence, MergeAnalysisRequest, MergeEvidence
 from fastapi import APIRouter, HTTPException, Path, Query
 from pydantic import BaseModel
 
+from app.config import settings
 from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
+from app.src.agent_client.dependencies import AgentClientDep
+from app.src.agent_client.exceptions import (
+    AgentResponseError,
+    AgentTimeoutError,
+    AgentUnavailableError,
+)
+from app.src.catalog_entry_draft.dependencies import CatalogEntryDraftServiceDep
 from app.src.catalog_merge.dependencies import CatalogMergeServiceDep
 from app.src.workflow.dependencies import IngestionWorkflowServiceDep
 
@@ -168,4 +177,102 @@ async def reject_merge(
     return APIResponseModel(
         result=merge.model_dump(),
         description=f"머지 {merge_id} 거부 완료",
+    )
+
+
+@router.post(
+    "/entries/{merge_id}/regen",
+    summary="에이전트 기반 머지 재분석",
+    response_model=APIResponseModel,
+    responses={
+        404: {"description": "해당 ID의 머지가 존재하지 않음"},
+        503: {"description": "에이전트 비활성화 또는 연결 불가"},
+        504: {"description": "에이전트 응답 시간 초과"},
+    },
+)
+async def regen_merge_analysis(
+    session: SessionDep,
+    merge_service: CatalogMergeServiceDep,
+    draft_service: CatalogEntryDraftServiceDep,
+    workflow_service: IngestionWorkflowServiceDep,
+    agent_client: AgentClientDep,
+    merge_id: int = Path(title="머지 ID", ge=1),
+) -> APIResponseModel:
+    """외부 LangGraph 에이전트를 호출하여 머지 결정을 재분석합니다.
+
+    AGENT_ENABLED=True 및 AGENT_SERVICE_URL 설정이 필요합니다.
+    에이전트 응답에 따라 approve/reject/defer 중 하나로 처리됩니다.
+    - approve: execute_merge_approve() 호출 → CatalogEntry 생성/갱신
+    - reject: merge_service.reject() 호출
+    - defer: 상태 변경 없음, reason 반환"""
+    if not settings.AGENT_ENABLED:
+        raise HTTPException(
+            status_code=503,
+            detail="Agent integration is disabled. Set AGENT_ENABLED=True and AGENT_SERVICE_URL.",
+        )
+
+    merge = merge_service.get_merge(session, merge_id)
+    if not merge:
+        raise HTTPException(status_code=404, detail=f"CatalogMerge {merge_id} not found")
+
+    draft = draft_service.get_draft(session, merge.draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail=f"Draft {merge.draft_id} not found for merge {merge_id}")
+
+    merge_evidence = MergeEvidence.model_validate(merge.merge_evidence)
+    draft_mapping_evidence = {k: MappingEvidence.model_validate(v) for k, v in draft.mapping_evidence.items()}
+
+    agent_request = MergeAnalysisRequest(
+        merge_id=merge_id,
+        draft_id=merge.draft_id,
+        mapping_score=merge.mapping_score,
+        merge_evidence=merge_evidence,
+        draft_mapping_evidence=draft_mapping_evidence,
+    )
+
+    try:
+        agent_response = agent_client.regen_merge_analysis(agent_request)
+    except AgentTimeoutError as e:
+        raise HTTPException(status_code=504, detail=str(e))
+    except (AgentUnavailableError, AgentResponseError) as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    decision = agent_response.decision
+
+    if decision == "approve":
+        updated_merge, catalog_entry = workflow_service.execute_merge_approve(
+            session,
+            merge_id,
+            agent_response.decided_by,
+            agent_response.target_entry_id,
+        )
+        return APIResponseModel(
+            result={
+                **updated_merge.model_dump(),
+                "catalog_entry_id": catalog_entry.id,
+                "agent_decision": decision,
+                "agent_reason": agent_response.reason,
+            },
+            description=f"머지 {merge_id} 에이전트 승인 완료, 카탈로그 엔트리 {catalog_entry.id} 생성",
+        )
+
+    if decision == "reject":
+        updated_merge = merge_service.reject(session, merge_id, agent_response.decided_by)
+        return APIResponseModel(
+            result={
+                **updated_merge.model_dump(),
+                "agent_decision": decision,
+                "agent_reason": agent_response.reason,
+            },
+            description=f"머지 {merge_id} 에이전트 거부 완료",
+        )
+
+    # decision == "defer": no state change
+    return APIResponseModel(
+        result={
+            "merge_id": merge_id,
+            "agent_decision": decision,
+            "agent_reason": agent_response.reason,
+        },
+        description=f"머지 {merge_id} 에이전트 판단 보류 — 수동 검토 필요",
     )

@@ -40,6 +40,9 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-datagokr}
       SNAPSHOT_STORAGE_PATH: /data/snapshots
       BACKEND_CORS_ORIGINS: "http://localhost:3000"
+      AGENT_ENABLED: ${AGENT_ENABLED:-false}
+      AGENT_SERVICE_URL: ${AGENT_SERVICE_URL:-http://localhost:8090}
+      AGENT_REQUEST_TIMEOUT: ${AGENT_REQUEST_TIMEOUT:-120}
     ports:
       - 8085:8085
     volumes:
