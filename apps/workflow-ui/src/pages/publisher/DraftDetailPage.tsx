@@ -1,13 +1,30 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getDraft, discardDraft, getMetadataOptions, updateDraftFields, getMergeByDraft, executeMergePhase, getDraftEvidence, regenDraftMapping } from '../../api'
-import { StatusBadge, TagList } from '../../components'
+import { getDraft, discardDraft, getMetadataOptions, updateDraftFields, getMergeByDraft, executeMergePhase, getDraftEvidence, streamDraftRegen } from '../../api'
+import { StatusBadge, TagList, AgentSidebar } from '../../components'
+import { useAgentStream } from '../../hooks/useAgentStream'
 import type { DraftDetail, MetadataEntryOption, MappingCandidate, DraftEvidenceResponse } from '../../types'
 
 const EDITABLE_FIELDS = [
   'title', 'description', 'publisher', 'issued', 'modified',
   'keyword', 'theme', 'landing_page', 'access_url', 'external_ids'
 ] as const
+
+const DRAFT_NODE_LABELS: Record<string, string> = {
+  parse_context: '컨텍스트 분석',
+  enrich_metadata_candidates: '메타데이터 후보 탐색',
+  decide_field_mappings: '필드 매핑 결정',
+  validate_decisions: '결정 검증',
+  build_draft_response: '응답 생성',
+}
+
+const DRAFT_NODE_ORDER = [
+  'parse_context',
+  'enrich_metadata_candidates',
+  'decide_field_mappings',
+  'validate_decisions',
+  'build_draft_response',
+]
 
 type EditableField = typeof EDITABLE_FIELDS[number]
 
@@ -23,9 +40,9 @@ export default function DraftDetailPage() {
 
   // Agent regen state
   const [evidence, setEvidence] = useState<DraftEvidenceResponse | null>(null)
-  const [regenning, setRegenning] = useState(false)
   const [regenResult, setRegenResult] = useState<{ changedFields: string[]; newScore: number } | null>(null)
   const [agentUpdatedFields, setAgentUpdatedFields] = useState<Set<string>>(new Set())
+  const agent = useAgentStream()
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false)
@@ -161,13 +178,27 @@ export default function DraftDetailPage() {
 
   const handleRegen = async () => {
     if (!id || !draft) return
-    setRegenning(true)
     setError(null)
     setRegenResult(null)
     const prevEvidence = draft.mapping_evidence
+
+    // Phase 1: Stream agent events (read-only)
+    const finalEvent = await agent.start((signal) =>
+      streamDraftRegen(Number(id), {
+        onEvent: agent.addEvent,
+        onComplete: agent.onComplete,
+        onError: (msg) => { agent.setError(msg); setError(msg) },
+        signal,
+      })
+    )
+
+    if (finalEvent?.type !== 'final_response' || !finalEvent.data) return
+
+    // Phase 2: Apply result via existing PATCH endpoint
     try {
-      const updatedDraft = await regenDraftMapping(Number(id))
-      // Detect changed fields by comparing decided.metadata_column + value
+      const updates = (finalEvent.data.updates as Array<{ catalog_field: string; metadata_schema: string }>) || []
+      const updatedDraft = await updateDraftFields(Number(id), { updates })
+
       const changed = EDITABLE_FIELDS.filter(field => {
         const prev = prevEvidence?.[field]?.decided
         const next = updatedDraft.mapping_evidence?.[field]?.decided
@@ -176,7 +207,7 @@ export default function DraftDetailPage() {
       })
       setDraft(updatedDraft)
       setAgentUpdatedFields(new Set(changed))
-      // Refresh evidence after regen
+
       let newScore = evidence?.mapping_score ?? 0
       try {
         const evidenceData = await getDraftEvidence(Number(id))
@@ -185,9 +216,9 @@ export default function DraftDetailPage() {
       } catch { /* ignore */ }
       setRegenResult({ changedFields: changed, newScore })
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Agent regen failed')
-    } finally {
-      setRegenning(false)
+      const msg = err instanceof Error ? err.message : 'Failed to apply agent result'
+      setError(msg)
+      agent.setError(msg)
     }
   }
 
@@ -259,12 +290,11 @@ export default function DraftDetailPage() {
                   Edit
                 </button>
                 <button
-                  onClick={handleRegen}
-                  disabled={regenning}
-                  className={`btn ${evidence?.is_low_confidence ? 'btn-warning' : 'btn-secondary'}`}
-                  title={evidence?.is_low_confidence ? 'Low confidence mapping — agent regen recommended' : 'Re-run agent mapping'}
+                  onClick={() => agent.sidebarVisible ? agent.closeSidebar() : agent.openSidebar()}
+                  className={`btn ${evidence?.is_low_confidence ? 'btn-warning' : 'btn-secondary'} ${agent.sidebarVisible ? 'active' : ''}`}
+                  title={evidence?.is_low_confidence ? 'Low confidence — 에이전트 재생성 권장' : '에이전트 패널'}
                 >
-                  {regenning ? 'Regenerating...' : 'Agent Regen'}
+                  Agent
                 </button>
                 <button
                   onClick={handleDiscard}
@@ -528,6 +558,18 @@ export default function DraftDetailPage() {
           </dl>
         </div>
       </div>
+
+      <AgentSidebar
+        visible={agent.sidebarVisible}
+        onClose={agent.closeSidebar}
+        onRun={handleRegen}
+        title="드래프트 재생성"
+        events={agent.events}
+        isRunning={agent.isRunning}
+        error={agent.error}
+        nodeLabels={DRAFT_NODE_LABELS}
+        nodeOrder={DRAFT_NODE_ORDER}
+      />
     </div>
   )
 }

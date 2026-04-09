@@ -1,10 +1,25 @@
 import { useState, useEffect } from 'react'
 import { useParams, Link } from 'react-router-dom'
-import { getMerge, approveMerge, rejectMerge, getDraft, regenMergeAnalysis } from '../../api'
-import { StatusBadge, TagList } from '../../components'
+import { getMerge, approveMerge, rejectMerge, getDraft, streamMergeRegen } from '../../api'
+import { StatusBadge, TagList, AgentSidebar } from '../../components'
+import { useAgentStream } from '../../hooks/useAgentStream'
 import type { MergeDetail, DraftDetail, MergeRegenResult } from '../../types'
 
 const AUTO_PUBLISH_THRESHOLD = 0.90
+
+const MERGE_NODE_LABELS: Record<string, string> = {
+  assess_mapping_quality: '매핑 품질 평가',
+  assess_entity_overlap: '엔티티 중복 평가',
+  reason_merge_decision: '머지 결정 추론',
+  build_merge_response: '응답 생성',
+}
+
+const MERGE_NODE_ORDER = [
+  'assess_mapping_quality',
+  'assess_entity_overlap',
+  'reason_merge_decision',
+  'build_merge_response',
+]
 
 export default function MergeDetailPage() {
   const { id } = useParams<{ id: string }>()
@@ -13,8 +28,8 @@ export default function MergeDetailPage() {
   const [loading, setLoading] = useState(true)
   const [approving, setApproving] = useState(false)
   const [rejecting, setRejecting] = useState(false)
-  const [regenning, setRegenning] = useState(false)
   const [agentResult, setAgentResult] = useState<MergeRegenResult | null>(null)
+  const agent = useAgentStream()
   const [catalogEntryId, setCatalogEntryId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -79,22 +94,51 @@ export default function MergeDetailPage() {
 
   const handleAgentRegen = async () => {
     if (!merge) return
-    setRegenning(true)
     setError(null)
     setAgentResult(null)
+
+    // Phase 1: Stream agent events (read-only)
+    const finalEvent = await agent.start((signal) =>
+      streamMergeRegen(merge.id, {
+        onEvent: agent.addEvent,
+        onComplete: agent.onComplete,
+        onError: (msg) => { agent.setError(msg); setError(msg) },
+        signal,
+      })
+    )
+
+    if (finalEvent?.type !== 'final_response' || !finalEvent.data) return
+
+    // Phase 2: Apply decision via existing sync endpoints
     try {
-      const result = await regenMergeAnalysis(merge.id)
-      setAgentResult(result)
-      // Reload merge if decision changed (approve/reject)
-      if (result.agent_decision !== 'defer') {
-        const updated = await getMerge(merge.id)
+      const decision = finalEvent.data.decision as string
+      const reason = (finalEvent.data.reason as string) || ''
+      const decidedBy = (finalEvent.data.decided_by as string) || 'langgraph_agent'
+      const targetEntryId = finalEvent.data.target_entry_id as number | undefined
+
+      const result: MergeRegenResult = {
+        agent_decision: decision as MergeRegenResult['agent_decision'],
+        agent_reason: reason,
+        merge_id: merge.id,
+      }
+
+      if (decision === 'approve') {
+        const updated = await approveMerge(merge.id, decidedBy, targetEntryId)
         setMerge(updated)
         if (updated.catalog_entry_id) setCatalogEntryId(updated.catalog_entry_id)
+        result.decision = updated.decision
+      } else if (decision === 'reject') {
+        const updated = await rejectMerge(merge.id, decidedBy)
+        setMerge(updated)
+        result.decision = updated.decision
       }
+      // defer: no state change
+
+      setAgentResult(result)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Agent analysis failed')
-    } finally {
-      setRegenning(false)
+      const msg = err instanceof Error ? err.message : 'Failed to apply agent decision'
+      setError(msg)
+      agent.setError(msg)
     }
   }
 
@@ -126,12 +170,11 @@ export default function MergeDetailPage() {
           {isPending && (
             <>
               <button
-                onClick={handleAgentRegen}
-                disabled={regenning}
-                className="btn btn-warning"
-                title="Request agent to analyse and decide on merge"
+                onClick={() => agent.sidebarVisible ? agent.closeSidebar() : agent.openSidebar()}
+                className={`btn btn-warning ${agent.sidebarVisible ? 'active' : ''}`}
+                title="에이전트 분석 패널"
               >
-                {regenning ? 'Analysing...' : 'Agent Analysis'}
+                Agent
               </button>
               <button
                 onClick={handleReject}
@@ -332,6 +375,18 @@ export default function MergeDetailPage() {
           </div>
         </div>
       </div>
+
+      <AgentSidebar
+        visible={agent.sidebarVisible}
+        onClose={agent.closeSidebar}
+        onRun={handleAgentRegen}
+        title="머지 분석"
+        events={agent.events}
+        isRunning={agent.isRunning}
+        error={agent.error}
+        nodeLabels={MERGE_NODE_LABELS}
+        nodeOrder={MERGE_NODE_ORDER}
+      />
     </div>
   )
 }

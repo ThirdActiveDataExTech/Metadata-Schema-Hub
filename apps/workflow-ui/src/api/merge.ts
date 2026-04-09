@@ -1,5 +1,7 @@
 import type { APIResponse, MergeCreateResponse, MergeDetail, MergeListResponse, MergeRegenResult } from '../types'
+import type { SSEEventHandler } from './sse'
 import { apiFetch, INGESTION_SERVICE_URL } from './common'
+import { streamAgentSSE } from './sse'
 
 const BASE = INGESTION_SERVICE_URL
 
@@ -86,4 +88,11 @@ export async function regenMergeAnalysis(mergeId: number): Promise<MergeRegenRes
 
   const data: APIResponse<MergeRegenResult> = await response.json()
   return data.result
+}
+
+export async function streamMergeRegen(
+  mergeId: number,
+  handlers: { onEvent: SSEEventHandler; onComplete: () => void; onError: (msg: string) => void; signal?: AbortSignal },
+): Promise<void> {
+  return streamAgentSSE(`${BASE}/merge/entries/${mergeId}/regen/stream`, handlers)
 }
