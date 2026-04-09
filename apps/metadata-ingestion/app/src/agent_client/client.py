@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+import json
 import logging
+from collections.abc import AsyncGenerator
 
+import httpx
 import requests
-
 from active_metadata.agent_schemas import (
     DraftMappingRequest,
     DraftMappingResponse,
@@ -111,3 +113,75 @@ class AgentClient:
             return MergeAnalysisResponse.model_validate(resp.json())
         except Exception as e:
             raise AgentResponseError(str(e))
+
+    # ── Async streaming methods (SSE proxy) ──────────────────────
+
+    _SSE_TIMEOUT = httpx.Timeout(connect=10.0, read=None, write=10.0, pool=10.0)
+
+    @staticmethod
+    def _error_event(message: str) -> dict:
+        return {"type": "error", "node": None, "data": {"message": message}}
+
+    @staticmethod
+    def _parse_sse_frames(buffer: str) -> tuple[list[dict], str]:
+        """Extract complete SSE frames from *buffer*, return (events, remaining)."""
+        events: list[dict] = []
+        while "\n\n" in buffer:
+            frame, buffer = buffer.split("\n\n", 1)
+            for line in frame.strip().split("\n"):
+                if not line.startswith("data:"):
+                    continue
+                data_str = line[5:].strip()
+                if not data_str:
+                    continue
+                try:
+                    events.append(json.loads(data_str))
+                except json.JSONDecodeError:
+                    logger.warning("Failed to parse SSE data: %s", data_str)
+        return events, buffer
+
+    async def _stream_sse(self, url: str, payload: str) -> AsyncGenerator[dict, None]:
+        """Open an SSE stream via httpx and yield parsed event dicts.
+
+        Each yielded dict has the structure:
+        ``{"type": "node_complete"|"final_response"|"error", "node": ..., "data": ..., "timestamp": ...}``
+        """
+        try:
+            async with httpx.AsyncClient(timeout=self._SSE_TIMEOUT) as client:
+                async with client.stream(
+                    "POST",
+                    url,
+                    content=payload,
+                    headers=self._headers,
+                ) as response:
+                    if response.status_code != 200:
+                        body = await response.aread()
+                        yield self._error_event(f"Agent HTTP {response.status_code}: {body.decode()}")
+                        return
+
+                    buffer = ""
+                    async for chunk in response.aiter_text():
+                        buffer += chunk.replace("\r\n", "\n")
+                        events, buffer = self._parse_sse_frames(buffer)
+                        for event in events:
+                            yield event
+        except httpx.ConnectError as e:
+            yield self._error_event(f"Agent connection failed: {e}")
+        except httpx.ReadTimeout:
+            yield self._error_event("Agent stream read timeout")
+        except Exception as e:
+            yield self._error_event(f"Stream error: {e}")
+
+    async def stream_draft_mapping(self, request: DraftMappingRequest) -> AsyncGenerator[dict, None]:
+        """POST /agent/draft/mapping/stream — yield SSE events for draft regen."""
+        url = f"{self._base_url}/agent/draft/mapping/stream"
+        logger.info("Starting agent draft mapping stream: draft_id=%d url=%s", request.draft_id, url)
+        async for event in self._stream_sse(url, request.model_dump_json()):
+            yield event
+
+    async def stream_merge_analysis(self, request: MergeAnalysisRequest) -> AsyncGenerator[dict, None]:
+        """POST /agent/merge/analysis/stream — yield SSE events for merge analysis."""
+        url = f"{self._base_url}/agent/merge/analysis/stream"
+        logger.info("Starting agent merge analysis stream: merge_id=%d url=%s", request.merge_id, url)
+        async for event in self._stream_sse(url, request.model_dump_json()):
+            yield event
