@@ -14,7 +14,9 @@ from conftest import (
 from pydantic import ValidationError
 
 from active_metadata.models import (
+    CatalogContentFields,
     CatalogEntryBase,
+    CatalogEntryDraftBase,
     ColumnRelationBase,
     MetadataBase,
     MetadataSnapshotBase,
@@ -261,3 +263,90 @@ class TestMetadataSnapshotBase:
                 storage_key="test.json",
             )
         assert "payload_sha256 must be exactly 64 hexadecimal characters" in str(exc_info.value)
+
+
+class TestCatalogContentFields:
+    """Tests for CatalogContentFields base class."""
+
+    def test_get_content_fields(self):
+        """Test get_content_fields returns all DCAT content field names."""
+        expected_fields = {
+            "title",
+            "description",
+            "issued",
+            "modified",
+            "publisher",
+            "keyword",
+            "theme",
+            "landing_page",
+            "access_url",
+            "external_ids",
+        }
+        assert CatalogContentFields.get_content_fields() == expected_fields
+
+    def test_get_list_fields(self):
+        """Test get_list_fields returns separator-split list fields."""
+        assert CatalogContentFields.get_list_fields() == ["keyword", "theme"]
+
+    def test_get_atomic_list_fields(self):
+        """Test get_atomic_list_fields returns non-split list fields."""
+        assert CatalogContentFields.get_atomic_list_fields() == ["external_ids"]
+
+    def test_get_date_fields(self):
+        """Test get_date_fields returns date-type fields."""
+        assert CatalogContentFields.get_date_fields() == ["issued", "modified"]
+
+    def test_get_long_text_fields(self):
+        """Test get_long_text_fields returns fields to truncate in summaries."""
+        assert CatalogContentFields.get_long_text_fields() == ["description"]
+
+    def test_content_fields_inherited_by_catalog_entry(self):
+        """Test CatalogEntryBase inherits all content fields and methods."""
+        assert issubclass(CatalogEntryBase, CatalogContentFields)
+        assert CatalogEntryBase.get_content_fields() == CatalogContentFields.get_content_fields()
+        assert CatalogEntryBase.get_list_fields() == CatalogContentFields.get_list_fields()
+        assert CatalogEntryBase.get_atomic_list_fields() == CatalogContentFields.get_atomic_list_fields()
+        assert CatalogEntryBase.get_date_fields() == CatalogContentFields.get_date_fields()
+        assert CatalogEntryBase.get_long_text_fields() == CatalogContentFields.get_long_text_fields()
+
+    def test_content_fields_inherited_by_draft(self):
+        """Test CatalogEntryDraftBase inherits all content fields and methods."""
+        assert issubclass(CatalogEntryDraftBase, CatalogContentFields)
+        assert CatalogEntryDraftBase.get_content_fields() == CatalogContentFields.get_content_fields()
+        assert CatalogEntryDraftBase.get_list_fields() == CatalogContentFields.get_list_fields()
+        assert CatalogEntryDraftBase.get_atomic_list_fields() == CatalogContentFields.get_atomic_list_fields()
+        assert CatalogEntryDraftBase.get_date_fields() == CatalogContentFields.get_date_fields()
+        assert CatalogEntryDraftBase.get_long_text_fields() == CatalogContentFields.get_long_text_fields()
+
+    def test_to_api_dict_serializes_dates(self):
+        """Test to_api_dict converts date fields to ISO format."""
+        entry = CatalogContentFields(
+            title="Test",
+            issued=date(2024, 9, 25),
+        )
+        result = entry.to_api_dict()
+        assert result["title"] == entry.title
+        assert entry.issued is not None
+        assert result["issued"] == entry.issued.isoformat()
+
+    def test_to_api_dict_with_none_date(self):
+        """Test to_api_dict handles None date fields properly."""
+        entry = CatalogContentFields(title="Test", issued=None)
+        result = entry.to_api_dict()
+        assert result["title"] == entry.title
+        assert result["issued"] == entry.issued
+
+    def test_to_summary_dict_truncates_long_text(self):
+        """Test to_summary_dict truncates description beyond max_text_length."""
+        long_desc = "A" * 200
+        entry = CatalogContentFields(title="Test", description=long_desc)
+        result = entry.to_summary_dict(max_text_length=100)
+        assert result["description"] == "A" * 100 + "..."
+        assert result["title"] == entry.title
+
+    def test_to_summary_dict_no_truncation_needed(self):
+        """Test to_summary_dict preserves text shorter than max_length."""
+        entry = CatalogContentFields(title="Test", description="Short description")
+        result = entry.to_summary_dict(max_text_length=100)
+        assert result["description"] == entry.description
+        assert result["title"] == entry.title

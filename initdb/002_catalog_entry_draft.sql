@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS catalog_entry_draft
     theme             TEXT[],                                                     -- 주제 분류 배열 (dcat:theme)
     landing_page      TEXT,                                                       -- 웹 페이지 URL (dcat:landingPage)
     access_url        TEXT,                                                       -- 접근 URL (dcat:accessURL)
+    external_ids      TEXT[],                                                     -- 외부 식별자 목록 (adms:identifier notation 값)
 
     -- 매핑 근거 (필드별 top-k 후보와 correlation 점수)
     mapping_evidence  JSONB NOT NULL DEFAULT '{}'::jsonb                          -- 매핑 결정 근거 저장
@@ -37,4 +38,5 @@ COMMENT ON COLUMN catalog_entry_draft.id IS '자동 생성 드래프트 고유 �
 COMMENT ON COLUMN catalog_entry_draft.snapshot_id IS '원본 메타데이터 스냅샷 참조';
 COMMENT ON COLUMN catalog_entry_draft.mapping_version IS '드래프트 생성에 사용된 매핑 로직 버전';
 COMMENT ON COLUMN catalog_entry_draft.status IS '드래프트 상태: PENDING(검토대기), PUBLISHED(발행완료), DISCARDED(폐기)';
+COMMENT ON COLUMN catalog_entry_draft.external_ids IS '외부 식별자 목록. adms:identifier notation 값 배열.';
 COMMENT ON COLUMN catalog_entry_draft.mapping_evidence IS '필드별 top-k 매핑 후보와 correlation 점수를 담은 JSONB';

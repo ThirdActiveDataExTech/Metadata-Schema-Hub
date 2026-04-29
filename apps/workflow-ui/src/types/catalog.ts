@@ -9,6 +9,7 @@ export interface CatalogEntrySummary {
   theme: string[] | null
   landing_page: string | null
   access_url: string | null
+  external_ids: string[] | null
   ingested_at: string | null
   updated_at: string | null
 }

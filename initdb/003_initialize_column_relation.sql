@@ -78,6 +78,15 @@ VALUES ('title', 0.99, 'TBL_NM'),
        ('description', 0.70, 'VW_NM'),
        ('theme', 0.50, 'STAT_ID');
 
+-- 외부 식별자 (external_ids) 매핑
+INSERT INTO column_relation (catalog_column, correlation, metadata_column)
+VALUES ('external_ids', 1.00, 'identifier'),
+       ('external_ids', 0.99, 'dct:identifier'),
+       ('external_ids', 0.90, 'url'),
+       ('external_ids', 0.80, 'dcat:Catalog.dcat:dataset.dcat:Dataset.dcat:landingPage.rdf:resource'),
+       ('external_ids', 0.70, 'dcat:Catalog.dcat:service.dcat:DataService.dcat:landingPage.rdf:resource'),
+       ('external_ids', 0.90, 'TBL_ID');
+
 -- KOSIS SDMX 통계목록 데이터 매핑
 INSERT INTO column_relation (catalog_column, correlation, metadata_column)
 VALUES ('title', 0.99,

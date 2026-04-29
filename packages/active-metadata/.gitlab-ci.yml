@@ -1,0 +1,87 @@
+stages:
+  - lint
+  - test
+  - publish
+
+include:
+  - project: wisenut-research/starter/templates/gitlab-ci-template
+    ref: main
+    file:
+      - templates/Python/Dependency-Management.gitlab-ci.yml
+      - templates/Python/Lint/Uv-Lint.gitlab-ci.yml
+      - templates/Python/Test/Uv-Test.gitlab-ci.yml
+
+variables:
+  PKG_DIR: packages/active-metadata
+
+default:
+  before_script:
+    - cd $PKG_DIR
+
+.pkg-lint:
+  extends: .uv-lint
+  before_script:
+    - !reference [default, before_script]
+    - echo "Running before_script tasks for $CI_JOB_NAME"
+    - apt-get update && apt-get install -y libatomic1
+    - uv sync --group lint
+    - source .venv/bin/activate
+  rules:
+    - changes:
+        - $PKG_DIR/**/*
+
+ruff-lint:
+  extends: .pkg-lint
+  script:
+    - ruff check --target-version $PYTHON_VERSION .
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["py311"]
+
+pyright-lint:
+  extends: .pkg-lint
+  script:
+    - pyright --pythonversion $PYTHON_VERSION ./
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.11"]
+
+.pkg-test:
+  extends:
+    - .uv-unit-test
+  before_script:
+    - !reference [default, before_script]
+    - echo "Running before_script tasks for $CI_JOB_NAME";
+    - uv sync --group dev
+    - source .venv/bin/activate
+  rules:
+    - changes:
+        - $PKG_DIR/**/*
+
+pytest:
+  extends: .pkg-test
+  script:
+    - pytest --cov --cov-report term --cov-report xml:coverage.xml --junitxml=report.xml -q tests
+  parallel:
+    matrix:
+      - PYTHON_VERSION: ["3.11"]
+
+publish-package:
+  stage: publish
+  extends: .uv
+  before_script:
+    - cd $PKG_DIR
+  script:
+    - |
+      MAJOR_VERSION=$(grep -E "^version\s*=" pyproject.toml | head -1 | cut -d'"' -f2)
+      VERSION=${MAJOR_VERSION}.dev${CI_PIPELINE_IID}
+      sed -i "s/^version = .*/version = \"$VERSION\"/" pyproject.toml
+    - uv build
+    - uv publish
+        --publish-url ${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/packages/pypi
+        --username gitlab-ci-token
+        --password ${CI_JOB_TOKEN}
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+      changes:
+        - $PKG_DIR/**/*

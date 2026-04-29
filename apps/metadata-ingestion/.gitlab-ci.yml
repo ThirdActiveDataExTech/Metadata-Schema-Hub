@@ -35,6 +35,7 @@ default:
   rules:
     - changes:
         - $APP_DIR/**/*
+        - packages/active-metadata/**/*
 
 ruff-lint:
   extends: .app-lint
@@ -63,6 +64,7 @@ pyright-lint:
   rules:
     - changes:
         - $APP_DIR/**/*
+        - packages/active-metadata/**/*
 
 pytest:
   extends: .app-test

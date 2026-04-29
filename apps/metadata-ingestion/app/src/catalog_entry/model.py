@@ -2,7 +2,7 @@ import uuid
 from datetime import date, datetime
 from typing import Any, Dict, List, Optional
 
-from active_metadata import CatalogEntryBase, parse_date, to_str_list
+from active_metadata import CatalogEntryBase, parse_date, to_atomic_list, to_str_list
 from pydantic import BaseModel
 from sqlmodel import Field
 
@@ -26,6 +26,7 @@ class CatalogEntrySummary(BaseModel):
     landing_page: Optional[str] = None
     theme: Optional[List[str]] = None
     access_url: Optional[str] = None
+    external_ids: Optional[List[str]] = None
     ingested_at: Optional[str] = None
     updated_at: Optional[str] = None
 
@@ -50,12 +51,15 @@ class CatalogEntryUpdate(BaseModel):
     landing_page: Optional[str] = None
     theme: Optional[List[str]] = None
     access_url: Optional[str] = None
+    external_ids: Optional[List[str]] = None
     latest_snapshot_id: Optional[str] = None
 
     def set_field(self, field_name: str, value: Any):
         """Set field with type coercion."""
         if field_name in CatalogEntryBase.get_list_fields():
             value = to_str_list(value)
+        elif field_name in CatalogEntryBase.get_atomic_list_fields():
+            value = to_atomic_list(value)
         elif field_name in CatalogEntryBase.get_date_fields():
             value = parse_date(value)
         setattr(self, field_name, value)

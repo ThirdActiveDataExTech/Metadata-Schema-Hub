@@ -1,14 +1,24 @@
 from typing import Annotated, Optional
 
+from active_metadata.agent_schemas import AvailableMetadataItem, DraftMappingRequest
 from fastapi import APIRouter, Body, HTTPException, Path, Query
 
+from app.config import settings
 from app.dependencies import SessionDep
 from app.handlers import ExceptionHandlingRoute
 from app.schemas.response import APIResponseModel
+from app.src.agent_client.dependencies import AgentClientDep
+from app.src.agent_client.exceptions import (
+    AgentDisabledError,
+    AgentResponseError,
+    AgentTimeoutError,
+    AgentUnavailableError,
+)
 from app.src.catalog_entry_draft.dependencies import CatalogEntryDraftServiceDep
 from app.src.catalog_entry_draft.examples import DRAFT_UPDATE_EXAMPLES
 from app.src.catalog_entry_draft.model import DraftFieldsUpdateRequest
 from app.src.metadata_entry.dependencies import MetadataEntryServiceDep
+from app.src.workflow.ingestion_workflow import IngestionWorkflowService
 
 router = APIRouter(
     prefix="/draft",
@@ -140,10 +150,15 @@ async def get_draft_evidence(
     if not draft:
         raise HTTPException(status_code=404, detail=f"Draft {draft_id} not found")
 
+    mapping_score = IngestionWorkflowService.compute_mapping_score(draft.mapping_evidence)
+    is_low_confidence = mapping_score < settings.AUTO_PUBLISH_THRESHOLD
+
     return APIResponseModel(
         result={
             "draft_id": draft_id,
             "mapping_evidence": draft.mapping_evidence,
+            "mapping_score": mapping_score,
+            "is_low_confidence": is_low_confidence,
         },
         description=f"드래프트 {draft_id} 매핑 증거 조회 완료",
     )
@@ -225,45 +240,6 @@ async def update_draft_fields(
 
 
 @router.post(
-    "/entries/{draft_id}/publish",
-    summary="드래프트 발행",
-    response_model=APIResponseModel,
-    responses={
-        400: {"description": "발행 조건 미충족 (필수 필드 누락, 이미 발행됨 등)"},
-        404: {"description": "해당 ID의 드래프트가 존재하지 않음"},
-    },
-)
-async def publish_draft(
-    session: SessionDep,
-    draft_service: CatalogEntryDraftServiceDep,
-    draft_id: int = Path(
-        title="드래프트 ID",
-        description="발행할 드래프트의 고유 식별 번호",
-        example=1,
-        ge=1,
-    ),
-) -> APIResponseModel:
-    """드래프트를 발행하여 카탈로그 엔트리를 생성합니다.
-
-    드래프트 상태가 PUBLISHED로 변경되고 새로운 카탈로그 엔트리가 생성됩니다.
-    이미 발행된 드래프트는 다시 발행할 수 없습니다."""
-    try:
-        catalog_entry = draft_service.publish(session, draft_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e)) from e
-
-    return APIResponseModel(
-        result={
-            "catalog_entry_id": catalog_entry.id,
-            "identifier": catalog_entry.identifier,
-            "title": catalog_entry.title,
-            "latest_snapshot_id": catalog_entry.latest_snapshot_id,
-        },
-        description=f"드래프트 {draft_id} 발행 완료, 카탈로그 엔트리 {catalog_entry.id} 생성",
-    )
-
-
-@router.post(
     "/entries/{draft_id}/discard",
     summary="드래프트 폐기",
     response_model=APIResponseModel,
@@ -297,4 +273,72 @@ async def discard_draft(
             "status": draft.status,
         },
         description=f"드래프트 {draft_id} 폐기 완료",
+    )
+
+
+@router.post(
+    "/entries/{draft_id}/regen",
+    summary="에이전트 기반 드래프트 필드 재생성",
+    response_model=APIResponseModel,
+    responses={
+        400: {"description": "잘못된 필드명 또는 메타데이터 스키마"},
+        404: {"description": "해당 ID의 드래프트가 존재하지 않음"},
+        503: {"description": "에이전트 비활성화 또는 연결 불가"},
+        504: {"description": "에이전트 응답 시간 초과"},
+    },
+)
+async def regen_draft_fields(
+    session: SessionDep,
+    draft_service: CatalogEntryDraftServiceDep,
+    metadata_service: MetadataEntryServiceDep,
+    agent_client: AgentClientDep,
+    draft_id: int = Path(
+        title="드래프트 ID",
+        description="에이전트 재생성을 요청할 드래프트의 고유 식별 번호",
+        example=1,
+        ge=1,
+    ),
+) -> APIResponseModel:
+    """외부 LangGraph 에이전트를 호출하여 드래프트 필드 매핑을 재생성합니다.
+
+    AGENT_ENABLED=True 및 AGENT_SERVICE_URL 설정이 필요합니다.
+    에이전트 응답의 updates를 적용하여 드래프트를 갱신합니다.
+    누락된 필드는 현재 decided 값이 유지됩니다."""
+    if not settings.AGENT_ENABLED:
+        raise HTTPException(
+            status_code=503,
+            detail="Agent integration is disabled. Set AGENT_ENABLED=True and AGENT_SERVICE_URL.",
+        )
+
+    draft = draft_service.get_draft(session, draft_id)
+    if not draft:
+        raise HTTPException(status_code=404, detail=f"Draft {draft_id} not found")
+
+    metadata_entries = metadata_service.select_metadata(session, draft.snapshot_id)
+
+    agent_request = DraftMappingRequest(
+        draft_id=draft_id,
+        snapshot_id=str(draft.snapshot_id),
+        mapping_evidence={k: v for k, v in draft.mapping_evidence.items()},
+        available_metadata=[
+            AvailableMetadataItem(metadata_schema=e.metadata_schema, value=e.value) for e in metadata_entries
+        ],
+    )
+
+    try:
+        agent_response = agent_client.regen_draft_mapping(agent_request)
+    except AgentDisabledError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except AgentTimeoutError as e:
+        raise HTTPException(status_code=504, detail=str(e))
+    except AgentUnavailableError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except AgentResponseError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    updated_draft = draft_service.update_draft_fields(session, draft_id, agent_response.updates, metadata_entries)
+
+    return APIResponseModel(
+        result=updated_draft.to_api_dict(),
+        description=f"드래프트 {draft_id} 에이전트 재생성 완료 ({len(agent_response.updates)}개 필드)",
     )

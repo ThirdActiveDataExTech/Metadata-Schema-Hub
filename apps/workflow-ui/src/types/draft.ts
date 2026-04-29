@@ -56,6 +56,7 @@ export interface DraftDetail extends DraftSummary {
   theme: string[] | null
   landing_page: string | null
   access_url: string | null
+  external_ids: string[] | null
   mapping_evidence: MappingEvidence
   updated_at: string
 }
@@ -77,4 +78,11 @@ export interface PublishResult {
 export interface DiscardResult {
   id: number
   status: 'DISCARDED'
+}
+
+export interface DraftEvidenceResponse {
+  draft_id: number
+  mapping_evidence: MappingEvidence
+  mapping_score: number
+  is_low_confidence: boolean
 }

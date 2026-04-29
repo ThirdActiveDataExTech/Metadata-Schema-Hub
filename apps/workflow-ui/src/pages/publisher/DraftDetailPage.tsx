@@ -1,13 +1,30 @@
 import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
-import { getDraft, publishDraft, discardDraft, getMetadataOptions, updateDraftFields } from '../../api'
-import { StatusBadge } from '../../components'
-import type { DraftDetail, MetadataEntryOption, MappingCandidate } from '../../types'
+import { getDraft, discardDraft, getMetadataOptions, updateDraftFields, getMergeByDraft, executeMergePhase, getDraftEvidence, streamDraftRegen } from '../../api'
+import { StatusBadge, TagList, AgentSidebar } from '../../components'
+import { useAgentStream } from '../../hooks/useAgentStream'
+import type { DraftDetail, MetadataEntryOption, MappingCandidate, DraftEvidenceResponse } from '../../types'
 
 const EDITABLE_FIELDS = [
   'title', 'description', 'publisher', 'issued', 'modified',
-  'keyword', 'theme', 'landing_page', 'access_url'
+  'keyword', 'theme', 'landing_page', 'access_url', 'external_ids'
 ] as const
+
+const DRAFT_NODE_LABELS: Record<string, string> = {
+  parse_context: '컨텍스트 분석',
+  enrich_metadata_candidates: '메타데이터 후보 탐색',
+  decide_field_mappings: '필드 매핑 결정',
+  validate_decisions: '결정 검증',
+  build_draft_response: '응답 생성',
+}
+
+const DRAFT_NODE_ORDER = [
+  'parse_context',
+  'enrich_metadata_candidates',
+  'decide_field_mappings',
+  'validate_decisions',
+  'build_draft_response',
+]
 
 type EditableField = typeof EDITABLE_FIELDS[number]
 
@@ -16,9 +33,16 @@ export default function DraftDetailPage() {
   const navigate = useNavigate()
   const [draft, setDraft] = useState<DraftDetail | null>(null)
   const [loading, setLoading] = useState(true)
-  const [publishing, setPublishing] = useState(false)
   const [discarding, setDiscarding] = useState(false)
+  const [creatingMerge, setCreatingMerge] = useState(false)
+  const [mergeId, setMergeId] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
+
+  // Agent regen state
+  const [evidence, setEvidence] = useState<DraftEvidenceResponse | null>(null)
+  const [regenResult, setRegenResult] = useState<{ changedFields: string[]; newScore: number } | null>(null)
+  const [agentUpdatedFields, setAgentUpdatedFields] = useState<Set<string>>(new Set())
+  const agent = useAgentStream()
 
   // Edit mode state
   const [isEditing, setIsEditing] = useState(false)
@@ -36,13 +60,27 @@ export default function DraftDetailPage() {
   const loadDraftAndMetadata = async (draftId: number) => {
     setLoading(true)
     try {
-      // Load draft and metadata options in parallel
+      // Load draft, metadata options, and evidence in parallel
       const [draftData, options] = await Promise.all([
         getDraft(draftId),
         getMetadataOptions(draftId)
       ])
       setDraft(draftData)
       setMetadataOptions(options)
+      // Load evidence (best-effort)
+      try {
+        const evidenceData = await getDraftEvidence(draftId)
+        setEvidence(evidenceData)
+      } catch {
+        // Evidence may not be available
+      }
+      // Load linked merge
+      try {
+        const mergeData = await getMergeByDraft(draftId)
+        setMergeId(mergeData.id)
+      } catch {
+        // Merge may not exist yet
+      }
     } catch (err) {
       console.error('Failed to load draft:', err)
     } finally {
@@ -105,23 +143,6 @@ export default function DraftDetailPage() {
     }
   }
 
-  const handlePublish = async () => {
-    if (!id || !confirm('Are you sure you want to publish this draft?')) return
-
-    setPublishing(true)
-    setError(null)
-
-    try {
-      const result = await publishDraft(Number(id))
-      alert(`Published successfully! Catalog Entry ID: ${result.catalog_entry_id}`)
-      navigate(`/catalog/${result.catalog_entry_id}`)
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to publish')
-    } finally {
-      setPublishing(false)
-    }
-  }
-
   const handleDiscard = async () => {
     if (!id || !confirm('Are you sure you want to discard this draft?')) return
 
@@ -136,6 +157,68 @@ export default function DraftDetailPage() {
       setError(err instanceof Error ? err.message : 'Failed to discard')
     } finally {
       setDiscarding(false)
+    }
+  }
+
+  const handleSendToMerge = async () => {
+    if (!id) return
+
+    setCreatingMerge(true)
+    setError(null)
+    try {
+      const result = await executeMergePhase(Number(id))
+      setMergeId(result.merge.id)
+      navigate(`/admin/merges/${result.merge.id}`)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to create merge')
+    } finally {
+      setCreatingMerge(false)
+    }
+  }
+
+  const handleRegen = async () => {
+    if (!id || !draft) return
+    setError(null)
+    setRegenResult(null)
+    const prevEvidence = draft.mapping_evidence
+
+    // Phase 1: Stream agent events (read-only)
+    const finalEvent = await agent.start((signal) =>
+      streamDraftRegen(Number(id), {
+        onEvent: agent.addEvent,
+        onComplete: agent.onComplete,
+        onError: (msg) => { agent.setError(msg); setError(msg) },
+        signal,
+      })
+    )
+
+    if (finalEvent?.type !== 'final_response' || !finalEvent.data) return
+
+    // Phase 2: Apply result via existing PATCH endpoint
+    try {
+      const updates = (finalEvent.data.updates as Array<{ catalog_field: string; metadata_schema: string }>) || []
+      const updatedDraft = await updateDraftFields(Number(id), { updates })
+
+      const changed = EDITABLE_FIELDS.filter(field => {
+        const prev = prevEvidence?.[field]?.decided
+        const next = updatedDraft.mapping_evidence?.[field]?.decided
+        if (!prev && !next) return false
+        return prev?.metadata_column !== next?.metadata_column || prev?.value !== next?.value
+      })
+      setDraft(updatedDraft)
+      setAgentUpdatedFields(new Set(changed))
+
+      let newScore = evidence?.mapping_score ?? 0
+      try {
+        const evidenceData = await getDraftEvidence(Number(id))
+        setEvidence(evidenceData)
+        newScore = evidenceData.mapping_score
+      } catch { /* ignore */ }
+      setRegenResult({ changedFields: changed, newScore })
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Failed to apply agent result'
+      setError(msg)
+      agent.setError(msg)
     }
   }
 
@@ -207,19 +290,32 @@ export default function DraftDetailPage() {
                   Edit
                 </button>
                 <button
+                  onClick={() => agent.sidebarVisible ? agent.closeSidebar() : agent.openSidebar()}
+                  className={`btn ${evidence?.is_low_confidence ? 'btn-warning' : 'btn-secondary'} ${agent.sidebarVisible ? 'active' : ''}`}
+                  title={evidence?.is_low_confidence ? 'Low confidence — 에이전트 재생성 권장' : '에이전트 패널'}
+                >
+                  Agent
+                </button>
+                <button
                   onClick={handleDiscard}
                   disabled={discarding}
                   className="btn btn-danger"
                 >
                   {discarding ? 'Discarding...' : 'Discard'}
                 </button>
-                <button
-                  onClick={handlePublish}
-                  disabled={publishing}
-                  className="btn btn-primary"
-                >
-                  {publishing ? 'Publishing...' : 'Publish'}
-                </button>
+                {mergeId ? (
+                  <Link to={`/admin/merges/${mergeId}`} className="btn btn-primary">
+                    Merge Review
+                  </Link>
+                ) : (
+                  <button
+                    onClick={handleSendToMerge}
+                    disabled={creatingMerge}
+                    className="btn btn-primary"
+                  >
+                    {creatingMerge ? 'Creating Merge...' : 'Send to Merge'}
+                  </button>
+                )}
               </>
             )}
           </div>
@@ -230,10 +326,38 @@ export default function DraftDetailPage() {
         <div className="error-message">{error}</div>
       )}
 
+      {regenResult && (
+        <div className={`agent-result-card ${regenResult.changedFields.length > 0 ? 'agent-result-approve' : 'agent-result-defer'}`}>
+          <div className="agent-result-header">
+            <span className="agent-result-label">Agent Regen 완료</span>
+            <span className={`agent-decision-badge ${regenResult.changedFields.length > 0 ? 'decision-approve' : 'decision-defer'}`}>
+              {regenResult.changedFields.length > 0 ? `${regenResult.changedFields.length}개 필드 변경` : '변경 없음'}
+            </span>
+            <span className="agent-result-score">
+              Mapping Score: {(regenResult.newScore * 100).toFixed(1)}%
+            </span>
+          </div>
+          {regenResult.changedFields.length > 0 && (
+            <div className="agent-result-reason">
+              변경된 필드: {regenResult.changedFields.join(', ')}
+            </div>
+          )}
+        </div>
+      )}
+
       <div className="draft-detail">
         <div className="draft-header">
           <h1>{draft.title || '(No title)'}</h1>
           <StatusBadge status={draft.status} />
+          {evidence && (
+            <div className={`mapping-score-badge ${evidence.is_low_confidence ? 'low-confidence' : 'high-confidence'}`}
+              title={`Mapping Score: ${(evidence.mapping_score * 100).toFixed(1)}%`}
+            >
+              <span className="score-label">Mapping</span>
+              <span className="score-value">{(evidence.mapping_score * 100).toFixed(1)}%</span>
+              {evidence.is_low_confidence && <span className="confidence-tag">Low Confidence</span>}
+            </div>
+          )}
         </div>
 
         {/* 3-Column Layout */}
@@ -252,7 +376,7 @@ export default function DraftDetailPage() {
                 return (
                   <div
                     key={field}
-                    className={`field-card clickable ${isEditing ? 'editable' : ''} ${activeField === field ? 'active' : ''} ${pendingSelection ? 'pending-change' : ''}`}
+                    className={`field-card clickable ${isEditing ? 'editable' : ''} ${activeField === field ? 'active' : ''} ${pendingSelection ? 'pending-change' : ''} ${agentUpdatedFields.has(field) ? 'agent-updated' : ''}`}
                     onClick={() => handleFieldClick(field)}
                   >
                     <div className="field-card-header">
@@ -261,6 +385,7 @@ export default function DraftDetailPage() {
                       </span>
                       {isFieldModified(field) && <span className="modified-badge">Modified</span>}
                       {pendingSelection && <span className="pending-badge">Pending</span>}
+                      {agentUpdatedFields.has(field) && <span className="agent-badge">Agent</span>}
                     </div>
                     <div className="field-card-value">
                       {pendingSelection ? (
@@ -280,14 +405,11 @@ export default function DraftDetailPage() {
                           </div>
                         </>
                       ) : (
-                        field === 'keyword' || field === 'theme' ? (
-                          draft[field]?.length ? (
-                            <div className="tag-list">
-                              {draft[field]!.map((item: string, i: number) => (
-                                <span key={i} className={`${field === 'keyword' ? 'keyword' : 'theme'}-tag`}>{item}</span>
-                              ))}
-                            </div>
-                          ) : <span className="empty">-</span>
+                        field === 'keyword' || field === 'theme' || field === 'external_ids' ? (
+                          <TagList
+                            items={draft[field]}
+                            variant={field === 'keyword' ? 'keyword' : field === 'theme' ? 'theme' : 'external-id'}
+                          />
                         ) : (
                           <span className={getFieldValue(field) === '-' ? 'empty' : ''}>{getFieldValue(field)}</span>
                         )
@@ -436,6 +558,18 @@ export default function DraftDetailPage() {
           </dl>
         </div>
       </div>
+
+      <AgentSidebar
+        visible={agent.sidebarVisible}
+        onClose={agent.closeSidebar}
+        onRun={handleRegen}
+        title="드래프트 재생성"
+        events={agent.events}
+        isRunning={agent.isRunning}
+        error={agent.error}
+        nodeLabels={DRAFT_NODE_LABELS}
+        nodeOrder={DRAFT_NODE_ORDER}
+      />
     </div>
   )
 }

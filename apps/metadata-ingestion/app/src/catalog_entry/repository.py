@@ -1,7 +1,8 @@
 import json
-from typing import List, Optional, Sequence, Dict, Any
+from typing import Any, Dict, List, Optional, Sequence
 
-from sqlalchemy import and_, or_
+from sqlalchemy import Text, and_, cast, or_
+from sqlalchemy.dialects.postgresql import ARRAY as PG_ARRAY
 from sqlmodel import Session, select
 
 from app.src.catalog_entry.exceptions import CatalogEntryNotFoundError
@@ -42,10 +43,19 @@ class CatalogEntryRepository:
         stmt = select(CatalogEntry).where(CatalogEntry.identifier.in_(catalog_entry_identifiers))  # pyright: ignore
         return list(db.exec(stmt).all())
 
-    def select_summaries_by_identifiers(
-        self, db: Session, catalog_entry_identifiers: List[str]
-    ) -> List[CatalogEntrySummary]:
-        """Select catalog entry summaries by identifiers."""
+    def find_by_external_ids(self, db: Session, external_ids: List[str]) -> List[CatalogEntry]:
+        """Find catalog entries with overlapping external_ids (PostgreSQL array overlap &&)."""
+        if not external_ids:
+            return []
+        stmt = (
+            select(CatalogEntry)
+            .where(CatalogEntry.external_ids.op("&&")(cast(external_ids, PG_ARRAY(Text))))  # type: ignore
+            .order_by(CatalogEntry.updated_at.desc())  # type: ignore[union-attr]
+        )
+        return list(db.exec(stmt).all())
+
+    def select_summary_by_identifier(self, db: Session, catalog_entry_identifier: str) -> Optional[CatalogEntrySummary]:
+        """Select catalog entry summary by identifier."""
         statement = select(  # pyright: ignore
             CatalogEntry.id,
             CatalogEntry.title,
@@ -57,29 +67,31 @@ class CatalogEntryRepository:
             CatalogEntry.landing_page,
             CatalogEntry.theme,
             CatalogEntry.access_url,
+            CatalogEntry.external_ids,
             CatalogEntry.ingested_at,
             CatalogEntry.updated_at,
-        ).where(CatalogEntry.identifier.in_(catalog_entry_identifiers))  # pyright: ignore
+        ).where(CatalogEntry.identifier == catalog_entry_identifier)  # pyright: ignore
 
-        rows = db.exec(statement).all()
+        row = db.exec(statement).first()
 
-        return [
-            CatalogEntrySummary(
-                id=row.id,
-                title=row.title,
-                issued=str(row.issued) if row.issued else None,
-                modified=str(row.modified) if row.modified else None,
-                identifier=row.identifier,
-                publisher=row.publisher,
-                keyword=row.keyword,
-                landing_page=row.landing_page,
-                theme=row.theme,
-                access_url=row.access_url,
-                ingested_at=str(row.ingested_at) if row.ingested_at else None,
-                updated_at=str(row.updated_at) if row.updated_at else None,
-            )
-            for row in rows
-        ]
+        if not row:
+            return None
+
+        return CatalogEntrySummary(
+            id=row.id,
+            title=row.title,
+            issued=str(row.issued) if row.issued else None,
+            modified=str(row.modified) if row.modified else None,
+            identifier=row.identifier,
+            publisher=row.publisher,
+            keyword=row.keyword,
+            landing_page=row.landing_page,
+            theme=row.theme,
+            access_url=row.access_url,
+            external_ids=row.external_ids,
+            ingested_at=str(row.ingested_at) if row.ingested_at else None,
+            updated_at=str(row.updated_at) if row.updated_at else None,
+        )
 
     def export_data_list(self, db: Session, limit: int = None):
         """데이터베이스의 catalog_entry 테이블 전체를 list로 내보냄."""
@@ -142,6 +154,7 @@ class CatalogEntryRepository:
             CatalogEntry.landing_page,
             CatalogEntry.theme,
             CatalogEntry.access_url,
+            CatalogEntry.external_ids,
             CatalogEntry.ingested_at,
             CatalogEntry.updated_at,
         )
@@ -163,6 +176,7 @@ class CatalogEntryRepository:
                 landing_page=row.landing_page,
                 theme=row.theme,
                 access_url=row.access_url,
+                external_ids=row.external_ids,
                 ingested_at=str(row.ingested_at) if row.ingested_at else None,
                 updated_at=str(row.updated_at) if row.updated_at else None,
             )
